@@ -1,36 +1,47 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-import supabase from "./supabase-client"
+import { useState, useEffect } from "react";
+import "./App.css";
+import { supabase } from "./supabase-client";
+import { Auth } from "@supabase/auth-ui-react";
+import { ThemeSupa } from "@supabase/auth-ui-shared";
 
-function App() {
-  const [count, setCount] = useState(0)
 
-  return (
-    <>
+const App = () => {
+  const [session, setSession] = useState(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  console.log(session);
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+  };
+
+  if (!session) {
+    return <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} />;
+  } else {
+    return (
       <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        <h2>Welcome, {session?.user?.user_metadata?.full_name}</h2>
+        {session?.user?.user_metadata?.picture && (
+          <img
+            src={session.user.user_metadata.picture}
+            alt="User"
+            style={{ width: 100, borderRadius: "50%" }}
+          />
+        )}
+        <button onClick={handleSignOut}>Sign Out</button>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    );
+  }
+};
 
-export default App
+export default App;
