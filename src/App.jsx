@@ -1,47 +1,22 @@
-import { useState, useEffect } from "react";
 import "./App.css";
-import { supabase } from "./supabase-client";
-import { Auth } from "@supabase/auth-ui-react";
-import { ThemeSupa } from "@supabase/auth-ui-shared";
-
+import LoginPage from "./pages/login/page";
+import { useAuth } from "./lib/useAuth";
 
 const App = () => {
-  const [session, setSession] = useState(null);
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+const { user, isAuthorized, loading, signOut } = useAuth()
 
-  console.log(session);
+  if (loading) return <p className="text-center mt-10">Checking authentication...</p>
 
-  const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-  };
+  if (!user || !isAuthorized) return <LoginPage />
 
-  if (!session) {
-    return <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} />;
-  } else {
-    return (
-      <div>
-        <h2>Welcome, {session?.user?.user_metadata?.full_name}</h2>
-        {session?.user?.user_metadata?.picture && (
-          <img
-            src={session.user.user_metadata.picture}
-            alt="User"
-            style={{ width: 100, borderRadius: "50%" }}
-          />
-        )}
-        <button onClick={handleSignOut}>Sign Out</button>
+  return (
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-4">
+        <span>Welcome, {user.email}</span>
+        <button onClick={signOut} className="text-sm text-red-500 underline">Sign out</button>
       </div>
-    );
-  }
+    </div>
+  )
 };
 
 export default App;
