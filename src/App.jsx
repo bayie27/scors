@@ -1,5 +1,5 @@
 import "./App.css";
-import LoginPage from "./pages/login/page";
+import LoginPage from "./pages/login-page";
 import { useAuth } from "./lib/useAuth";
 
 const App = () => {
