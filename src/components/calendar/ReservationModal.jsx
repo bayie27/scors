@@ -76,8 +76,8 @@ export default function ReservationModal({
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-sm font-medium">Venue</label>
-              <select name="venue_id" value={form.venue_id} onChange={handleChange} required className="w-full border rounded px-3 py-2">
-                <option value="">Select Venue</option>
+              <select name="venue_id" value={form.venue_id} onChange={handleChange} className="w-full border rounded px-3 py-2">
+                <option value="">None</option>
                 {venues.map((v) => (
                   <option key={v.venue_id} value={v.venue_id}>{v.venue_name ? v.venue_name : `Venue ${v.venue_id}`}</option>
                 ))}

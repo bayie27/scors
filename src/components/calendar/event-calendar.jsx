@@ -260,7 +260,16 @@ export function EventCalendar() {
       const pendingStatus = statuses.find(s => s.name && s.name.toLowerCase() === 'pending');
       statusId = pendingStatus ? pendingStatus.reservation_status_id : statuses[0].reservation_status_id;
     }
-    const reservationData = { ...formWithoutType, user_id: userRows.user_id, ...(statusId && !modalEdit ? { reservation_status_id: statusId } : {}) };
+    // Prepare reservation data
+    const reservationData = {
+      ...form,
+      user_id: userRows.user_id,
+      venue_id: form.venue_id === '' ? null : form.venue_id,
+      equipment_id: form.equipment_id === '' ? null : form.equipment_id,
+      reservation_status_id: modalEdit
+        ? (form.reservation_status_id === '' ? null : form.reservation_status_id)
+        : statusId,
+    };
     if (modalEdit && selectedReservation?.reservation_id) {
       const { error } = await supabase.from('reservation').update(reservationData).eq('reservation_id', selectedReservation.reservation_id);
       if (error) {
