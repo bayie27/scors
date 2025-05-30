@@ -67,7 +67,14 @@ export function useAuth() {
   }, [handleUserSession])
 
   const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({ provider: "google" })
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        queryParams: {
+          prompt: "select_account"
+        }
+      }
+    })
   }
 
   const signOut = async () => {

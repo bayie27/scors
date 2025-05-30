@@ -9,7 +9,7 @@ export function LoginForm() {
       <div className="flex flex-col items-center space-y-8 w-full">
         <div className="space-y-4 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-green-900">Welcome to</h1>
-          <div className="h-24 flex items-center justify-center bg-white/90 rounded-xl p-4">
+          <div className="h-24 flex items-center justify-center p-2">
             <img
               src="/src/assets/scors-logo.png"
               alt="SCORS Logo"
@@ -17,7 +17,7 @@ export function LoginForm() {
             />
           </div>
           <div className="font-medium text-gray-700 text-lg">
-            De La Salle Lipa
+            Student Center Online Reservation System <br></br>De La Salle Lipa
           </div>
         </div>
         <Button
