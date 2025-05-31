@@ -23,6 +23,7 @@ export function EventCalendar() {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalEdit, setModalEdit] = useState(false);
+  const [modalView, setModalView] = useState(false); // true = view mode, false = edit/create
   const [selectedReservation, setSelectedReservation] = useState(null);
   // Lookup data
   const [venues, setVenues] = useState([]);
@@ -141,11 +142,11 @@ export function EventCalendar() {
     };
   }, [fetchReservations]);
 
-  // Handle when an event is selected
-  // Open modal to edit reservation
+  // Handle when an event is clicked (view-only first)
   const handleSelectEvent = useCallback((event) => {
-    setSelectedReservation({ ...event.rawData });
-    setModalEdit(true);
+    setSelectedReservation(event.rawData);
+    setModalEdit(false);
+    setModalView(true); // open in view mode
     setModalOpen(true);
   }, []);
 
@@ -158,6 +159,7 @@ export function EventCalendar() {
       end_time: format(slotInfo.end, 'HH:mm'),
     });
     setModalEdit(false);
+    setModalView(false);
     setModalOpen(true);
   }, []);
 
@@ -261,6 +263,7 @@ export function EventCalendar() {
       statusId = pendingStatus ? pendingStatus.reservation_status_id : statuses[0].reservation_status_id;
     }
     // Prepare reservation data
+    const nowISOString = new Date().toISOString(); // Use current local time
     const reservationData = {
       ...form,
       user_id: userRows.user_id,
@@ -268,9 +271,12 @@ export function EventCalendar() {
       equipment_id: form.equipment_id === '' ? null : form.equipment_id,
       reservation_status_id: modalEdit
         ? (form.reservation_status_id === '' ? null : form.reservation_status_id)
-        : statusId,
+        : 3,
+      reservation_ts: modalEdit && selectedReservation?.reservation_ts ? selectedReservation.reservation_ts : nowISOString,
+      edit_ts: nowISOString,
     };
     if (modalEdit && selectedReservation?.reservation_id) {
+      // Only update edit_ts for edits
       const { error } = await supabase.from('reservation').update(reservationData).eq('reservation_id', selectedReservation.reservation_id);
       if (error) {
         alert('Update failed: ' + error.message);
@@ -278,6 +284,10 @@ export function EventCalendar() {
         return;
       }
     } else {
+      // Always set status to 3 for new reservations
+      reservationData.reservation_status_id = 3;
+      reservationData.reservation_ts = nowISOString;
+      reservationData.edit_ts = nowISOString;
       const { error } = await supabase.from('reservation').insert([reservationData]);
       if (error) {
         alert('Insert failed: ' + error.message);
@@ -303,15 +313,15 @@ export function EventCalendar() {
       {/* Modal for create/edit */}
       <ReservationModal
         open={modalOpen}
-        onClose={() => { setModalOpen(false); setSelectedReservation(null); }}
+        onClose={() => { setModalOpen(false); setSelectedReservation(null); setModalView(false); setModalEdit(false); }}
         onSubmit={handleModalSubmit}
         onDelete={modalEdit ? handleModalDelete : undefined}
         initialData={selectedReservation}
         venues={venues}
         equipmentList={equipmentList}
-
-
         isEdit={modalEdit}
+        isView={modalView && !modalEdit}
+        onEditView={() => { setModalEdit(true); setModalView(false); }}
       />
       {/* Loading overlay */}
       {loading && (
