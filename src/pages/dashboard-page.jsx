@@ -4,6 +4,7 @@ import { EventCalendar } from "@/components/calendar/event-calendar";
 
 export function DashboardPage({ user, onSignOut }) {
   console.log("[DashboardPage] user:", user);
+  console.log("Avatar URL:", user?.avatar_url);
   // Function to handle event creation from the dashboard's quick add button
   const handleQuickAddEvent = () => {
     const title = prompt('Quick Add Event (Today)');
@@ -26,6 +27,13 @@ export function DashboardPage({ user, onSignOut }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-900">SCORS Dashboard</h1>
           <div className="flex items-center space-x-4">
+            {user?.avatar_url && (
+              <img 
+                src={user.avatar_url} 
+                alt="Profile" 
+                className="w-8 h-8 rounded-full object-cover border border-gray-300 mr-2"
+              />
+            )}
             <span className="text-sm text-gray-600">{user?.email}</span>
             {user?.organization ? (
               <span className="text-sm text-gray-500 ml-2">|

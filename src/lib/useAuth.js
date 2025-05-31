@@ -31,9 +31,14 @@ export function useAuth() {
   const handleUserSession = useCallback(async (session) => {
     const user = session?.user;
     if (user) {
+      console.log("User metadata:", user.user_metadata);
       const whitelistData = await checkWhitelist(user.email);
       if (whitelistData) {
-        setUser({ ...user, organization: whitelistData.organization });
+        setUser({ 
+          ...user, 
+          organization: whitelistData.organization, 
+          avatar_url: user.user_metadata?.picture
+        });
         setIsAuthorized(true);
       } else {
         await supabase.auth.signOut();
