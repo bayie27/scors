@@ -12,12 +12,8 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-export function Sidebar({ user, onSignOut, className }) {
-  const [collapsed, setCollapsed] = useState(false);
 
-  const toggleSidebar = () => {
-    setCollapsed(!collapsed);
-  };
+export function Sidebar({ user, onSignOut, onReserve, className, collapsed = false }) {
 
   const getInitials = (name) => {
     if (!name) return "U";
@@ -54,25 +50,32 @@ export function Sidebar({ user, onSignOut, className }) {
   return (
     <div
       className={cn(
-        "flex flex-col justify-between h-screen bg-white border-r border-gray-200 transition-all duration-300",
+        "flex flex-col bg-white border-r border-gray-200 transition-all duration-300 ease-in-out justify-between",
         collapsed ? "w-16" : "w-64",
         className
       )}
+      style={{ height: 'calc(100vh - 60px)', marginTop: '60px' }}
     >
-      <div>
-        <div className="flex items-center justify-between p-4 border-b">
-          {!collapsed && <h2 className="font-semibold text-lg">SCORS</h2>}
+      <div className="flex-1 overflow-y-auto">
+        {/* Reserve Button */}
+        <div className="p-3">
           <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className={cn("ml-auto", collapsed && "mx-auto")}
+            variant="default"
+            size="sm"
+            className={cn(
+              "w-full justify-start gap-2 bg-blue-600 hover:bg-blue-700 text-white h-9",
+              collapsed ? "px-2 justify-center" : "px-4"
+            )}
+            onClick={onReserve}
           >
-            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            {!collapsed && <span>Reserve</span>}
           </Button>
         </div>
 
-        <nav className="p-2">
+        <nav className="p-2 mt-2">
           <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.title}>
@@ -95,35 +98,36 @@ export function Sidebar({ user, onSignOut, className }) {
         </nav>
       </div>
 
-      <div className="p-4 border-t">
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full flex items-center justify-start",
-            collapsed ? "px-2" : "px-3"
-          )}
-          onClick={onSignOut}
-        >
-          {!collapsed ? (
-            <>
-              <Avatar className="h-8 w-8 mr-2">
-                <AvatarImage src={user?.avatar_url} />
-                <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col items-start overflow-hidden">
-                <span className="text-sm font-medium truncate">
-                  {user?.name || "User"}
-                </span>
-                <span className="text-xs text-gray-500 truncate">
+      <div className="border-t p-4 mt-auto">
+        <div className="flex flex-col space-y-3">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={user?.avatar_url} alt={user?.email} />
+              <AvatarFallback>
+                {user?.email?.substring(0, 2).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
                   {user?.email}
-                </span>
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {user?.organization?.org_name}
+                </p>
               </div>
-              <LogOut size={18} className="ml-auto" />
-            </>
-          ) : (
-            <LogOut size={20} />
-          )}
-        </Button>
+            )}
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full justify-start gap-2"
+            onClick={onSignOut}
+          >
+            <LogOut className="h-4 w-4" />
+            {!collapsed && <span>Sign out</span>}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -31,27 +31,23 @@ export function useAuth() {
 
 
   const handleUserSession = useCallback(async (session) => {
-    const user = session?.user;
-    if (user) {
-      console.log("User metadata:", user.user_metadata);
-      const whitelistData = await checkWhitelist(user.email);
-      if (whitelistData) {
-        setUser({ 
-          ...user, 
-          organization: whitelistData.organization, 
-          avatar_url: user.user_metadata?.picture
-        });
-        setIsAuthorized(true);
     // Prevent concurrent handling of auth changes
     if (processingAuthChangeRef.current) return;
     
     processingAuthChangeRef.current = true;
+    
     try {
       const user = session?.user;
       if (user) {
-        const isWhitelisted = await checkWhitelist(user.email);
-        if (isWhitelisted) {
-          setUser(user);
+        console.log("User metadata:", user.user_metadata);
+        const whitelistData = await checkWhitelist(user.email);
+        
+        if (whitelistData) {
+          setUser({ 
+            ...user, 
+            organization: whitelistData.organization, 
+            avatar_url: user.user_metadata?.picture
+          });
           setIsAuthorized(true);
         } else {
           await supabase.auth.signOut();
@@ -62,6 +58,10 @@ export function useAuth() {
         setUser(null);
         setIsAuthorized(false);
       }
+    } catch (error) {
+      console.error("Error handling user session:", error);
+      setUser(null);
+      setIsAuthorized(false);
     } finally {
       processingAuthChangeRef.current = false;
       // Only set loading to false after initial check
