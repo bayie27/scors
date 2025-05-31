@@ -42,10 +42,18 @@ export default function ReservationModal({
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const [validationError, setValidationError] = useState('');
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!form.venue_id && !form.equipment_id) {
+      setValidationError('Please select at least a Venue or Equipment.');
+      return;
+    }
+    setValidationError('');
     onSubmit(form);
   };
+
 
   if (!open) return null;
 
@@ -53,6 +61,9 @@ export default function ReservationModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
         <button onClick={onClose} className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-xl">×</button>
+        {validationError && (
+          <div className="mb-2 text-red-600 font-medium text-sm">{validationError}</div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <h2 className="text-lg font-semibold mb-2">{isEdit ? 'Edit Reservation' : 'New Reservation'}</h2>
           <div>
