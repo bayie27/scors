@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { EventCalendar } from "@/components/calendar/event-calendar";
 
 export function DashboardPage({ user, onSignOut }) {
+  console.log("[DashboardPage] user:", user);
   // Function to handle event creation from the dashboard's quick add button
   const handleQuickAddEvent = () => {
     const title = prompt('Quick Add Event (Today)');
@@ -26,6 +27,13 @@ export function DashboardPage({ user, onSignOut }) {
           <h1 className="text-2xl font-bold text-gray-900">SCORS Dashboard</h1>
           <div className="flex items-center space-x-4">
             <span className="text-sm text-gray-600">{user?.email}</span>
+            {user?.organization ? (
+              <span className="text-sm text-gray-500 ml-2">|
+                {user.organization.org_code} - {user.organization.org_name}
+              </span>
+            ) : (
+              <span className="text-sm text-red-500 ml-2">| No organization info</span>
+            )}
             <Button 
               onClick={onSignOut} 
               variant="outline" 

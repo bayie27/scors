@@ -10,7 +10,7 @@ export function useAuth() {
     try {
       const { data, error } = await supabase
         .from("user")
-        .select("whitelisted_email")
+        .select("whitelisted_email, org_id, organization(org_code, org_name)")
         .eq("whitelisted_email", email);
 
       if (error || !data || data.length === 0) {
@@ -18,19 +18,22 @@ export function useAuth() {
         return false;
       }
 
-      return true;
+      // Log the data for debugging
+      console.log('[Whitelist] Found user data:', data[0]);
+      return data[0]; // return the full record for later use
     } catch (err) {
       console.error("Unexpected error in checkWhitelist:", err);
       return false;
     }
   };
 
+
   const handleUserSession = useCallback(async (session) => {
     const user = session?.user;
     if (user) {
-      const isWhitelisted = await checkWhitelist(user.email);
-      if (isWhitelisted) {
-        setUser(user);
+      const whitelistData = await checkWhitelist(user.email);
+      if (whitelistData) {
+        setUser({ ...user, organization: whitelistData.organization });
         setIsAuthorized(true);
       } else {
         await supabase.auth.signOut();
