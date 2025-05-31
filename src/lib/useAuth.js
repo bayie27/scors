@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "../supabase-client.js";
 
 export function useAuth() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
+  const initializedRef = useRef(false)
+  const processingAuthChangeRef = useRef(false)
 
   const checkWhitelist = async (email) => {
     try {
@@ -26,22 +28,40 @@ export function useAuth() {
   };
 
   const handleUserSession = useCallback(async (session) => {
-    const user = session?.user;
-    if (user) {
-      const isWhitelisted = await checkWhitelist(user.email);
-      if (isWhitelisted) {
-        setUser(user);
-        setIsAuthorized(true);
+    // Prevent concurrent handling of auth changes
+    if (processingAuthChangeRef.current) return;
+    
+    processingAuthChangeRef.current = true;
+    try {
+      const user = session?.user;
+      if (user) {
+        const isWhitelisted = await checkWhitelist(user.email);
+        if (isWhitelisted) {
+          setUser(user);
+          setIsAuthorized(true);
+        } else {
+          await supabase.auth.signOut();
+          setUser(null);
+          setIsAuthorized(false);
+        }
       } else {
-        await supabase.auth.signOut();
+        setUser(null);
+        setIsAuthorized(false);
       }
-    } else {
-      setUser(null);
-      setIsAuthorized(false);
+    } finally {
+      processingAuthChangeRef.current = false;
+      // Only set loading to false after initial check
+      if (!initializedRef.current) {
+        initializedRef.current = true;
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    // Skip setup if already initialized
+    if (initializedRef.current) return;
+    
     const init = async () => {
       try {
         const {
@@ -50,8 +70,8 @@ export function useAuth() {
         await handleUserSession(session);
       } catch (error) {
         console.error("Error during authentication initialization:", error);
-      } finally {
         setLoading(false);
+        initializedRef.current = true;
       }
     };
 
@@ -59,11 +79,17 @@ export function useAuth() {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        await handleUserSession(session);
+        if (initializedRef.current) {
+          await handleUserSession(session);
+        }
       }
     );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      if (listener?.subscription?.unsubscribe) {
+        listener.subscription.unsubscribe();
+      }
+    };
   }, [handleUserSession])
 
   const signInWithGoogle = async () => {
