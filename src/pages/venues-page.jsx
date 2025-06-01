@@ -1,5 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, Search as SearchIcon, Filter } from 'lucide-react';
+import { 
+  Plus, 
+  Search as SearchIcon, 
+  Filter, 
+  Users as PeopleIcon, 
+  MapPin as MapPinIcon, 
+  Projector, 
+  AudioLines, 
+  Wifi, 
+  SquareDashed, 
+  SquareStack, 
+  Monitor, 
+  Clipboard, 
+  AirVent, 
+  Book 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +37,61 @@ import {
 import { supabase } from '@/supabase-client';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
+
+// Simple image carousel for venue modal
+function VenueImageCarousel({ images = [] }) {
+  const [idx, setIdx] = useState(0);
+  if (!images.length) return null;
+  const goPrev = (e) => { e.stopPropagation(); setIdx(idx === 0 ? images.length - 1 : idx - 1); };
+  const goNext = (e) => { e.stopPropagation(); setIdx(idx === images.length - 1 ? 0 : idx + 1); };
+  return (
+    <div className="relative w-full h-64 bg-black">
+      <img src={images[idx]} alt="Venue" className="w-full h-64 object-cover" />
+      {images.length > 1 && (
+        <>
+          <button onClick={goPrev} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full w-8 h-8 flex items-center justify-center shadow">
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <button onClick={goNext} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full w-8 h-8 flex items-center justify-center shadow">
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg>
+          </button>
+        </>
+      )}
+      {images.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+          {images.map((_, i) => (
+            <span key={i} className={`block w-2 h-2 rounded-full ${i === idx ? 'bg-white' : 'bg-white/50'}`}></span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Map amenity names to Lucide icons
+function AmenityIcon({ name, ...props }) {
+  switch ((name || '').toLowerCase()) {
+    case 'projector': return <Projector {...props} />;
+    case 'whiteboard': return <Clipboard {...props} />;
+    case 'ac': return <AirVent {...props} />;
+    case 'wifi': return <Wifi {...props} />;
+    case 'audio': return <AudioLines {...props} />;
+    case 'monitor': return <Monitor {...props} />;
+    case 'book': return <Book {...props} />;
+    default: return <SquareDashed {...props} />;
+  }
+}
+
+// Map equipment names to Lucide icons
+function EquipmentIcon({ name, ...props }) {
+  switch ((name || '').toLowerCase()) {
+    case 'projector & screen': return <Projector {...props} />;
+    case 'audio system': return <AudioLines {...props} />;
+    case 'high-speed wifi': return <Wifi {...props} />;
+    default: return <SquareStack {...props} />;
+  }
+}
+
 
 export function VenuesPage() {
   const [venues, setVenues] = useState([]);
@@ -283,93 +353,109 @@ export function VenuesPage() {
             
             {/* Image Carousel */}
             <div className="relative">
-              <img src={selectedVenue.image_url} alt={selectedVenue.venue_name} className="w-full h-64 object-cover" />
-              
-              <button className="absolute left-2 top-1/2 -translate-y-1/2 bg-white rounded-full h-8 w-8 flex items-center justify-center shadow-md">
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.84182 3.13514C9.04327 3.32401 9.05348 3.64042 8.86462 3.84188L5.43521 7.49991L8.86462 11.1579C9.05348 11.3594 9.04327 11.6758 8.84182 11.8647C8.64036 12.0535 8.32394 12.0433 8.13508 11.8419L4.38508 7.84188C4.20477 7.64955 4.20477 7.35027 4.38508 7.15794L8.13508 3.15794C8.32394 2.95648 8.64036 2.94628 8.84182 3.13514Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
-              </button>
-              
-              <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-white rounded-full h-8 w-8 flex items-center justify-center shadow-md">
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.1584 3.13508C6.35985 2.94621 6.67627 2.95642 6.86514 3.15788L10.6151 7.15788C10.7954 7.3502 10.7954 7.64949 10.6151 7.84182L6.86514 11.8418C6.67627 12.0433 6.35985 12.0535 6.1584 11.8646C5.95694 11.6757 5.94673 11.3593 6.1356 11.1579L9.565 7.49985L6.1356 3.84182C5.94673 3.64036 5.95694 3.32394 6.1584 3.13508Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
-              </button>
-              
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                <div className="h-1.5 w-1.5 bg-white rounded-full opacity-100"></div>
-                <div className="h-1.5 w-1.5 bg-white rounded-full opacity-50"></div>
-                <div className="h-1.5 w-1.5 bg-white rounded-full opacity-50"></div>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              <h2 className="text-xl font-bold mb-1">{selectedVenue.venue_name}</h2>
-              
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                <div className="text-sm">
-                  <div className="font-medium text-gray-500 mb-1">Capacity:</div>
-                  <div className="flex items-center gap-1">
-                    <svg className="text-gray-700" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
-                    <span>{selectedVenue.capacity || 12} people</span>
-                  </div>
-                </div>
-                
-                <div className="text-sm">
-                  <div className="font-medium text-gray-500 mb-1">Ground Floor:</div>
-                  <div>{selectedVenue.location || 'Building A'}</div>
-                </div>
-              </div>
-              
-              <div className="mb-5">
-                <h3 className="font-medium text-gray-500 mb-1 text-sm">Status:</h3>
-                <Badge className={selectedVenue.status === 'available' ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'} variant="secondary">
-                  {selectedVenue.status === 'available' ? 'Available' : 'Maintenance'}
-                </Badge>
-              </div>
-              
-              <div className="mb-5">
-                <h3 className="font-medium text-gray-500 mb-1 text-sm">Description</h3>
-                <p className="text-sm">{selectedVenue.description || 'Perfect for small team meetings and presentations with modern amenities'}</p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-6 mb-5">
-                <div>
-                  <h3 className="font-medium text-gray-500 mb-2 text-sm">Amenities</h3>
-                  <div className="flex flex-col gap-2">
-                    {(selectedVenue.amenities || ['Projector', 'Whiteboard', 'AC']).map((amenity, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <svg width="16" height="16" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.4669 3.72684C11.7558 3.91574 11.8369 4.30308 11.648 4.59198L7.39799 11.092C7.29783 11.2452 7.13556 11.3467 6.95402 11.3699C6.77247 11.3931 6.58989 11.3355 6.45446 11.2124L3.70446 8.71241C3.44905 8.48022 3.43023 8.08494 3.66242 7.82953C3.89461 7.57412 4.28989 7.55529 4.5453 7.78749L6.75292 9.79441L10.6018 3.90792C10.7907 3.61902 11.178 3.53795 11.4669 3.72684Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
-                        <span className="text-sm">{amenity}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium text-gray-500 mb-2 text-sm">Equipment Available</h3>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-start gap-2">
-                      <input type="checkbox" id="projector" className="mt-1" checked />
-                      <label htmlFor="projector" className="text-sm">Projector & Screen</label>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <input type="checkbox" id="audio" className="mt-1" />
-                      <label htmlFor="audio" className="text-sm">Audio System</label>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <input type="checkbox" id="wifi" className="mt-1" checked />
-                      <label htmlFor="wifi" className="text-sm">High-Speed WiFi</label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button variant="outline" className="text-sm" onClick={() => setSelectedVenue(null)}>Close</Button>
-                <Button variant="outline" className="text-sm">Edit Venue</Button>
-                <Button className="bg-green-600 hover:bg-green-700 text-sm">Reserve Venue</Button>
-              </div>
+
+
             </div>
           </DialogContent>
         </Dialog>
+      )}
+      {selectedVenue && (
+        <Dialog open={!!selectedVenue} onOpenChange={() => setSelectedVenue(null)}>
+          <DialogContent className="max-w-2xl w-full p-0 overflow-hidden">
+            <div className="px-6 pt-6 pb-2 text-left border-b">
+              <DialogTitle className="text-lg font-bold text-gray-900">{selectedVenue.venue_name}</DialogTitle>
+            </div>
+            
+            {/* Image Carousel */}
+            <div className="px-6 pb-4">
+              <div className="overflow-hidden rounded-lg">
+                <VenueImageCarousel images={
+  Array.isArray(selectedVenue.images)
+    ? selectedVenue.images
+    : typeof selectedVenue.images === 'string' && selectedVenue.images.includes(',')
+      ? selectedVenue.images.split(',').map(img => img.trim())
+      : selectedVenue.images
+        ? [selectedVenue.images]
+        : [selectedVenue.image_url]
+} />
+              </div>
+            </div>
+      
+      <div className="px-6 pb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Left column: Details & Description */}
+          <div>
+            {/* Details */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold mb-2">Details</h3>
+              <div className="flex items-center gap-2 mb-2">
+                <PeopleIcon className="text-gray-400" size={16} />
+                <span className="text-xs">Capacity: {selectedVenue.capacity || 12} people</span>
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <MapPinIcon className="text-gray-400" size={16} />
+                <span className="text-xs">Ground Floor, Building A</span>
+              </div>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-xs">Status:</span>
+                <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Available
+                </span>
+              </div>
+            </div>
+            {/* Description */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold mb-1">Description</h3>
+              <p className="text-xs text-gray-600">
+                {selectedVenue.description || 'Perfect for small team meetings and presentations with modern amenities'}
+              </p>
+            </div>
+          </div>
+          {/* Right column: Amenities & Equipment */}
+          <div className="pl-8">
+            {/* Amenities */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold mb-2">Amenities</h3>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                {(selectedVenue.amenities || ['Projector', 'Whiteboard', 'AC']).map((amenity, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-600"></span>
+                    <span className="text-xs">{amenity}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Equipment */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold mb-2">Equipment Available</h3>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <svg className="text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9V8c0-.6.4-1 1-1h2c.6 0 1 .4 1 1v1"></path><path d="M2 13v2c0 .6.4 1 1 1h2c.6 0 1-.4 1-1v-2"></path><path d="M18 11V8c0-.6.4-1 1-1h2c.6 0 1 .4 1 1v3"></path><path d="M18 15v1c0 .6.4 1 1 1h2c.6 0 1-.4 1-1v-1"></path><path d="M8 9h1"></path><path d="M10 9h6"></path><path d="M17 9h-1"></path><path d="M8 13h1"></path><path d="M10 13h6"></path><path d="M17 13h-1"></path><path d="M9 17h6"></path></svg>
+                  <span className="text-xs">Projector & Screen</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 2v20"></path><path d="M8 2v20"></path><path d="M12 14v.01"></path><path d="M22 8h-4"></path><path d="M6 8H2"></path><path d="M22 16h-4"></path><path d="M6 16H2"></path><path d="M18 12h.01"></path><path d="M6 12h.01"></path></svg>
+                  <span className="text-xs">Audio System</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
+                  <span className="text-xs">High-Speed WiFi</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Buttons */}
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => setSelectedVenue(null)}>Close</Button>
+          <Button variant="outline" size="sm" className="text-xs h-8 flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+            Edit Venue
+          </Button>
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>
       )}
     </div>
   );
