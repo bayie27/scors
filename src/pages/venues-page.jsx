@@ -1,0 +1,376 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Plus, Search as SearchIcon, Filter } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogTitle,
+  DialogDescription,
+  DialogClose
+} from '@/components/ui/dialog';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { supabase } from '@/supabase-client';
+import { toast } from 'react-hot-toast';
+import { Loader2 } from 'lucide-react';
+
+export function VenuesPage() {
+  const [venues, setVenues] = useState([]);
+  const [selectedVenue, setSelectedVenue] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const subscriptionRef = useRef(null);
+
+  const fetchVenues = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data, error: supabaseError } = await supabase
+        .from('venue')
+        .select('*');
+      
+      if (supabaseError) {
+        // Error from Supabase
+        throw supabaseError;
+      }
+      // Transform data to match our expected format
+      const formattedVenues = Array.isArray(data) ? data.map(venue => ({
+        ...venue,
+        // Ensure we have all required fields with defaults if needed
+        status: venue?.status || 'available',
+        amenities: venue?.amenities || [],
+        image_url: venue?.image_url || 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80'
+      })) : [];
+      setVenues(formattedVenues);
+    // eslint-disable-next-line no-unused-vars
+    } catch (error) {
+      // Display error toast without logging specific error details
+      toast.error('Failed to load venues');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const setupSubscription = useCallback(async () => {
+    try {
+      // Clean up any existing subscription first
+      if (subscriptionRef.current) {
+        await subscriptionRef.current.unsubscribe();
+      }
+      
+      // Create new subscription to the venue table
+      const channel = supabase.channel('public:venues', {
+        config: {
+          broadcast: { self: true },
+          presence: { key: 'venue-management' },
+        },
+      });
+      
+      channel
+        .on('presence', { event: 'sync' }, () => {
+          
+        })
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'venue' }, 
+          () => {
+            fetchVenues();
+          }
+        );
+      
+      // Subscribe to the channel
+      await channel.subscribe((status) => {
+        console.log(`Venue subscription status: ${status}`);
+        if (status === 'SUBSCRIBED') {
+          // Force a refresh when subscription is established
+          fetchVenues().catch(error => {
+            console.error('Error refreshing after subscription:', error);
+            toast.error('Failed to refresh venues after subscription');
+          });
+        }
+      });
+      
+      // Store the subscription reference
+      subscriptionRef.current = channel;
+      
+    } catch (error) {
+      console.error('Error setting up venue subscription:', error);
+      toast.error('Failed to set up real-time updates');
+      throw error; // Re-throw to be caught by the useEffect
+    }
+  }, [fetchVenues]);
+
+  // Set up real-time subscription
+  useEffect(() => {
+    let isMounted = true;
+
+    const init = async () => {
+      try {
+        await fetchVenues();
+        if (isMounted) {
+          const cleanup = setupSubscription();
+          return cleanup; // Return cleanup function
+        }
+      } catch (error) {
+        console.error('Initialization error:', error);
+        toast.error('Failed to initialize venues');
+      }
+    };
+
+    const cleanup = init();
+    
+    // Clean up subscription when component unmounts
+    return () => {
+      isMounted = false;
+      if (cleanup && typeof cleanup.then === 'function') {
+        cleanup.then(fn => fn && fn());
+      } else if (typeof cleanup === 'function') {
+        cleanup();
+      }
+    };
+  }, [fetchVenues, setupSubscription]);
+
+  // Filter venues based on search query
+  const filteredVenues = venues.filter(venue => 
+    (venue.venue_name && venue.venue_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (venue.description && venue.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (venue.amenities && Array.isArray(venue.amenities) && venue.amenities.some(a => typeof a === 'string' && a.toLowerCase().includes(searchQuery.toLowerCase())))
+  );
+
+  return (
+    <div className="container mx-auto py-6 px-4">
+      <div className="flex flex-col space-y-4 mb-6">
+        <h1 className="text-2xl font-bold">Venue Management</h1>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="relative w-full sm:w-80">
+            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search venues..."
+              className="pl-10 h-10 text-sm w-full"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button 
+            className="bg-green-600 hover:bg-green-700 w-full sm:w-auto whitespace-nowrap" 
+            onClick={() => alert('Add Venue functionality will be implemented soon')}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Venue
+          </Button>
+        </div>
+      </div>
+
+      {/* Venues Grid */}
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      ) : filteredVenues.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredVenues.map((venue) => (
+            <Card key={venue.venue_id} className="overflow-hidden h-full flex flex-col hover:shadow-md relative">
+              {/* Venue Image - Clickable */}
+              <div className="relative h-48 overflow-hidden group cursor-pointer" onClick={() => setSelectedVenue(venue)}>
+                <img 
+                  src={venue.image_url} 
+                  alt={venue.venue_name} 
+                  className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                />
+                <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="absolute top-2 right-2 z-10 flex space-x-1">
+                  <Button size="icon" variant="ghost" className="bg-white h-8 w-8 p-0 shadow-sm hover:bg-gray-100">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h9"></path>
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                  </Button>
+                  <Button size="icon" variant="ghost" className="bg-white h-8 w-8 p-0 shadow-sm hover:bg-red-50 group">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-red-500 group-hover:text-red-600" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      <line x1="10" y1="11" x2="10" y2="17"></line>
+                      <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                  </Button>
+                </div>
+              </div>
+              
+              <CardHeader className="pb-0 pt-4 px-4">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-base font-semibold">
+                    {venue.venue_name}
+                  </CardTitle>
+                  <Badge className={venue.status === 'available' ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'} variant="secondary">
+                    {venue.status === 'available' ? 'Available' : 'Maintenance'}
+                  </Badge>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="pb-0 pt-1 px-4">
+                <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                  <span>{venue.capacity || 12}</span>
+                  <span className="mx-2">•</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                  </svg>
+                  <span>{venue.location || 'Ground Floor, Building A'}</span>
+                </div>
+                
+                <p className="text-xs text-gray-700 mb-3 line-clamp-2">
+                  {venue.description || 'Perfect for small team meetings and presentations with modern amenities'}
+                </p>
+                
+                <div className="flex flex-wrap gap-2 mt-auto pt-1 pb-4">
+                  {venue.amenities && venue.amenities.map((amenity, idx) => (
+                    <span
+                      key={idx}
+                      className="rounded-full bg-gray-100 text-black font-semibold text-xs px-3 py-1"
+                    >
+                      {amenity}
+                    </span>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <div className="mx-auto h-12 w-12 text-gray-400 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <h3 className="mt-2 text-sm font-semibold text-gray-900">No venues found</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {searchQuery ? 'Try adjusting your search or filter criteria' : 'Get started by creating a new venue'}
+          </p>
+          <div className="mt-6">
+            <Button
+              onClick={() => alert('Add Venue functionality will be implemented soon')}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Venue
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Venue Modal */}
+      {selectedVenue && (
+        <Dialog open={!!selectedVenue} onOpenChange={() => setSelectedVenue(null)}>
+          <DialogContent className="max-w-2xl w-full p-0 overflow-hidden">
+            <button className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground" onClick={() => setSelectedVenue(null)}>
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+              <span className="sr-only">Close</span>
+            </button>
+            
+            {/* Image Carousel */}
+            <div className="relative">
+              <img src={selectedVenue.image_url} alt={selectedVenue.venue_name} className="w-full h-64 object-cover" />
+              
+              <button className="absolute left-2 top-1/2 -translate-y-1/2 bg-white rounded-full h-8 w-8 flex items-center justify-center shadow-md">
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.84182 3.13514C9.04327 3.32401 9.05348 3.64042 8.86462 3.84188L5.43521 7.49991L8.86462 11.1579C9.05348 11.3594 9.04327 11.6758 8.84182 11.8647C8.64036 12.0535 8.32394 12.0433 8.13508 11.8419L4.38508 7.84188C4.20477 7.64955 4.20477 7.35027 4.38508 7.15794L8.13508 3.15794C8.32394 2.95648 8.64036 2.94628 8.84182 3.13514Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+              </button>
+              
+              <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-white rounded-full h-8 w-8 flex items-center justify-center shadow-md">
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.1584 3.13508C6.35985 2.94621 6.67627 2.95642 6.86514 3.15788L10.6151 7.15788C10.7954 7.3502 10.7954 7.64949 10.6151 7.84182L6.86514 11.8418C6.67627 12.0433 6.35985 12.0535 6.1584 11.8646C5.95694 11.6757 5.94673 11.3593 6.1356 11.1579L9.565 7.49985L6.1356 3.84182C5.94673 3.64036 5.95694 3.32394 6.1584 3.13508Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+              </button>
+              
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                <div className="h-1.5 w-1.5 bg-white rounded-full opacity-100"></div>
+                <div className="h-1.5 w-1.5 bg-white rounded-full opacity-50"></div>
+                <div className="h-1.5 w-1.5 bg-white rounded-full opacity-50"></div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <h2 className="text-xl font-bold mb-1">{selectedVenue.venue_name}</h2>
+              
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="text-sm">
+                  <div className="font-medium text-gray-500 mb-1">Capacity:</div>
+                  <div className="flex items-center gap-1">
+                    <svg className="text-gray-700" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                    <span>{selectedVenue.capacity || 12} people</span>
+                  </div>
+                </div>
+                
+                <div className="text-sm">
+                  <div className="font-medium text-gray-500 mb-1">Ground Floor:</div>
+                  <div>{selectedVenue.location || 'Building A'}</div>
+                </div>
+              </div>
+              
+              <div className="mb-5">
+                <h3 className="font-medium text-gray-500 mb-1 text-sm">Status:</h3>
+                <Badge className={selectedVenue.status === 'available' ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'} variant="secondary">
+                  {selectedVenue.status === 'available' ? 'Available' : 'Maintenance'}
+                </Badge>
+              </div>
+              
+              <div className="mb-5">
+                <h3 className="font-medium text-gray-500 mb-1 text-sm">Description</h3>
+                <p className="text-sm">{selectedVenue.description || 'Perfect for small team meetings and presentations with modern amenities'}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-6 mb-5">
+                <div>
+                  <h3 className="font-medium text-gray-500 mb-2 text-sm">Amenities</h3>
+                  <div className="flex flex-col gap-2">
+                    {(selectedVenue.amenities || ['Projector', 'Whiteboard', 'AC']).map((amenity, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.4669 3.72684C11.7558 3.91574 11.8369 4.30308 11.648 4.59198L7.39799 11.092C7.29783 11.2452 7.13556 11.3467 6.95402 11.3699C6.77247 11.3931 6.58989 11.3355 6.45446 11.2124L3.70446 8.71241C3.44905 8.48022 3.43023 8.08494 3.66242 7.82953C3.89461 7.57412 4.28989 7.55529 4.5453 7.78749L6.75292 9.79441L10.6018 3.90792C10.7907 3.61902 11.178 3.53795 11.4669 3.72684Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+                        <span className="text-sm">{amenity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium text-gray-500 mb-2 text-sm">Equipment Available</h3>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-start gap-2">
+                      <input type="checkbox" id="projector" className="mt-1" checked />
+                      <label htmlFor="projector" className="text-sm">Projector & Screen</label>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <input type="checkbox" id="audio" className="mt-1" />
+                      <label htmlFor="audio" className="text-sm">Audio System</label>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <input type="checkbox" id="wifi" className="mt-1" checked />
+                      <label htmlFor="wifi" className="text-sm">High-Speed WiFi</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" className="text-sm" onClick={() => setSelectedVenue(null)}>Close</Button>
+                <Button variant="outline" className="text-sm">Edit Venue</Button>
+                <Button className="bg-green-600 hover:bg-green-700 text-sm">Reserve Venue</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
