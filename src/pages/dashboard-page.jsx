@@ -2,14 +2,20 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { EventCalendar } from "@/components/calendar/event-calendar";
 import { Sidebar } from "@/components/sidebar/Sidebar";
+import { UsersPage } from "./users-page";
 import { Menu } from 'lucide-react';
 import scorsLogo from "@/assets/scors-logo.png";
 
 export function DashboardPage({ user, onSignOut }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [activeView, setActiveView] = useState('calendar');
 
   const toggleSidebar = () => {
     setCollapsed(!collapsed);
+  };
+
+  const handleMenuItemClick = (view) => {
+    setActiveView(view);
   };
   
   // Function to handle event creation from the dashboard's quick add button
@@ -66,13 +72,19 @@ export function DashboardPage({ user, onSignOut }) {
           onSignOut={onSignOut} 
           onReserve={handleQuickAddEvent}
           collapsed={collapsed}
+          onMenuItemClick={handleMenuItemClick}
+          activeView={activeView}
         />
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden pt-[60px]">
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto">
-            <EventCalendar />
+            {activeView === 'calendar' && <EventCalendar />}
+            {activeView === 'users' && <UsersPage />}
+            {activeView === 'venues' && <div className="p-6">Venues Management Coming Soon</div>}
+            {activeView === 'equipment' && <div className="p-6">Equipment Management Coming Soon</div>}
+            {activeView === 'approvals' && <div className="p-6">Pending Approvals Coming Soon</div>}
           </main>
         </div>
       </div>
