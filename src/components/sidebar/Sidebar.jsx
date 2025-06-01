@@ -13,15 +13,48 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
-export function Sidebar({ user, onSignOut, onReserve, className, collapsed = false }) {
+/**
+ * Sidebar component for navigation and user actions
+ * @param {Object} user - The current user object
+ * @param {Function} onSignOut - Callback for sign out action
+ * @param {Function} onReserve - Callback for reserve action
+ * @param {string} className - Additional CSS classes
+ * @param {boolean} collapsed - Whether the sidebar is collapsed
+ */
+export function Sidebar({ 
+  user = {}, 
+  onSignOut = () => console.log('Sign out clicked'), 
+  onReserve = () => console.log('Reserve clicked'), 
+  className = '', 
+  collapsed = false 
+}) { 
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await onSignOut();
+    } catch (error) {
+      console.error('Error during sign out:', error);
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   const getInitials = (name) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
+    if (!name) return 'U';
+    try {
+      return name
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((n) => n[0] || '')
+        .join('')
+        .toUpperCase()
+        .substring(0, 2);
+    } catch (error) {
+      console.error('Error generating initials:', error);
+      return 'U';
+    }
   };
 
   const menuItems = [
@@ -102,9 +135,9 @@ export function Sidebar({ user, onSignOut, onReserve, className, collapsed = fal
         <div className="flex flex-col space-y-3">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={user?.avatar_url} alt={user?.email} />
-              <AvatarFallback>
-                {user?.email?.substring(0, 2).toUpperCase() || 'U'}
+              <AvatarImage src={user?.avatar_url} alt={user?.email || 'User'} />
+              <AvatarFallback className="bg-gray-200 text-gray-700">
+                {user?.email ? getInitials(user.email) : 'U'}
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
@@ -122,10 +155,11 @@ export function Sidebar({ user, onSignOut, onReserve, className, collapsed = fal
             variant="outline" 
             size="sm" 
             className="w-full justify-start gap-2"
-            onClick={onSignOut}
+            onClick={handleSignOut}
+            disabled={isSigningOut}
           >
-            <LogOut className="h-4 w-4" />
-            {!collapsed && <span>Sign out</span>}
+            <LogOut className={`h-4 w-4 ${isSigningOut ? 'animate-spin' : ''}`} />
+            {!collapsed && <span>{isSigningOut ? 'Signing out...' : 'Sign out'}</span>}
           </Button>
         </div>
       </div>
