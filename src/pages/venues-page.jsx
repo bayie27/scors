@@ -219,71 +219,68 @@ export function VenuesPage() {
 
   return (
     <div className="container mx-auto py-6 px-4">
-      <div className="flex flex-col space-y-4 mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Venue Management</h1>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          {/* Right section: Search Bar + Add Venue */}
-          <div className="ml-auto flex items-center gap-2">
-            {/* Search pill - icon only by default, expands to input on click */}
-            <div className="h-10 flex items-center">
-              <div
-                className={`flex items-center transition-all duration-300 ease-in-out cursor-pointer overflow-hidden group ${isSearchExpanded ? 'border border-gray-200 shadow-sm bg-white rounded-full w-64 px-4 py-2 justify-start' : 'w-10 h-10 p-0 justify-center border-0 shadow-none bg-none'}`}
-                onClick={() => {
-                  if (!isSearchExpanded) {
-                    setIsSearchExpanded(true);
-                    setTimeout(() => searchInputRef.current && searchInputRef.current.focus(), 100);
-                  }
-                }}
-                tabIndex={0}
-                onBlur={e => {
-                  // Only collapse if clicking outside
-                  if (!e.currentTarget.contains(e.relatedTarget)) {
-                    setIsSearchExpanded(false);
-                  }
-                }}
-                style={{ transform: 'translateZ(0)' }} /* Force GPU acceleration */
-              >
-                <SearchIcon className={`h-5 w-5 text-gray-500 flex-shrink-0 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'ml-0' : 'mx-auto'} ${!isSearchExpanded ? '!bg-none !shadow-none !rounded-none' : ''}`} />
-                <div className={`relative flex-1 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'}`}>
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder="Search"
-                    className={`bg-transparent outline-none border-none text-sm placeholder-gray-400 w-full ml-2 ${isSearchExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-                    style={{ minWidth: 0 }}
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    onClick={e => e.stopPropagation()}
-                    onFocus={() => setIsSearchExpanded(true)}
-                  />
-                </div>
-                <button
-                  tabIndex={0}
-                  onClick={e => {
-                    e.stopPropagation();
-                    setSearchQuery('');
-                    searchInputRef.current && searchInputRef.current.focus();
-                  }}
-                  className={`ml-2 text-gray-400 hover:text-gray-600 focus:outline-none transition-all duration-300 ease-in-out ${isSearchExpanded && searchQuery ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                >
-                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <Button 
-              className="bg-green-600 hover:bg-green-700 w-full sm:w-auto whitespace-nowrap"
-              onClick={() => alert('Add Venue functionality will be implemented soon')}
+        <div className="flex items-center gap-4">
+          {/* Search pill - icon only by default, expands to input on click */}
+          <div className="h-10 flex items-center">
+            <div
+              className={`flex items-center transition-all duration-300 ease-in-out cursor-pointer overflow-hidden group ${isSearchExpanded ? 'border border-gray-200 shadow-sm bg-white rounded-full w-64 px-4 py-2 justify-start' : 'w-10 h-10 p-0 justify-center border-0 shadow-none bg-none'}`}
+              onClick={() => {
+                if (!isSearchExpanded) {
+                  setIsSearchExpanded(true);
+                  setTimeout(() => searchInputRef.current && searchInputRef.current.focus(), 100);
+                }
+              }}
+              tabIndex={0}
+              onBlur={e => {
+                // Only collapse if clicking outside
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                  setIsSearchExpanded(false);
+                }
+              }}
+              style={{ transform: 'translateZ(0)' }} /* Force GPU acceleration */
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Venue
-            </Button>
+              <SearchIcon className={`h-5 w-5 text-gray-500 flex-shrink-0 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'ml-0' : 'mx-auto'} ${!isSearchExpanded ? '!bg-none !shadow-none !rounded-none' : ''}`} />
+              <div className={`relative flex-1 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'}`}>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search"
+                  className={`bg-transparent outline-none border-none text-sm placeholder-gray-400 w-full ml-2 ${isSearchExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                  style={{ minWidth: 0 }}
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                  onFocus={() => setIsSearchExpanded(true)}
+                />
+              </div>
+              <button
+                tabIndex={0}
+                onClick={e => {
+                  e.stopPropagation();
+                  setSearchQuery('');
+                  searchInputRef.current && searchInputRef.current.focus();
+                }}
+                className={`ml-2 text-gray-400 hover:text-gray-600 focus:outline-none transition-all duration-300 ease-in-out ${isSearchExpanded && searchQuery ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+              >
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
+                </svg>
+              </button>
           </div>
+          <Button 
+            className="ml-4 bg-green-600 hover:bg-green-700 w-full sm:w-auto whitespace-nowrap"
+            onClick={() => alert('Add Venue functionality will be implemented soon')}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Venue
+          </Button>
         </div>
       </div>
+    </div>
 
-      {/* Venues Grid */}
+    {/* Venues Grid */}
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -300,14 +297,30 @@ export function VenuesPage() {
                   className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
                 />
                 <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="absolute top-2 right-2 z-10 flex space-x-1">
-                  <Button size="icon" variant="ghost" className="bg-white h-8 w-8 p-0 shadow-sm hover:bg-gray-100">
+                <div className="absolute top-2 right-2 flex space-x-1 z-0">
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-gray-100 transition-all duration-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Add edit functionality here
+                    }}
+                  >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 20h9"></path>
                       <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                     </svg>
                   </Button>
-                  <Button size="icon" variant="ghost" className="bg-white h-8 w-8 p-0 shadow-sm hover:bg-red-50 group">
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-red-50 group transition-all duration-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Add delete functionality here
+                    }}
+                  >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-red-500 group-hover:text-red-600" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="3 6 5 6 21 6"></polyline>
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -387,22 +400,6 @@ export function VenuesPage() {
       )}
 
       {/* Venue Modal */}
-      {selectedVenue && (
-        <Dialog open={!!selectedVenue} onOpenChange={() => setSelectedVenue(null)}>
-          <DialogContent className="max-w-2xl w-full p-0 overflow-hidden">
-            <button className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground" onClick={() => setSelectedVenue(null)}>
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
-              <span className="sr-only">Close</span>
-            </button>
-            
-            {/* Image Carousel */}
-            <div className="relative">
-
-
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
       {selectedVenue && (
         <Dialog open={!!selectedVenue} onOpenChange={() => setSelectedVenue(null)}>
           <DialogContent className="max-w-2xl w-full p-0 overflow-hidden">
@@ -488,19 +485,32 @@ export function VenuesPage() {
               </div>
             </div>
           </div>
-        </div>
-        {/* Buttons */}
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => setSelectedVenue(null)}>Close</Button>
-          <Button variant="outline" size="sm" className="text-xs h-8 flex items-center gap-1">
-            <svg width="12" height="12" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
-            Edit Venue
-          </Button>
-        </div>
+        </div> {/* END grid row */}
+      </div> {/* END modal content wrapper */}
+      {/* Buttons */}
+      <div className="flex justify-end gap-3 px-6 py-4 border-t">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="text-xs h-9 px-4" 
+          onClick={() => setSelectedVenue(null)}
+        >
+          Close
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="text-xs h-9 px-4 flex items-center gap-1.5 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
+        >
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
+          </svg>
+          Edit Venue
+        </Button>
       </div>
     </DialogContent>
   </Dialog>
-      )}
-    </div>
-  );
+    )}
+  </div>
+);
 }
