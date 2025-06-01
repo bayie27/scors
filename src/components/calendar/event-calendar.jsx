@@ -46,8 +46,13 @@ export function EventCalendar(props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Get search props from parent
-  const { searchTerm = "", onSearchChange } = props || {};
+  // Get props from parent
+  const { 
+    searchTerm = "", 
+    onSearchChange,
+    selectedSlot,
+    onSlotSelected
+  } = props || {};
 
   const [organizations, setOrganizations] = useState([]);
 
@@ -197,15 +202,31 @@ export function EventCalendar(props) {
   // Handle when a date/time slot is selected
   // Open modal to create reservation
   const handleSelectSlot = useCallback((slotInfo) => {
-    setSelectedReservation({
+    const newReservation = {
       activity_date: format(slotInfo.start, 'yyyy-MM-dd'),
       start_time: format(slotInfo.start, 'HH:mm'),
       end_time: format(slotInfo.end, 'HH:mm'),
-    });
+    };
+    setSelectedReservation(newReservation);
     setModalEdit(false);
     setModalView(false);
     setModalOpen(true);
-  }, []);
+    
+    // Notify parent that a slot was selected
+    if (onSlotSelected) {
+      onSlotSelected(newReservation);
+    }
+  }, [onSlotSelected]);
+  
+  // Handle external slot selection (e.g., from reserve button)
+  useEffect(() => {
+    if (selectedSlot) {
+      setSelectedReservation(selectedSlot);
+      setModalEdit(false);
+      setModalView(false);
+      setModalOpen(true);
+    }
+  }, [selectedSlot]);
 
   // Handle navigation between months/weeks/days
   const onNavigate = useCallback((newDate) => setDate(newDate), []);

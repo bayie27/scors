@@ -94,13 +94,44 @@ const ReservationModal = ({
 
   const [errors, setErrors] = useState({});
 
+  const normalizePhoneNumber = (phone) => {
+    if (!phone) return '';
+    
+    // Remove all non-digit characters
+    const digits = phone.replace(/\D/g, '');
+    
+    // If it starts with 63 (country code), ensure it has the +
+    if (digits.startsWith('63')) {
+      return `+${digits}`;
+    }
+    
+    // If it starts with 0, replace with +63
+    if (digits.startsWith('0')) {
+      return `+63${digits.substring(1)}`;
+    }
+    
+    // Otherwise, assume it's a local number and add +63
+    return `+63${digits}`;
+  };
+
   const validatePhoneNumber = (phone) => {
-    // Allow common phone number formats:
-    // - 09XXXXXXXXX (11 digits starting with 09)
-    // - +639XXXXXXXXX (12 digits starting with +639)
-    // - (0XX) XXX-XXXX (with various separators)
-    const phoneRegex = /^(\+?63|0)9\d{9}$|^(\(?0\d{2,3}\)?[\s-]?\d{3}[\s-]?\d{4})$/;
-    return phoneRegex.test(phone);
+    if (!phone) return false;
+    
+    // Normalize the phone number first
+    const normalized = normalizePhoneNumber(phone);
+    
+    // Should be in the format +639XXXXXXXXX (12 digits total)
+    return /^\+639\d{9}$/.test(normalized);
+  };
+  
+  const formatPhoneNumber = (phone) => {
+    if (!phone) return '';
+    // Format as +63 9XX XXX XXXX
+    const normalized = normalizePhoneNumber(phone);
+    if (normalized.length === 13) {
+      return `${normalized.substring(0, 3)} ${normalized.substring(3, 6)} ${normalized.substring(6, 9)} ${normalized.substring(9)}`;
+    }
+    return phone; // Return original if not in expected format
   };
 
   const validateForm = () => {
@@ -141,7 +172,12 @@ const ReservationModal = ({
     e.preventDefault();
     
     if (validateForm()) {
-      onSubmit(form);
+      // Normalize the phone number before submitting
+      const formToSubmit = {
+        ...form,
+        contact_no: form.contact_no ? normalizePhoneNumber(form.contact_no) : ''
+      };
+      onSubmit(formToSubmit);
     }
   };
 

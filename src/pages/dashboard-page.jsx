@@ -5,16 +5,28 @@ import { Sidebar } from "@/components/sidebar/Sidebar";
 import { UsersPage } from "./users-page";
 import { Menu, Search } from 'lucide-react';
 import scorsLogo from "@/assets/scors-logo.png";
+import { format } from 'date-fns';
 
 export function DashboardPage({ user, onSignOut }) {
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeView, setActiveView] = useState('calendar');
+  const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
 
   const handleSearch = useCallback((term) => {
     setSearchTerm(term);
     // The search is now handled by the EventCalendar component
   }, []);
+
+  const handleReserveClick = () => {
+    setIsReserveModalOpen(true);
+    setSelectedSlot({
+      activity_date: format(new Date(), 'yyyy-MM-dd'),
+      start_time: format(new Date(), 'HH:mm'),
+      end_time: format(new Date(new Date().getTime() + 60 * 60 * 1000), 'HH:mm') // 1 hour later
+    });
+  };
 
   const toggleSidebar = () => {
     setCollapsed(!collapsed);
@@ -78,7 +90,7 @@ export function DashboardPage({ user, onSignOut }) {
         <Sidebar 
           user={user} 
           onSignOut={onSignOut} 
-          onReserve={handleQuickAddEvent}
+          onReserve={handleReserveClick}
           collapsed={collapsed}
           onMenuItemClick={handleMenuItemClick}
           activeView={activeView}
@@ -89,7 +101,14 @@ export function DashboardPage({ user, onSignOut }) {
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto">
             {activeView === 'calendar' ? (
-              <EventCalendar searchTerm={searchTerm} onSearchChange={handleSearch} />
+              <>
+                <EventCalendar 
+                  searchTerm={searchTerm} 
+                  onSearchChange={handleSearch} 
+                  selectedSlot={selectedSlot}
+                  onSlotSelected={() => setIsReserveModalOpen(false)}
+                />
+              </>
             ) : activeView === 'users' ? (
               <UsersPage />
             ) : (

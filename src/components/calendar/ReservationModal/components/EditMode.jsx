@@ -2,33 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { X } from 'react-feather';
 import PropTypes from 'prop-types';
 
-// Helper functions for time conversion
-const formatTimeForDisplay = (time24) => {
+// Helper function to convert 24h time to HTML5 time input format (HH:MM)
+const toTimeInputValue = (time24) => {
   if (!time24) return '';
+  // Ensure we have a valid time string
   const [hours, minutes] = time24.split(':');
-  const hour = parseInt(hours, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
-};
-
-const parseTimeInput = (time12) => {
-  if (!time12) return '';
-  
-  // Handle both '1:30 PM' and '1:30PM' formats
-  const time = time12.trim();
-  const [timePart, period] = time.split(/(?<=\d)(?=[AP]M\b)/i);
-  if (!timePart || !period) return '';
-  
-  let [hours, minutes] = timePart.split(':').map(Number);
-  
-  if (period.toUpperCase() === 'PM' && hours < 12) {
-    hours += 12;
-  } else if (period.toUpperCase() === 'AM' && hours === 12) {
-    hours = 0;
-  }
-  
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  return `${hours.padStart(2, '0')}:${(minutes || '00').padStart(2, '0')}`;
 };
 
 const EditMode = ({
@@ -89,38 +68,40 @@ const EditMode = ({
             <div className="flex-1">
               <label className="block text-sm font-medium">Start Time</label>
               <input 
-                type="text" 
-                name="start_time" 
-                value={form.start_time ? formatTimeForDisplay(form.start_time) : ''} 
+                type="time" 
+                name="start_time"
+                value={toTimeInputValue(form.start_time)}
                 onChange={(e) => {
-                  const time24 = parseTimeInput(e.target.value);
-                  setForm(prev => ({
-                    ...prev,
-                    start_time: time24
-                  }));
+                  handleChange({
+                    target: {
+                      name: 'start_time',
+                      value: e.target.value
+                    }
+                  });
                 }}
-                placeholder="e.g., 2:30 PM"
                 required 
-                className={`w-full border rounded px-3 py-2 ${errors.start_time ? 'border-red-500' : ''}`} 
+                step="300"  // 5 minute increments
+                className={`w-full border rounded px-3 py-2 ${errors.start_time ? 'border-red-500' : ''}`}
               />
               {errors.start_time && <p className="mt-1 text-sm text-red-600">{errors.start_time}</p>}
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium">End Time</label>
               <input 
-                type="text" 
-                name="end_time" 
-                value={form.end_time ? formatTimeForDisplay(form.end_time) : ''} 
+                type="time" 
+                name="end_time"
+                value={toTimeInputValue(form.end_time)}
                 onChange={(e) => {
-                  const time24 = parseTimeInput(e.target.value);
-                  setForm(prev => ({
-                    ...prev,
-                    end_time: time24
-                  }));
+                  handleChange({
+                    target: {
+                      name: 'end_time',
+                      value: e.target.value
+                    }
+                  });
                 }}
-                placeholder="e.g., 3:30 PM"
                 required 
-                className={`w-full border rounded px-3 py-2 ${errors.end_time ? 'border-red-500' : ''}`} 
+                step="300"  // 5 minute increments
+                className={`w-full border rounded px-3 py-2 ${errors.end_time ? 'border-red-500' : ''}`}
               />
               {errors.end_time && <p className="mt-1 text-sm text-red-600">{errors.end_time}</p>}
             </div>
@@ -213,12 +194,46 @@ const EditMode = ({
               <input 
                 type="tel" 
                 name="contact_no" 
-                value={form.contact_no} 
-                onChange={handleChange} 
-                required
-                className={`w-full border rounded px-3 py-2 ${errors.contact_no ? 'border-red-500' : ''}`} 
+                value={form.contact_no}
+                onChange={(e) => {
+                  // Allow only numbers and + at the start
+                  const value = e.target.value;
+                  if (value === '' || /^\+?[0-9\b\s-]+$/.test(value)) {
+                    handleChange({
+                      target: {
+                        name: 'contact_no',
+                        value: value
+                      }
+                    });
+                  }
+                }}
+                onBlur={(e) => {
+                  // Format the number when leaving the field
+                  if (e.target.value) {
+                    const digits = e.target.value.replace(/\D/g, '');
+                    let formatted = '';
+                    if (digits.startsWith('63')) {
+                      formatted = `+${digits}`;
+                    } else if (digits.startsWith('0')) {
+                      formatted = `+63${digits.substring(1)}`;
+                    } else if (digits) {
+                      formatted = `+63${digits}`;
+                    }
+                    
+                    if (formatted) {
+                      handleChange({
+                        target: {
+                          name: 'contact_no',
+                          value: formatted
+                        }
+                      });
+                    }
+                  }
+                }}
+                placeholder="e.g., 09123456789 or +639123456789"
                 pattern="[0-9+()\- ]+"
                 title="Enter a valid Philippine phone number"
+                className={`w-full border rounded px-3 py-2 ${errors.contact_no ? 'border-red-500' : ''}`} 
               />
               {errors.contact_no && <p className="mt-1 text-sm text-red-600">{errors.contact_no}</p>}
             </div>
