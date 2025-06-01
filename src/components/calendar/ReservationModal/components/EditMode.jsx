@@ -1,5 +1,35 @@
+import { useState, useEffect, useCallback } from 'react';
 import { X } from 'react-feather';
 import PropTypes from 'prop-types';
+
+// Helper functions for time conversion
+const formatTimeForDisplay = (time24) => {
+  if (!time24) return '';
+  const [hours, minutes] = time24.split(':');
+  const hour = parseInt(hours, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
+};
+
+const parseTimeInput = (time12) => {
+  if (!time12) return '';
+  
+  // Handle both '1:30 PM' and '1:30PM' formats
+  const time = time12.trim();
+  const [timePart, period] = time.split(/(?<=\d)(?=[AP]M\b)/i);
+  if (!timePart || !period) return '';
+  
+  let [hours, minutes] = timePart.split(':').map(Number);
+  
+  if (period.toUpperCase() === 'PM' && hours < 12) {
+    hours += 12;
+  } else if (period.toUpperCase() === 'AM' && hours === 12) {
+    hours = 0;
+  }
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+};
 
 const EditMode = ({
   form,
@@ -59,10 +89,17 @@ const EditMode = ({
             <div className="flex-1">
               <label className="block text-sm font-medium">Start Time</label>
               <input 
-                type="time" 
+                type="text" 
                 name="start_time" 
-                value={form.start_time} 
-                onChange={handleChange} 
+                value={form.start_time ? formatTimeForDisplay(form.start_time) : ''} 
+                onChange={(e) => {
+                  const time24 = parseTimeInput(e.target.value);
+                  setForm(prev => ({
+                    ...prev,
+                    start_time: time24
+                  }));
+                }}
+                placeholder="e.g., 2:30 PM"
                 required 
                 className={`w-full border rounded px-3 py-2 ${errors.start_time ? 'border-red-500' : ''}`} 
               />
@@ -71,10 +108,17 @@ const EditMode = ({
             <div className="flex-1">
               <label className="block text-sm font-medium">End Time</label>
               <input 
-                type="time" 
+                type="text" 
                 name="end_time" 
-                value={form.end_time} 
-                onChange={handleChange} 
+                value={form.end_time ? formatTimeForDisplay(form.end_time) : ''} 
+                onChange={(e) => {
+                  const time24 = parseTimeInput(e.target.value);
+                  setForm(prev => ({
+                    ...prev,
+                    end_time: time24
+                  }));
+                }}
+                placeholder="e.g., 3:30 PM"
                 required 
                 className={`w-full border rounded px-3 py-2 ${errors.end_time ? 'border-red-500' : ''}`} 
               />
@@ -173,6 +217,8 @@ const EditMode = ({
                 onChange={handleChange} 
                 required
                 className={`w-full border rounded px-3 py-2 ${errors.contact_no ? 'border-red-500' : ''}`} 
+                pattern="[0-9+()\- ]+"
+                title="Enter a valid Philippine phone number"
               />
               {errors.contact_no && <p className="mt-1 text-sm text-red-600">{errors.contact_no}</p>}
             </div>

@@ -1,6 +1,18 @@
 import PropTypes from 'prop-types';
 import { Calendar, Clock, User, Users, Phone, MapPin, Package, Edit2, X } from 'react-feather';
 
+// Helper function to convert 24h time to 12h format (e.g., '13:30' -> '1:30 PM')
+const formatTime12Hour = (timeString) => {
+  if (!timeString) return 'Not set';
+  
+  const [hours, minutes] = timeString.split(':');
+  const hour = parseInt(hours, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12; // Convert 0 to 12 for 12 AM
+  
+  return `${hour12}:${minutes} ${ampm}`;
+};
+
 const ViewMode = ({ 
   form, 
   statusName, 
@@ -14,7 +26,7 @@ const ViewMode = ({
   // Find the organization name and code
   const organization = organizations.find(org => org.org_id === form.org_id);
   const orgDisplay = organization 
-    ? `${organization.name} (${organization.org_code || 'No Code'})`
+    ? `${organization.org_name || 'No Name'} (${organization.org_code || 'No Code'})`
     : 'Not specified';
 
   return (
@@ -46,20 +58,30 @@ const ViewMode = ({
             Event Information
           </h3>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Purpose</label>
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                <p className="text-gray-900">{form.purpose || 'Not specified'}</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Purpose</label>
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                  <p className="text-gray-900">{form.purpose || 'Not specified'}</p>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                  {organization ? (
+                    <div className="space-y-1">
+                      <p className="text-gray-900 font-medium">{organization.org_code || 'No Code'}</p>
+                      <p className="text-gray-700">{organization.org_name || 'No Name'}</p>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">Not specified</p>
+                  )}
+                </div>
               </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                  <p className="text-gray-900">{orgDisplay}</p>
-                </div>
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
@@ -72,14 +94,14 @@ const ViewMode = ({
                 <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 flex items-center">
                   <Clock className="text-gray-400 mr-2" size={16} />
-                  <span className="text-gray-900">{form.start_time || 'Not set'}</span>
+                  <span className="text-gray-900">{formatTime12Hour(form.start_time)}</span>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 flex items-center">
                   <Clock className="text-gray-400 mr-2" size={16} />
-                  <span className="text-gray-900">{form.end_time || 'Not set'}</span>
+                  <span className="text-gray-900">{formatTime12Hour(form.end_time)}</span>
                 </div>
               </div>
             </div>

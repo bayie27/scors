@@ -94,6 +94,15 @@ const ReservationModal = ({
 
   const [errors, setErrors] = useState({});
 
+  const validatePhoneNumber = (phone) => {
+    // Allow common phone number formats:
+    // - 09XXXXXXXXX (11 digits starting with 09)
+    // - +639XXXXXXXXX (12 digits starting with +639)
+    // - (0XX) XXX-XXXX (with various separators)
+    const phoneRegex = /^(\+?63|0)9\d{9}$|^(\(?0\d{2,3}\)?[\s-]?\d{3}[\s-]?\d{4})$/;
+    return phoneRegex.test(phone);
+  };
+
   const validateForm = () => {
     const newErrors = {};
     const requiredFields = [
@@ -113,6 +122,11 @@ const ReservationModal = ({
         newErrors[field] = 'This field is required';
       }
     });
+
+    // Validate contact number format if provided
+    if (form.contact_no && !validatePhoneNumber(form.contact_no)) {
+      newErrors.contact_no = 'Please enter a valid Philippine phone number (e.g., 09123456789 or +639123456789)';
+    }
 
     // Check venue or equipment
     if (!form.venue_id && !form.equipment_id) {
