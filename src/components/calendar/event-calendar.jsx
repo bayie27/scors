@@ -20,7 +20,7 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
-export function EventCalendar() {
+export function EventCalendar(props) {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalEdit, setModalEdit] = useState(false);
@@ -41,11 +41,18 @@ export function EventCalendar() {
 
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [date, setDate] = useState(new Date());
   const [view, setView] = useState('month');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Get props from parent
+  const { 
+    searchTerm = "", 
+    onSearchChange,
+    selectedSlot,
+    onSlotSelected
+  } = props || {};
 
   const [organizations, setOrganizations] = useState([]);
 
@@ -195,15 +202,31 @@ export function EventCalendar() {
   // Handle when a date/time slot is selected
   // Open modal to create reservation
   const handleSelectSlot = useCallback((slotInfo) => {
-    setSelectedReservation({
+    const newReservation = {
       activity_date: format(slotInfo.start, 'yyyy-MM-dd'),
       start_time: format(slotInfo.start, 'HH:mm'),
       end_time: format(slotInfo.end, 'HH:mm'),
-    });
+    };
+    setSelectedReservation(newReservation);
     setModalEdit(false);
     setModalView(false);
     setModalOpen(true);
-  }, []);
+    
+    // Notify parent that a slot was selected
+    if (onSlotSelected) {
+      onSlotSelected(newReservation);
+    }
+  }, [onSlotSelected]);
+  
+  // Handle external slot selection (e.g., from reserve button)
+  useEffect(() => {
+    if (selectedSlot) {
+      setSelectedReservation(selectedSlot);
+      setModalEdit(false);
+      setModalView(false);
+      setModalOpen(true);
+    }
+  }, [selectedSlot]);
 
   // Handle navigation between months/weeks/days
   const onNavigate = useCallback((newDate) => setDate(newDate), []);
@@ -218,23 +241,23 @@ export function EventCalendar() {
     const orgCode = raw.organization?.org_code || raw.org_code || '';
     const orgDisplay = orgCode || 'No Org';
 
-    // Only show minimal info in month view
+    // Only show time and purpose in month view
     if (view === 'month') {
       return (
         <div className="p-0.5 overflow-hidden h-full">
-          <div className="rounded bg-white border border-gray-200 px-1 py-0.5 flex flex-col gap-0.5 min-w-0 h-full">
-            <div className="text-xs font-semibold truncate" title={event.title}>
+          <div className="rounded bg-white border border-gray-200 px-1 py-0.5 flex items-center gap-1 min-w-0 h-full">
+            <span className="text-[10px] text-blue-700 font-semibold whitespace-nowrap">
+              {format(event.start, 'h:mma')}
+            </span>
+            <span className="truncate" title={event.title}>
               {event.title}
-              <div className="text-[10px] text-blue-700 font-bold truncate">
-                {orgDisplay}
-              </div>
-            </div>
+            </span>
           </div>
         </div>
       );
     }
     
-    // Default for week/day/agenda views
+    // Default for week/day/agenda views - show full details
     return (
       <div className="p-1 overflow-hidden h-full">
         <div 
@@ -247,17 +270,21 @@ export function EventCalendar() {
           }`}
         >
           <div className="font-medium text-sm truncate">{event.title}</div>
-          <div className="text-xs text-gray-600">
-            {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
-          </div>
           {orgDisplay && (
             <div className="text-xs text-gray-700 mt-1 truncate" title={orgDisplay}>
               {orgDisplay}
             </div>
           )}
-          {event.resource && (
+          {/* Display venue name if available */}
+          {raw.venue && (
             <div className="text-xs text-gray-500 mt-1 truncate">
-              {event.resource}
+              {raw.venue.venue_name || 'Venue ' + raw.venue_id}
+            </div>
+          )}
+          {/* Display equipment name if available */}
+          {raw.equipment && (
+            <div className="text-xs text-gray-500 mt-1 truncate">
+              {raw.equipment.equipment_name || 'Equipment ' + raw.equipment_id}
             </div>
           )}
         </div>
@@ -267,8 +294,8 @@ export function EventCalendar() {
 
   // Search function to filter events and switch to agenda view
   const handleSearch = useCallback((term) => {
+    // If search is empty, show all events
     if (!term.trim()) {
-      // If search is empty, show all events
       setFilteredEvents(events);
       return;
     }
@@ -290,89 +317,62 @@ export function EventCalendar() {
     // Update filtered events
     setFilteredEvents(filtered);
     
-    // Switch to agenda view
-    setView('agenda');
-  }, [events]);
+    // Switch to agenda view when searching
+    if (term.trim() && view !== 'agenda') {
+      setView('agenda');
+    }
+  }, [events, view]);
+  
+  // Update search results when searchTerm or events change
+  useEffect(() => {
+    handleSearch(searchTerm);
+  }, [searchTerm, events, handleSearch]);
 
-  // Custom toolbar with search functionality that maintains its own state
-  const CustomToolbar = useCallback(({ onView, onNavigate, label }) => {
-    // Use local state within the toolbar to prevent losing focus
-    const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
-    
-    // Only update parent state on form submission
-    const handleLocalSubmit = (e) => {
-      e.preventDefault();
-      setSearchTerm(localSearchTerm); // Update parent state
-      handleSearch(localSearchTerm);
-    };
-    
-    // Update only local state while typing
-    const handleLocalInputChange = (e) => {
-      setLocalSearchTerm(e.target.value);
-    };
-    
-    // Sync local state when parent state changes
-    useEffect(() => {
-      setLocalSearchTerm(searchTerm);
-    }, [searchTerm]);
-    return (
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => onNavigate('TODAY')}
-            className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Today
-          </button>
-          <button
-            onClick={() => onNavigate('PREV')}
-            className="p-1 text-gray-600 hover:text-gray-900"
-          >
-            ❮
-          </button>
-          <button
-            onClick={() => onNavigate('NEXT')}
-            className="p-1 text-gray-600 hover:text-gray-900"
-          >
-            ❯
-          </button>
-          <span className="ml-2 font-medium text-gray-700">{label}</span>
-        </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="flex space-x-1">
-            {['month', 'week', 'day', 'agenda'].map((viewType) => (
-              <button
-                key={viewType}
-                className={`px-3 py-1 text-sm rounded ${
-                  view === viewType
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-                onClick={() => onView(viewType)}
-              >
-                {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
-              </button>
-            ))}
-          </div>
-          <form onSubmit={handleLocalSubmit} className="flex items-center w-full md:w-auto">
-            <input
-              type="text"
-              value={localSearchTerm}
-              onChange={handleLocalInputChange}
-              placeholder="Search reservations..."
-              className="px-3 py-1 border border-gray-300 rounded-l text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-48 lg:w-64"
-            />
+  // CustomToolbar handles only navigation and view controls
+function CustomToolbar({ onView, onNavigate, label }) {
+  return (
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => onNavigate('TODAY')}
+          className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Today
+        </button>
+        <button
+          onClick={() => onNavigate('PREV')}
+          className="p-1 text-gray-600 hover:text-gray-900"
+        >
+          ❮
+        </button>
+        <button
+          onClick={() => onNavigate('NEXT')}
+          className="p-1 text-gray-600 hover:text-gray-900"
+        >
+          ❯
+        </button>
+        <span className="ml-2 font-medium text-gray-700">{label}</span>
+      </div>
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex space-x-1">
+          {['month', 'week', 'day', 'agenda'].map((viewType) => (
             <button
-              type="submit"
-              className="px-3 py-1 bg-blue-500 text-white rounded-r border border-blue-500 hover:bg-blue-600 focus:outline-none flex items-center"
+              key={viewType}
+              className={`px-3 py-1 text-sm rounded ${
+                view === viewType
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => onView(viewType)}
             >
-              <Search size={16} />
+              {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
             </button>
-          </form>
+          ))}
         </div>
       </div>
-    );
-  }, [view, searchTerm, handleSearch]);
+    </div>
+  );
+}
 
   // Handle form submission from the reservation modal
   const handleModalSubmit = useCallback((formData) => {
@@ -457,7 +457,12 @@ export function EventCalendar() {
       setModalOpen(false);
       setPendingFormData(null);
       setSelectedReservation(null);
-      setSearchTerm(''); // Clear search when creating/editing reservations
+      
+      // Only clear search if setSearchTerm is available
+      if (typeof setSearchTerm === 'function') {
+        setSearchTerm('');
+      }
+      
       fetchReservations();
       
     } catch (err) {
@@ -536,7 +541,25 @@ export function EventCalendar() {
   
   // Main calendar UI with loading overlay
   return (
-    <div className="relative h-[calc(100vh-2rem)] bg-white p-4 rounded-lg shadow">
+    <div className="relative bg-white p-4 rounded-lg shadow h-[calc(100vh-4rem)] flex flex-col">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+        {props.onSearchChange && (
+          <form onSubmit={e => e.preventDefault()} className="w-64">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                value={props.searchTerm || ''}
+                onChange={(e) => props.onSearchChange(e.target.value)}
+                placeholder="Search reservations..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </form>
+        )}
+      </div>
+      {/* Search bar has been moved to the header */}
       {/* Modal for create/edit */}
       <ReservationModal
         open={modalOpen}
@@ -592,13 +615,13 @@ export function EventCalendar() {
         </div>
       )}
       {/* Calendar */}
-      <div className="h-full">
+      <div className="flex-1 min-h-0">
         <BigCalendar
           localizer={localizer}
           events={filteredEvents}
           startAccessor="start"
           endAccessor="end"
-          style={{ height: 'calc(100% - 40px)' }}
+          style={{ height: '100%' }}
           selectable
           onSelectEvent={handleSelectEvent}
           onSelectSlot={handleSelectSlot}
@@ -609,7 +632,12 @@ export function EventCalendar() {
           onNavigate={onNavigate}
           components={{
             event: EventComponent,
-            toolbar: CustomToolbar,
+            toolbar: (toolbarProps) => (
+              <CustomToolbar
+                {...toolbarProps}
+                view={view}
+              />
+            ),
           }}
           eventPropGetter={(event) => {
             let backgroundColor = '#e3f2fd';

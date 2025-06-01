@@ -1,5 +1,14 @@
+import { useState, useEffect, useCallback } from 'react';
 import { X } from 'react-feather';
 import PropTypes from 'prop-types';
+
+// Helper function to convert 24h time to HTML5 time input format (HH:MM)
+const toTimeInputValue = (time24) => {
+  if (!time24) return '';
+  // Ensure we have a valid time string
+  const [hours, minutes] = time24.split(':');
+  return `${hours.padStart(2, '0')}:${(minutes || '00').padStart(2, '0')}`;
+};
 
 const EditMode = ({
   form,
@@ -60,11 +69,19 @@ const EditMode = ({
               <label className="block text-sm font-medium">Start Time</label>
               <input 
                 type="time" 
-                name="start_time" 
-                value={form.start_time} 
-                onChange={handleChange} 
+                name="start_time"
+                value={toTimeInputValue(form.start_time)}
+                onChange={(e) => {
+                  handleChange({
+                    target: {
+                      name: 'start_time',
+                      value: e.target.value
+                    }
+                  });
+                }}
                 required 
-                className={`w-full border rounded px-3 py-2 ${errors.start_time ? 'border-red-500' : ''}`} 
+                step="300"  // 5 minute increments
+                className={`w-full border rounded px-3 py-2 ${errors.start_time ? 'border-red-500' : ''}`}
               />
               {errors.start_time && <p className="mt-1 text-sm text-red-600">{errors.start_time}</p>}
             </div>
@@ -72,11 +89,19 @@ const EditMode = ({
               <label className="block text-sm font-medium">End Time</label>
               <input 
                 type="time" 
-                name="end_time" 
-                value={form.end_time} 
-                onChange={handleChange} 
+                name="end_time"
+                value={toTimeInputValue(form.end_time)}
+                onChange={(e) => {
+                  handleChange({
+                    target: {
+                      name: 'end_time',
+                      value: e.target.value
+                    }
+                  });
+                }}
                 required 
-                className={`w-full border rounded px-3 py-2 ${errors.end_time ? 'border-red-500' : ''}`} 
+                step="300"  // 5 minute increments
+                className={`w-full border rounded px-3 py-2 ${errors.end_time ? 'border-red-500' : ''}`}
               />
               {errors.end_time && <p className="mt-1 text-sm text-red-600">{errors.end_time}</p>}
             </div>
@@ -169,9 +194,45 @@ const EditMode = ({
               <input 
                 type="tel" 
                 name="contact_no" 
-                value={form.contact_no} 
-                onChange={handleChange} 
-                required
+                value={form.contact_no}
+                onChange={(e) => {
+                  // Allow only numbers and + at the start
+                  const value = e.target.value;
+                  if (value === '' || /^\+?[0-9\b\s-]+$/.test(value)) {
+                    handleChange({
+                      target: {
+                        name: 'contact_no',
+                        value: value
+                      }
+                    });
+                  }
+                }}
+                onBlur={(e) => {
+                  // Format the number when leaving the field
+                  if (e.target.value) {
+                    const digits = e.target.value.replace(/\D/g, '');
+                    let formatted = '';
+                    if (digits.startsWith('63')) {
+                      formatted = `+${digits}`;
+                    } else if (digits.startsWith('0')) {
+                      formatted = `+63${digits.substring(1)}`;
+                    } else if (digits) {
+                      formatted = `+63${digits}`;
+                    }
+                    
+                    if (formatted) {
+                      handleChange({
+                        target: {
+                          name: 'contact_no',
+                          value: formatted
+                        }
+                      });
+                    }
+                  }
+                }}
+                placeholder="e.g., 09123456789 or +639123456789"
+                pattern="[0-9+()\- ]+"
+                title="Enter a valid Philippine phone number"
                 className={`w-full border rounded px-3 py-2 ${errors.contact_no ? 'border-red-500' : ''}`} 
               />
               {errors.contact_no && <p className="mt-1 text-sm text-red-600">{errors.contact_no}</p>}
