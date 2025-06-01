@@ -4,9 +4,10 @@ import { format, parse, startOfWeek, getDay } from 'date-fns';
 import enUS from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { supabase } from '../../supabase-client';
-import ReservationModal from './ReservationModal';
+import ReservationModal from './ReservationModal/ReservationModal';
+import { Menu, Search } from 'lucide-react';
 
-// Set up the localizer by providing the required date-fns functions
+// ... rest of the code remains the same ...
 const locales = {
   'en-US': enUS,
 };
@@ -25,6 +26,11 @@ export function EventCalendar() {
   const [modalEdit, setModalEdit] = useState(false);
   const [modalView, setModalView] = useState(false); // true = view mode, false = edit/create
   const [selectedReservation, setSelectedReservation] = useState(null);
+  
+  // Confirmation modal states
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState(null);
   // Lookup data
   const [venues, setVenues] = useState([]);
   const [equipmentList, setEquipmentList] = useState([]);
@@ -34,6 +40,8 @@ export function EventCalendar() {
   // ...existing state
 
   const [events, setEvents] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [date, setDate] = useState(new Date());
   const [view, setView] = useState('month');
   const [loading, setLoading] = useState(true);
@@ -107,6 +115,7 @@ export function EventCalendar() {
       });
 
       setEvents(formattedEvents);
+      setFilteredEvents(formattedEvents); // Initialize filtered events with all events
       setError(null);
     } catch (err) {
       console.error('Error fetching reservations:', err);
@@ -256,10 +265,58 @@ export function EventCalendar() {
     );
   }, [view]);
 
-  // Custom toolbar (no refresh button)
+  // Search function to filter events and switch to agenda view
+  const handleSearch = useCallback((term) => {
+    if (!term.trim()) {
+      // If search is empty, show all events
+      setFilteredEvents(events);
+      return;
+    }
+    
+    // Convert to lowercase for case-insensitive search
+    const searchLower = term.toLowerCase();
+    
+    // Filter events based on search term
+    const filtered = events.filter(event => 
+      event.title.toLowerCase().includes(searchLower) ||
+      (event.description && event.description.toLowerCase().includes(searchLower)) ||
+      (event.resource && event.resource.toLowerCase().includes(searchLower)) ||
+      (event.rawData?.organization?.org_name && event.rawData.organization.org_name.toLowerCase().includes(searchLower)) ||
+      (event.rawData?.organization?.org_code && event.rawData.organization.org_code.toLowerCase().includes(searchLower)) ||
+      (event.rawData?.officer_in_charge && event.rawData.officer_in_charge.toLowerCase().includes(searchLower)) ||
+      (event.rawData?.reserved_by && event.rawData.reserved_by.toLowerCase().includes(searchLower))
+    );
+    
+    // Update filtered events
+    setFilteredEvents(filtered);
+    
+    // Switch to agenda view
+    setView('agenda');
+  }, [events]);
+
+  // Custom toolbar with search functionality that maintains its own state
   const CustomToolbar = useCallback(({ onView, onNavigate, label }) => {
+    // Use local state within the toolbar to prevent losing focus
+    const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+    
+    // Only update parent state on form submission
+    const handleLocalSubmit = (e) => {
+      e.preventDefault();
+      setSearchTerm(localSearchTerm); // Update parent state
+      handleSearch(localSearchTerm);
+    };
+    
+    // Update only local state while typing
+    const handleLocalInputChange = (e) => {
+      setLocalSearchTerm(e.target.value);
+    };
+    
+    // Sync local state when parent state changes
+    useEffect(() => {
+      setLocalSearchTerm(searchTerm);
+    }, [searchTerm]);
     return (
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
         <div className="flex items-center space-x-2">
           <button
             onClick={() => onNavigate('TODAY')}
@@ -281,27 +338,44 @@ export function EventCalendar() {
           </button>
           <span className="ml-2 font-medium text-gray-700">{label}</span>
         </div>
-        <div className="flex space-x-1 items-center">
-          {['month', 'week', 'day', 'agenda'].map((viewType) => (
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex space-x-1">
+            {['month', 'week', 'day', 'agenda'].map((viewType) => (
+              <button
+                key={viewType}
+                className={`px-3 py-1 text-sm rounded ${
+                  view === viewType
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                onClick={() => onView(viewType)}
+              >
+                {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
+              </button>
+            ))}
+          </div>
+          <form onSubmit={handleLocalSubmit} className="flex items-center w-full md:w-auto">
+            <input
+              type="text"
+              value={localSearchTerm}
+              onChange={handleLocalInputChange}
+              placeholder="Search reservations..."
+              className="px-3 py-1 border border-gray-300 rounded-l text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-48 lg:w-64"
+            />
             <button
-              key={viewType}
-              className={`px-3 py-1 text-sm rounded ${
-                view === viewType
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => onView(viewType)}
+              type="submit"
+              className="px-3 py-1 bg-blue-500 text-white rounded-r border border-blue-500 hover:bg-blue-600 focus:outline-none flex items-center"
             >
-              {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
+              <Search size={16} />
             </button>
-          ))}
+          </form>
         </div>
       </div>
     );
-  }, [view]);
+  }, [view, searchTerm, handleSearch]);
 
-  // Handle create/edit reservation
-  const handleModalSubmit = useCallback(async (formData) => {
+  // Handle form submission from the reservation modal
+  const handleModalSubmit = useCallback((formData) => {
     try {
       if (!formData.org_id) {
         throw new Error('Please select an organization');
@@ -310,7 +384,26 @@ export function EventCalendar() {
       if (!formData.activity_date || !formData.start_time || !formData.end_time) {
         throw new Error('Please fill in all required date and time fields');
       }
-
+      
+      // For new reservations, create immediately
+      if (!modalEdit || !selectedReservation?.reservation_id) {
+        // For new reservations, proceed immediately
+        performReservationAction(formData);
+      } else {
+        // For updates, show confirmation modal
+        setPendingFormData(formData);
+        setUpdateConfirmOpen(true);
+      }
+      
+    } catch (err) {
+      console.error('Validation error:', err);
+      alert(err.message); // Keep simple validation alerts
+    }
+  }, [modalEdit, selectedReservation]);
+  
+  // Handle actual reservation creation/update after confirmation
+  const performReservationAction = async (formData) => {
+    try {
       setLoading(true);
       const now = new Date().toISOString();
 
@@ -358,28 +451,89 @@ export function EventCalendar() {
         if (error) throw error;
       }
       
-      // Refresh the events and close modal
-      fetchReservations();
+      // Close all modals and refresh data
+      setUpdateConfirmOpen(false);
+      setDeleteConfirmOpen(false);
       setModalOpen(false);
+      setPendingFormData(null);
       setSelectedReservation(null);
+      setSearchTerm(''); // Clear search when creating/editing reservations
+      fetchReservations();
       
     } catch (err) {
-      console.error('Error creating/editing reservation:', err);
+      console.error('Error performing reservation action:', err);
       alert(`Failed to ${modalEdit ? 'update' : 'create'} reservation: ${err.message}`);
     } finally {
       setLoading(false);
     }
-  }, [modalEdit, selectedReservation, fetchReservations]);
-
-  // Handle delete
-  const handleModalDelete = async () => {
-    if (selectedReservation?.reservation_id) {
-      await supabase.from('reservation').delete().eq('reservation_id', selectedReservation.reservation_id);
-    }
-    setModalOpen(false);
-    setSelectedReservation(null);
   };
 
+  // Handle delete button click - show confirmation modal
+  const handleModalDelete = () => {
+    // Show confirmation modal
+    setDeleteConfirmOpen(true);
+  };
+  
+  // Perform actual deletion after confirmation
+  const performDelete = async () => {
+    try {
+      setLoading(true);
+      if (selectedReservation?.reservation_id) {
+        const { error } = await supabase
+          .from('reservation')
+          .delete()
+          .eq('reservation_id', selectedReservation.reservation_id);
+        
+        if (error) throw error;
+      }
+      
+      // Close modals and refresh data
+      setDeleteConfirmOpen(false);
+      setModalOpen(false);
+      setSelectedReservation(null);
+      fetchReservations();
+    } catch (err) {
+      console.error('Error deleting reservation:', err);
+      alert(`Failed to delete reservation: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Confirmation Modal Component
+  const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText, confirmColor }) => {
+    if (!isOpen) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md relative overflow-hidden p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+          <p className="text-sm text-gray-600 mb-4">{message}</p>
+          <div className="flex justify-end gap-3 mt-5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              {cancelText || 'Cancel'}
+            </button>
+            <button 
+              type="button" 
+              onClick={onConfirm}
+              className={`px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                confirmColor === 'red' 
+                  ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' 
+                  : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+              }`}
+            >
+              {confirmText || 'Confirm'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
   // Main calendar UI with loading overlay
   return (
     <div className="relative h-[calc(100vh-2rem)] bg-white p-4 rounded-lg shadow">
@@ -397,6 +551,28 @@ export function EventCalendar() {
         isEdit={modalEdit}
         isView={modalView && !modalEdit}
         onEditView={() => { setModalEdit(true); setModalView(false); }}
+      />
+      
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={performDelete}
+        title="Confirm Deletion"
+        message="Are you sure you want to delete this reservation? This action cannot be undone."
+        confirmText="Delete"
+        confirmColor="red"
+      />
+      
+      {/* Update Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={updateConfirmOpen}
+        onClose={() => setUpdateConfirmOpen(false)}
+        onConfirm={() => pendingFormData && performReservationAction(pendingFormData)}
+        title="Confirm Update"
+        message="Are you sure you want to update this reservation? This will overwrite the current information."
+        confirmText="Update"
+        confirmColor="blue"
       />
       
       {/* Loading overlay */}
@@ -419,7 +595,7 @@ export function EventCalendar() {
       <div className="h-full">
         <BigCalendar
           localizer={localizer}
-          events={events}
+          events={filteredEvents}
           startAccessor="start"
           endAccessor="end"
           style={{ height: 'calc(100% - 40px)' }}
