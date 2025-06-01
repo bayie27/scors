@@ -101,19 +101,21 @@ export function DashboardPage({ user, onSignOut }) {
         </div>
       </header>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <Sidebar 
-          user={user} 
-          onSignOut={onSignOut} 
-          onReserve={handleReserveClick}
-          collapsed={collapsed}
-          onMenuItemClick={handleMenuItemClick}
-          activeView={activeView}
-        />
+      <div className="flex min-h-screen">
+        {/* Fixed Sidebar */}
+        <div className="fixed top-0 left-0 h-full z-40">
+          <Sidebar 
+            user={user} 
+            onSignOut={onSignOut} 
+            onReserve={handleReserveClick}
+            collapsed={collapsed}
+            onMenuItemClick={handleMenuItemClick}
+            activeView={activeView}
+          />
+        </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden pt-[60px]">
+        {/* Main Content Area - offset by sidebar width */}
+        <div className={`flex-1 flex flex-col overflow-hidden pt-[60px] transition-all duration-300 ease-in-out ${collapsed ? 'ml-16' : 'ml-64'}`}>
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto">
             {activeView === 'calendar' ? (

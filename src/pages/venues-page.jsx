@@ -405,6 +405,9 @@ export function VenuesPage() {
           <DialogContent className="max-w-2xl w-full p-0 overflow-hidden">
             <div className="px-6 pt-6 pb-2 text-left border-b">
               <DialogTitle className="text-lg font-bold text-gray-900">{selectedVenue.venue_name}</DialogTitle>
+              <DialogDescription className="sr-only">
+                Venue details and information
+              </DialogDescription>
             </div>
             
             {/* Image Carousel */}
