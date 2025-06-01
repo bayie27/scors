@@ -97,6 +97,8 @@ export function VenuesPage() {
   const [venues, setVenues] = useState([]);
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const searchInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const subscriptionRef = useRef(null);
 
@@ -220,22 +222,64 @@ export function VenuesPage() {
       <div className="flex flex-col space-y-4 mb-6">
         <h1 className="text-2xl font-bold">Venue Management</h1>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="relative w-full sm:w-80">
-            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search venues..."
-              className="pl-10 h-10 text-sm w-full"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          {/* Right section: Search Bar + Add Venue */}
+          <div className="ml-auto flex items-center gap-2">
+            {/* Search pill - icon only by default, expands to input on click */}
+            <div className="h-10 flex items-center">
+              <div
+                className={`flex items-center transition-all duration-300 ease-in-out cursor-pointer overflow-hidden group ${isSearchExpanded ? 'border border-gray-200 shadow-sm bg-white rounded-full w-64 px-4 py-2 justify-start' : 'w-10 h-10 p-0 justify-center border-0 shadow-none bg-none'}`}
+                onClick={() => {
+                  if (!isSearchExpanded) {
+                    setIsSearchExpanded(true);
+                    setTimeout(() => searchInputRef.current && searchInputRef.current.focus(), 100);
+                  }
+                }}
+                tabIndex={0}
+                onBlur={e => {
+                  // Only collapse if clicking outside
+                  if (!e.currentTarget.contains(e.relatedTarget)) {
+                    setIsSearchExpanded(false);
+                  }
+                }}
+                style={{ transform: 'translateZ(0)' }} /* Force GPU acceleration */
+              >
+                <SearchIcon className={`h-5 w-5 text-gray-500 flex-shrink-0 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'ml-0' : 'mx-auto'} ${!isSearchExpanded ? '!bg-none !shadow-none !rounded-none' : ''}`} />
+                <div className={`relative flex-1 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'}`}>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Search"
+                    className={`bg-transparent outline-none border-none text-sm placeholder-gray-400 w-full ml-2 ${isSearchExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                    style={{ minWidth: 0 }}
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onClick={e => e.stopPropagation()}
+                    onFocus={() => setIsSearchExpanded(true)}
+                  />
+                </div>
+                <button
+                  tabIndex={0}
+                  onClick={e => {
+                    e.stopPropagation();
+                    setSearchQuery('');
+                    searchInputRef.current && searchInputRef.current.focus();
+                  }}
+                  className={`ml-2 text-gray-400 hover:text-gray-600 focus:outline-none transition-all duration-300 ease-in-out ${isSearchExpanded && searchQuery ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                >
+                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <Button 
+              className="bg-green-600 hover:bg-green-700 w-full sm:w-auto whitespace-nowrap"
+              onClick={() => alert('Add Venue functionality will be implemented soon')}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Venue
+            </Button>
           </div>
-          <Button 
-            className="bg-green-600 hover:bg-green-700 w-full sm:w-auto whitespace-nowrap" 
-            onClick={() => alert('Add Venue functionality will be implemented soon')}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Venue
-          </Button>
         </div>
       </div>
 
