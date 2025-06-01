@@ -87,14 +87,7 @@ const ViewMode = ({
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 flex items-center">
                   <Calendar className="text-gray-400 mr-2" size={16} />
-                  {form.end_date && form.end_date !== form.start_date ? (
-                    <span className="text-gray-900">
-                      {form.start_date || 'Not set'} to {form.end_date}
-                      <span className="ml-2 text-xs text-gray-500">(Multi-day reservation)</span>
-                    </span>
-                  ) : (
-                    <span className="text-gray-900">{form.start_date || 'Not set'}</span>
-                  )}
+                  <span className="text-gray-900">{form.activity_date || 'Not set'}</span>
                 </div>
               </div>
               <div>

@@ -73,10 +73,9 @@ const EditMode = ({
                 value={form.end_date} 
                 onChange={handleChange} 
                 className={`w-full border rounded px-3 py-2 ${errors.end_date ? 'border-red-500' : ''}`} 
-                min={form.start_date} /* Prevent selecting end date before start date */
               />
+              <p className="mt-1 text-xs text-gray-500">Leave empty for same day reservation</p>
               {errors.end_date && <p className="mt-1 text-sm text-red-600">{errors.end_date}</p>}
-              {!errors.end_date && <p className="mt-1 text-xs text-gray-500">Leave empty for single-day reservation</p>}
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium">Start Time</label>
@@ -279,6 +278,10 @@ const EditMode = ({
             )}
             <button 
               type="submit" 
+              onClick={(e) => {
+                // This is just logging, the actual submission happens through the form's onSubmit
+                console.log('EditMode - Submit button clicked, isEdit:', isEdit);
+              }}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               {isEdit ? 'Update' : 'Create'} Reservation
