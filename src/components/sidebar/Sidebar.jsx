@@ -9,11 +9,12 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Calendar,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
-export function Sidebar({ user, onSignOut, onReserve, className, collapsed = false }) {
+export function Sidebar({ user, onSignOut, onReserve, className, collapsed = false, onMenuItemClick, activeView = 'calendar' }) {
 
   const getInitials = (name) => {
     if (!name) return "U";
@@ -26,24 +27,29 @@ export function Sidebar({ user, onSignOut, onReserve, className, collapsed = fal
 
   const menuItems = [
     {
+      title: "Calendar",
+      icon: <Calendar size={20} />,
+      view: "calendar",
+    },
+    {
       title: "Users",
       icon: <Users size={20} />,
-      href: "/users",
+      view: "users",
     },
     {
       title: "Venues",
       icon: <Building2 size={20} />,
-      href: "/venues",
+      view: "venues",
     },
     {
       title: "Equipment",
       icon: <Boxes size={20} />,
-      href: "/equipment",
+      view: "equipment",
     },
     {
       title: "Pending Approvals",
       icon: <ClipboardCheck size={20} />,
-      href: "/approvals",
+      view: "approvals",
     },
   ];
 
@@ -80,17 +86,15 @@ export function Sidebar({ user, onSignOut, onReserve, className, collapsed = fal
             {menuItems.map((item) => (
               <li key={item.title}>
                 <Button
-                  variant="ghost"
+                  variant={activeView === item.view ? "secondary" : "ghost"}
                   className={cn(
                     "w-full justify-start",
                     collapsed ? "px-2" : "px-3"
                   )}
-                  asChild
+                  onClick={() => onMenuItemClick && onMenuItemClick(item.view)}
                 >
-                  <a href={item.href} className="flex items-center">
-                    <span className="mr-3">{item.icon}</span>
-                    {!collapsed && <span>{item.title}</span>}
-                  </a>
+                  <span className={cn("mr-3", activeView === item.view ? "text-blue-600" : "")}>{item.icon}</span>
+                  {!collapsed && <span>{item.title}</span>}
                 </Button>
               </li>
             ))}
