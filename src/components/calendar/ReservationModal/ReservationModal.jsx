@@ -19,7 +19,8 @@ const ReservationModal = ({
 }) => {
   const [form, setForm] = useState({
     purpose: '',
-    activity_date: '',
+    start_date: '',
+    end_date: '',
     start_time: '',
     end_time: '',
     venue_id: '',
@@ -33,11 +34,15 @@ const ReservationModal = ({
 
   useEffect(() => {
     if (open) {
+      // Clear any existing errors when modal opens
+      setErrors({});
+      
       if (!initialData || Object.keys(initialData).length === 0) {
         // New reservation: reset form to default empty values
         setForm({
           purpose: '',
-          activity_date: '',
+          start_date: '',
+          end_date: '',
           start_time: '',
           end_time: '',
           venue_id: '',
@@ -52,7 +57,8 @@ const ReservationModal = ({
         // Edit/view: use only initialData, not merging with previous form
         setForm({
           purpose: initialData.purpose || '',
-          activity_date: initialData.activity_date ? initialData.activity_date.slice(0, 10) : '',
+          start_date: initialData.start_date ? initialData.start_date.slice(0, 10) : '',
+          end_date: initialData.end_date ? initialData.end_date.slice(0, 10) : '',
           start_time: initialData.start_time ? initialData.start_time.slice(0, 5) : '',
           end_time: initialData.end_time ? initialData.end_time.slice(0, 5) : '',
           venue_id: initialData.venue_id || '',
@@ -134,11 +140,89 @@ const ReservationModal = ({
     return phone; // Return original if not in expected format
   };
 
+  // Helper function to check if a date is a weekend
+  const isWeekend = (date) => {
+    const day = date.getDay();
+    return day === 0 || day === 6; // Sunday = 0, Saturday = 6
+  };
+
+  // Helper function to validate date and time constraints
+  const validateDateTime = (startDateStr, endDateStr, startTime, endTime) => {
+    const errors = {};
+    const today = new Date();
+    
+    // Parse the selected dates
+    const [startYear, startMonth, startDay] = startDateStr.split('-').map(Number);
+    const startDate = new Date(startYear, startMonth - 1, startDay);
+    
+    // Check end date if provided
+    let endDate = null;
+    if (endDateStr) {
+      const [endYear, endMonth, endDay] = endDateStr.split('-').map(Number);
+      endDate = new Date(endYear, endMonth - 1, endDay);
+      
+      // Validate end date is not before start date
+      if (endDate < startDate) {
+        errors.end_date = 'End date cannot be before start date';
+      }
+    }
+    
+    // Check if start date is a weekend
+    if (isWeekend(startDate)) {
+      errors.start_date = 'Weekend dates are not allowed for reservations';
+    }
+    
+    // Check if start date is in the past
+    if (startDate < today && startDate.toDateString() !== today.toDateString()) {
+      errors.start_date = 'Past dates are not allowed for reservations';
+    }
+    
+    // Check if end date is a weekend
+    if (endDate && isWeekend(endDate)) {
+      errors.end_date = 'Weekend dates are not allowed for reservations';
+    }
+    
+    // Parse times
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    
+    // Check if start time is before end time
+    if (startHour > endHour || (startHour === endHour && startMinute >= endMinute)) {
+      errors.end_time = 'End time must be after start time';
+      return errors;
+    }
+    
+    // Check if times are within allowed hours (7am to 9pm)
+    const minHour = 7; // 7am
+    const maxHour = 21; // 9pm
+    
+    if (startHour < minHour || startHour >= maxHour) {
+      errors.start_time = `Start time must be between ${minHour}:00 and ${maxHour - 1}:59`;
+    }
+    
+    if (endHour < minHour || endHour > maxHour || (endHour === maxHour && endMinute > 0)) {
+      errors.end_time = `End time must be between ${minHour}:00 and ${maxHour}:00`;
+    }
+    
+    // If start date is today, check if times are in the future
+    if (startDate.toDateString() === today.toDateString()) {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
+      if (startHour < currentHour || (startHour === currentHour && startMinute <= currentMinute)) {
+        errors.start_time = 'Start time must be in the future';
+      }
+    }
+    
+    return errors;
+  };
+
   const validateForm = () => {
     const newErrors = {};
     const requiredFields = [
       'purpose',
-      'activity_date',
+      'start_date',
       'start_time',
       'end_time',
       'org_id',
@@ -153,6 +237,17 @@ const ReservationModal = ({
         newErrors[field] = 'This field is required';
       }
     });
+
+    // Only proceed with time validations if we have all required time fields
+    if (form.start_date && form.start_time && form.end_time) {
+      const dateTimeErrors = validateDateTime(
+        form.start_date, 
+        form.end_date || form.start_date, // If end_date not provided, use start_date
+        form.start_time, 
+        form.end_time
+      );
+      Object.assign(newErrors, dateTimeErrors);
+    }
 
     // Validate contact number format if provided
     if (form.contact_no && !validatePhoneNumber(form.contact_no)) {
@@ -171,12 +266,20 @@ const ReservationModal = ({
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    // Clear any existing errors before validation
+    setErrors({});
+    
     if (validateForm()) {
       // Normalize the phone number before submitting
       const formToSubmit = {
         ...form,
-        contact_no: form.contact_no ? normalizePhoneNumber(form.contact_no) : ''
+        contact_no: form.contact_no ? normalizePhoneNumber(form.contact_no) : '',
+        // If end_date is not provided, use start_date (same day reservation)
+        end_date: form.end_date || form.start_date
       };
+      
+      // If it's a multi-day reservation (start_date !== end_date),
+      // we'll handle this in the parent component
       onSubmit(formToSubmit);
     }
   };

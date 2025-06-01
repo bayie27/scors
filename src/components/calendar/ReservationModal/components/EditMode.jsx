@@ -54,16 +54,29 @@ const EditMode = ({
           
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="block text-sm font-medium">Date</label>
+              <label className="block text-sm font-medium">Start Date</label>
               <input 
                 type="date" 
-                name="activity_date" 
-                value={form.activity_date} 
+                name="start_date" 
+                value={form.start_date} 
                 onChange={handleChange} 
                 required 
-                className={`w-full border rounded px-3 py-2 ${errors.activity_date ? 'border-red-500' : ''}`} 
+                className={`w-full border rounded px-3 py-2 ${errors.start_date ? 'border-red-500' : ''}`} 
               />
-              {errors.activity_date && <p className="mt-1 text-sm text-red-600">{errors.activity_date}</p>}
+              {errors.start_date && <p className="mt-1 text-sm text-red-600">{errors.start_date}</p>}
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium">End Date</label>
+              <input 
+                type="date" 
+                name="end_date" 
+                value={form.end_date} 
+                onChange={handleChange} 
+                className={`w-full border rounded px-3 py-2 ${errors.end_date ? 'border-red-500' : ''}`} 
+                min={form.start_date} /* Prevent selecting end date before start date */
+              />
+              {errors.end_date && <p className="mt-1 text-sm text-red-600">{errors.end_date}</p>}
+              {!errors.end_date && <p className="mt-1 text-xs text-gray-500">Leave empty for single-day reservation</p>}
             </div>
             <div className="flex-1">
               <label className="block text-sm font-medium">Start Time</label>
@@ -196,9 +209,15 @@ const EditMode = ({
                 name="contact_no" 
                 value={form.contact_no}
                 onChange={(e) => {
+                  let value = e.target.value;
+                  
+                  // Auto-convert +639 to 09 as user types
+                  if (value.startsWith('+639')) {
+                    value = '09' + value.substring(4);
+                  }
+                  
                   // Allow only numbers and + at the start
-                  const value = e.target.value;
-                  if (value === '' || /^\+?[0-9\b\s-]+$/.test(value)) {
+                  if (value === '' || /^[0-9\b\s-+]*$/.test(value)) {
                     handleChange({
                       target: {
                         name: 'contact_no',
@@ -212,12 +231,14 @@ const EditMode = ({
                   if (e.target.value) {
                     const digits = e.target.value.replace(/\D/g, '');
                     let formatted = '';
+                    
+                    // Convert to 09 format
                     if (digits.startsWith('63')) {
-                      formatted = `+${digits}`;
-                    } else if (digits.startsWith('0')) {
-                      formatted = `+63${digits.substring(1)}`;
-                    } else if (digits) {
-                      formatted = `+63${digits}`;
+                      formatted = `0${digits.substring(2)}`;
+                    } else if (!digits.startsWith('0') && digits) {
+                      formatted = `0${digits}`;
+                    } else {
+                      formatted = digits;
                     }
                     
                     if (formatted) {
@@ -230,7 +251,7 @@ const EditMode = ({
                     }
                   }
                 }}
-                placeholder="e.g., 09123456789 or +639123456789"
+                placeholder="e.g., 09123456789"
                 pattern="[0-9+()\- ]+"
                 title="Enter a valid Philippine phone number"
                 className={`w-full border rounded px-3 py-2 ${errors.contact_no ? 'border-red-500' : ''}`} 

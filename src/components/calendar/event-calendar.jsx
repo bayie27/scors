@@ -85,11 +85,11 @@ export function EventCalendar(props) {
       // Transform reservations to calendar events
       const formattedEvents = (reservations || []).map(reservation => {
         // Combine date and time fields
-        const startDateTime = new Date(reservation.activity_date);
+        const startDateTime = new Date(reservation.start_date);
         const [startHours, startMinutes] = reservation.start_time.split(':');
         startDateTime.setHours(parseInt(startHours), parseInt(startMinutes));
         
-        const endDateTime = new Date(reservation.activity_date);
+        const endDateTime = new Date(reservation.start_date);
         const [endHours, endMinutes] = reservation.end_time.split(':');
         endDateTime.setHours(parseInt(endHours), parseInt(endMinutes));
         
@@ -203,7 +203,7 @@ export function EventCalendar(props) {
   // Open modal to create reservation
   const handleSelectSlot = useCallback((slotInfo) => {
     const newReservation = {
-      activity_date: format(slotInfo.start, 'yyyy-MM-dd'),
+      start_date: format(slotInfo.start, 'yyyy-MM-dd'),
       start_time: format(slotInfo.start, 'HH:mm'),
       end_time: format(slotInfo.end, 'HH:mm'),
     };
@@ -381,7 +381,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
         throw new Error('Please select an organization');
       }
 
-      if (!formData.activity_date || !formData.start_time || !formData.end_time) {
+      if (!formData.start_date || !formData.start_time || !formData.end_time) {
         throw new Error('Please fill in all required date and time fields');
       }
       
@@ -401,76 +401,136 @@ function CustomToolbar({ onView, onNavigate, label }) {
     }
   }, [modalEdit, selectedReservation]);
   
-  // Handle actual reservation creation/update after confirmation
-  const performReservationAction = async (formData) => {
-    try {
-      setLoading(true);
-      const now = new Date().toISOString();
+  // Helper function to check if a date is a weekend
+const isWeekend = (date) => {
+  const day = date.getDay();
+  return day === 0 || day === 6; // 0 is Sunday, 6 is Saturday
+};
 
-      const reservationData = {
-        org_id: formData.org_id,
-        activity_date: formData.activity_date,
-        start_time: formData.start_time,
-        end_time: formData.end_time,
-        purpose: formData.purpose || '',
-        officer_in_charge: formData.officer_in_charge || '',
-        reserved_by: formData.reserved_by || '',
-        contact_no: formData.contact_no || '',
-        venue_id: formData.venue_id || null,
-        equipment_id: formData.equipment_id || null,
-        reservation_status_id: formData.reservation_status_id || 3, // Default to Pending (status_id: 3)
-        reservation_ts: now,
-        edit_ts: now
-      };
+// Helper function to add days to a date
+const addDays = (date, days) => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
 
-      if (modalEdit && selectedReservation?.reservation_id) {
-        // Update existing reservation
+// Handle actual reservation creation/update after confirmation
+const performReservationAction = async (formData) => {
+  try {
+    setLoading(true);
+    const now = new Date().toISOString();
+
+    // Create the base reservation data
+    const baseReservationData = {
+      org_id: formData.org_id,
+      start_time: formData.start_time,
+      end_time: formData.end_time,
+      purpose: formData.purpose || '',
+      officer_in_charge: formData.officer_in_charge || '',
+      reserved_by: formData.reserved_by || '',
+      contact_no: formData.contact_no || '',
+      venue_id: formData.venue_id || null,
+      equipment_id: formData.equipment_id || null,
+      reservation_status_id: formData.reservation_status_id || 3, // Default to Pending (status_id: 3)
+      reservation_ts: now,
+      edit_ts: now,
+      end_date: formData.end_date || formData.start_date // Store the original end date for reference
+    };
+
+    if (modalEdit && selectedReservation?.reservation_id) {
+      // Update existing reservation - only update a single day in edit mode
+      const { error } = await supabase
+        .from('reservation')
+        .update({
+          ...baseReservationData,
+          start_date: formData.start_date,
+          edit_ts: new Date().toISOString()
+        })
+        .eq('reservation_id', selectedReservation.reservation_id);
+      
+      if (error) throw error;
+    } else {
+      // Create new reservation(s)
+      
+      // Check if this is a multi-day reservation
+      const startDate = new Date(formData.start_date);
+      const endDate = new Date(formData.end_date || formData.start_date);
+      const isMultiDay = startDate.getTime() !== endDate.getTime();
+      
+      if (isMultiDay) {
+        // Create an array to hold all the reservations to be created
+        const reservationsToCreate = [];
+        
+        // Generate reservations for each day in the range (excluding weekends)
+        let currentDate = startDate;
+        
+        while (currentDate <= endDate) {
+          // Skip weekends
+          if (!isWeekend(currentDate)) {
+            // Format the date as YYYY-MM-DD
+            const formattedDate = currentDate.toISOString().split('T')[0];
+            
+            // Create a reservation for this day
+            reservationsToCreate.push({
+              ...baseReservationData,
+              start_date: formattedDate
+            });
+          }
+          
+          // Move to the next day
+          currentDate = addDays(currentDate, 1);
+        }
+        
+        // Insert all reservations at once
+        if (reservationsToCreate.length > 0) {
+          const { error } = await supabase
+            .from('reservation')
+            .insert(reservationsToCreate);
+          
+          if (error) throw error;
+        } else {
+          throw new Error('No valid dates found in the selected range (all days were weekends)');
+        }
+      } else {
+        // Single day reservation - proceed as before
         const { error } = await supabase
           .from('reservation')
-          .update({
-            ...reservationData,
-            edit_ts: new Date().toISOString()
-          })
-          .eq('reservation_id', selectedReservation.reservation_id);
-        
-        if (error) throw error;
-      } else {
-        // Create new reservation
-        const { data, error } = await supabase
-          .from('reservation')
-          .insert([reservationData])
+          .insert([{
+            ...baseReservationData,
+            start_date: formData.start_date
+          }])
           .select(`
             *,
             organization:org_id (org_id, org_name, org_code),
             venue:venue_id (*),
             equipment:equipment_id (*),
             status:reservation_status_id (*)
-          `)
-          .single();
+          `);
         
         if (error) throw error;
       }
-      
-      // Close all modals and refresh data
-      setUpdateConfirmOpen(false);
-      setDeleteConfirmOpen(false);
-      setModalOpen(false);
-      setPendingFormData(null);
-      setSelectedReservation(null);
-      
-      // Only clear search if setSearchTerm is available
-      if (typeof setSearchTerm === 'function') {
-        setSearchTerm('');
       }
-      
-      fetchReservations();
-      
-    } catch (err) {
-      console.error('Error performing reservation action:', err);
-      alert(`Failed to ${modalEdit ? 'update' : 'create'} reservation: ${err.message}`);
-    } finally {
-      setLoading(false);
+    
+    // Close all modals and refresh data
+    setUpdateConfirmOpen(false);
+    setDeleteConfirmOpen(false);
+    setModalOpen(false);
+    setPendingFormData(null);
+    setSelectedReservation(null);
+    
+    // Only clear search if setSearchTerm is available
+    if (typeof setSearchTerm === 'function') {
+      setSearchTerm('');
     }
+    
+    fetchReservations();
+    
+  } catch (err) {
+    console.error('Error performing reservation action:', err);
+    alert(`Failed to ${modalEdit ? 'update' : 'create'} reservation: ${err.message}`);
+  } finally {
+    setLoading(false);
+  }
   };
 
   // Handle delete button click - show confirmation modal
