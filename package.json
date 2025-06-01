@@ -22,9 +22,12 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.511.0",
+    "prop-types": "^15.8.1",
     "react": "^19.1.0",
     "react-big-calendar": "^1.19.2",
     "react-dom": "^19.1.0",
+    "react-feather": "^2.0.10",
+    "react-hot-toast": "^2.5.2",
     "tailwind-merge": "^3.3.0",
     "tailwindcss": "^4.1.7"
   },

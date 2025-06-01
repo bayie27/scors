@@ -39,46 +39,36 @@ export function EventCalendar() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch lookup data for form
-  const fetchLookups = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [{ data: v, error: vErr }, { data: e, error: eErr }, { data: s, error: sErr }] = await Promise.all([
-        supabase.from('venue').select('*'),
-        supabase.from('equipment').select('*'),
-        supabase.from('reservation_status').select('*'),
-      ]);
-      console.log('Venues:', v, 'Error:', vErr);
-      console.log('Equipment:', e, 'Error:', eErr);
-      setVenues(v || []);
-      setEquipmentList(e || []);
-      setStatuses(s || []);
-      setError(null);
-    } catch (err) {
-      setError('Failed to load lookup data.');
-      console.error('Lookup fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [organizations, setOrganizations] = useState([]);
+
+  // Fetch lookup data for form (now handled in the initial useEffect)
 
   // Fetch reservations from the database
   const fetchReservations = useCallback(async () => {
     try {
       setLoading(true);
+      // Get organizations first if not already loaded
+      if (organizations.length === 0) {
+        const { data: orgs } = await supabase
+          .from('organization')
+          .select('org_id, org_name, org_code');
+        setOrganizations(orgs || []);
+      }
+
       const { data: reservations, error: fetchError } = await supabase
         .from('reservation')
         .select(`
           *,
           venue:venue_id(*),
           equipment:equipment_id(*),
-          status:reservation_status_id(*)
+          status:reservation_status_id(*),
+          organization:org_id(*)
         `);
 
       if (fetchError) throw fetchError;
 
       // Transform reservations to calendar events
-      const formattedEvents = reservations.map(reservation => {
+      const formattedEvents = (reservations || []).map(reservation => {
         // Combine date and time fields
         const startDateTime = new Date(reservation.activity_date);
         const [startHours, startMinutes] = reservation.start_time.split(':');
@@ -88,6 +78,12 @@ export function EventCalendar() {
         const [endHours, endMinutes] = reservation.end_time.split(':');
         endDateTime.setHours(parseInt(endHours), parseInt(endMinutes));
         
+        // Get organization info from the joined data or find in organizations state
+        const org = reservation.organization || 
+                   organizations.find(o => o.org_id === reservation.org_id);
+        const orgCode = org?.org_code || '';
+        const orgName = org?.org_name || '';
+        
         return {
           id: reservation.reservation_id,
           title: reservation.purpose || 'Untitled Reservation',
@@ -96,11 +92,17 @@ export function EventCalendar() {
           resource: reservation.venue_id ? `Venue ${reservation.venue_id}` : 
                   (reservation.equipment_id ? `Equipment ${reservation.equipment_id}` : 'No Location'),
           description: `Reserved by: ${reservation.reserved_by || 'Unknown'}\n` +
-                     `Contact: ${reservation.contact_no || 'N/A'}`,
-          status: reservation.reservation_status_id || 1, // Default to pending
-          participants: 1, // Default value since not in schema
+                     `Contact: ${reservation.contact_no || 'N/A'}\n` +
+                     `Org: ${orgName} (${orgCode || 'No Code'})`,
+          status: reservation.status?.name || 'Pending',
+          participants: 1,
           allDay: false,
-          rawData: reservation // Include raw data in case needed
+          rawData: {
+            ...reservation,
+            org_code: orgCode,
+            org_name: orgName,
+            organization: org || null
+          }
         };
       });
 
@@ -112,13 +114,43 @@ export function EventCalendar() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // Removed organizations dependency to prevent infinite loop
 
-  // Load reservations on component mount
+  // Initial data loading
   useEffect(() => {
-    fetchLookups();
-    fetchReservations();
-  }, [fetchLookups, fetchReservations]);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        // Fetch all lookup data in parallel
+        const [
+          { data: v },
+          { data: e },
+          { data: s },
+          { data: orgs }
+        ] = await Promise.all([
+          supabase.from('venue').select('*'),
+          supabase.from('equipment').select('*'),
+          supabase.from('reservation_status').select('*'),
+          supabase.from('organization').select('org_id, org_name, org_code')
+        ]);
+
+        setVenues(v || []);
+        setEquipmentList(e || []);
+        setStatuses(s || []);
+        setOrganizations(orgs || []);
+        
+        // Now fetch reservations with all lookup data available
+        await fetchReservations();
+      } catch (err) {
+        console.error('Error loading initial data:', err);
+        setError('Failed to load initial data. Please refresh the page.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [fetchReservations]);
 
   // Real-time subscription for reservations
   useEffect(() => {
@@ -144,6 +176,7 @@ export function EventCalendar() {
 
   // Handle when an event is clicked (view-only first)
   const handleSelectEvent = useCallback((event) => {
+    console.log('Reservation details:', event.rawData);
     setSelectedReservation(event.rawData);
     setModalEdit(false);
     setModalView(true); // open in view mode
@@ -170,27 +203,58 @@ export function EventCalendar() {
   const onView = useCallback((newView) => setView(newView), []);
 
   // Custom event component
-  const EventComponent = useCallback(({ event }) => (
-    <div className="p-1 overflow-hidden">
-      <div 
-        className={`border-l-4 p-2 rounded ${
-          event.status === 'Approved' 
-            ? 'bg-green-50 border-green-500' 
-            : event.status === 'Rejected' 
-              ? 'bg-red-50 border-red-500' 
-              : 'bg-blue-50 border-blue-500'
-        }`}
-      >
-        <div className="font-medium text-sm truncate">{event.title}</div>
-        <div className="text-xs text-gray-600">
-          {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
+  const EventComponent = useCallback(({ event }) => {
+    // Extract organization info from event.rawData
+    const raw = event.rawData || {};
+    const orgCode = raw.organization?.org_code || raw.org_code || '';
+    const orgDisplay = orgCode || 'No Org';
+
+    // Only show minimal info in month view
+    if (view === 'month') {
+      return (
+        <div className="p-0.5 overflow-hidden h-full">
+          <div className="rounded bg-white border border-gray-200 px-1 py-0.5 flex flex-col gap-0.5 min-w-0 h-full">
+            <div className="text-xs font-semibold truncate" title={event.title}>
+              {event.title}
+              <div className="text-[10px] text-blue-700 font-bold truncate">
+                {orgDisplay}
+              </div>
+            </div>
+          </div>
         </div>
-        {event.resource && (
-          <div className="text-xs text-gray-500 mt-1 truncate">{event.resource}</div>
-        )}
+      );
+    }
+    
+    // Default for week/day/agenda views
+    return (
+      <div className="p-1 overflow-hidden h-full">
+        <div 
+          className={`border-l-4 p-2 rounded h-full flex flex-col ${
+            event.status === 'Approved' 
+              ? 'bg-green-50 border-green-500' 
+              : event.status === 'Rejected' 
+                ? 'bg-red-50 border-red-500' 
+                : 'bg-blue-50 border-blue-500'
+          }`}
+        >
+          <div className="font-medium text-sm truncate">{event.title}</div>
+          <div className="text-xs text-gray-600">
+            {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
+          </div>
+          {orgDisplay && (
+            <div className="text-xs text-gray-700 mt-1 truncate" title={orgDisplay}>
+              {orgDisplay}
+            </div>
+          )}
+          {event.resource && (
+            <div className="text-xs text-gray-500 mt-1 truncate">
+              {event.resource}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  ), []);
+    );
+  }, [view]);
 
   // Custom toolbar (no refresh button)
   const CustomToolbar = useCallback(({ onView, onNavigate, label }) => {
@@ -237,67 +301,76 @@ export function EventCalendar() {
   }, [view]);
 
   // Handle create/edit reservation
-  const handleModalSubmit = async (form) => {
-    // Get current user from Supabase Auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      alert('You must be logged in to create a reservation.');
-      return;
-    }
-    // Find user_id in your user table by email
-    const { data: userRows, error: userError } = await supabase
-      .from('user')
-      .select('user_id')
-      .eq('whitelisted_email', user.email)
-      .single();
-    if (!userRows || userError) {
-      alert('No matching user record found for your email.');
-      return;
-    }
-    // Remove reservation_type_id if present
-    const { reservation_type_id, ...formWithoutType } = form;
-    // Set reservation_status_id to 'Pending' for new reservations
-    let statusId = null;
-    if (!modalEdit && statuses && statuses.length > 0) {
-      const pendingStatus = statuses.find(s => s.name && s.name.toLowerCase() === 'pending');
-      statusId = pendingStatus ? pendingStatus.reservation_status_id : statuses[0].reservation_status_id;
-    }
-    // Prepare reservation data
-    const nowISOString = new Date().toISOString(); // Use current local time
-    const reservationData = {
-      ...form,
-      user_id: userRows.user_id,
-      venue_id: form.venue_id === '' ? null : form.venue_id,
-      equipment_id: form.equipment_id === '' ? null : form.equipment_id,
-      reservation_status_id: modalEdit
-        ? (form.reservation_status_id === '' ? null : form.reservation_status_id)
-        : 3,
-      reservation_ts: modalEdit && selectedReservation?.reservation_ts ? selectedReservation.reservation_ts : nowISOString,
-      edit_ts: nowISOString,
-    };
-    if (modalEdit && selectedReservation?.reservation_id) {
-      // Only update edit_ts for edits
-      const { error } = await supabase.from('reservation').update(reservationData).eq('reservation_id', selectedReservation.reservation_id);
-      if (error) {
-        alert('Update failed: ' + error.message);
-        console.error(error);
-        return;
+  const handleModalSubmit = useCallback(async (formData) => {
+    try {
+      if (!formData.org_id) {
+        throw new Error('Please select an organization');
       }
-    } else {
-      // Always set status to 3 for new reservations
-      reservationData.reservation_status_id = 3;
-      reservationData.reservation_ts = nowISOString;
-      reservationData.edit_ts = nowISOString;
-      const { error } = await supabase.from('reservation').insert([reservationData]);
-      if (error) {
-        alert('Insert failed: ' + error.message);
-        console.error(error);
-        return;
+
+      if (!formData.activity_date || !formData.start_time || !formData.end_time) {
+        throw new Error('Please fill in all required date and time fields');
       }
+
+      setLoading(true);
+      const now = new Date().toISOString();
+
+      const reservationData = {
+        org_id: formData.org_id,
+        activity_date: formData.activity_date,
+        start_time: formData.start_time,
+        end_time: formData.end_time,
+        purpose: formData.purpose || '',
+        officer_in_charge: formData.officer_in_charge || '',
+        reserved_by: formData.reserved_by || '',
+        contact_no: formData.contact_no || '',
+        venue_id: formData.venue_id || null,
+        equipment_id: formData.equipment_id || null,
+        reservation_status_id: formData.reservation_status_id || 3, // Default to Pending (status_id: 3)
+        reservation_ts: now,
+        edit_ts: now
+      };
+
+      if (modalEdit && selectedReservation?.reservation_id) {
+        // Update existing reservation
+        const { error } = await supabase
+          .from('reservation')
+          .update({
+            ...reservationData,
+            edit_ts: new Date().toISOString()
+          })
+          .eq('reservation_id', selectedReservation.reservation_id);
+        
+        if (error) throw error;
+      } else {
+        // Create new reservation
+        const { data, error } = await supabase
+          .from('reservation')
+          .insert([reservationData])
+          .select(`
+            *,
+            organization:org_id (org_id, org_name, org_code),
+            venue:venue_id (*),
+            equipment:equipment_id (*),
+            status:reservation_status_id (*)
+          `)
+          .single();
+        
+        if (error) throw error;
+      }
+      
+      // Refresh the events and close modal
+      fetchReservations();
+      setModalOpen(false);
+      setSelectedReservation(null);
+      
+    } catch (err) {
+      console.error('Error creating/editing reservation:', err);
+      alert(`Failed to ${modalEdit ? 'update' : 'create'} reservation: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
-    setModalOpen(false);
-    setSelectedReservation(null);
-  };
+  }, [modalEdit, selectedReservation, fetchReservations]);
+
   // Handle delete
   const handleModalDelete = async () => {
     if (selectedReservation?.reservation_id) {
@@ -309,20 +382,23 @@ export function EventCalendar() {
 
   // Main calendar UI with loading overlay
   return (
-    <div className="relative h-[700px] bg-white p-4 rounded-lg shadow">
+    <div className="relative h-[calc(100vh-2rem)] bg-white p-4 rounded-lg shadow">
       {/* Modal for create/edit */}
       <ReservationModal
         open={modalOpen}
         onClose={() => { setModalOpen(false); setSelectedReservation(null); setModalView(false); setModalEdit(false); }}
         onSubmit={handleModalSubmit}
         onDelete={modalEdit ? handleModalDelete : undefined}
-        initialData={selectedReservation}
+        initialData={selectedReservation || {}}
         venues={venues}
         equipmentList={equipmentList}
+        organizations={organizations}
+        statuses={statuses}
         isEdit={modalEdit}
         isView={modalView && !modalEdit}
         onEditView={() => { setModalEdit(true); setModalView(false); }}
       />
+      
       {/* Loading overlay */}
       {loading && (
         <div className="absolute inset-0 bg-white bg-opacity-70 flex flex-col items-center justify-center z-10">
@@ -330,6 +406,7 @@ export function EventCalendar() {
           <p className="mt-4 text-gray-600">Loading reservations...</p>
         </div>
       )}
+      
       {/* Error message overlay */}
       {error && !loading && (
         <div className="absolute inset-0 bg-white bg-opacity-80 flex flex-col items-center justify-center z-20">
@@ -339,107 +416,55 @@ export function EventCalendar() {
         </div>
       )}
       {/* Calendar */}
-      <BigCalendar
-        localizer={localizer}
-        events={events}
-        startAccessor="start"
-        endAccessor="end"
-        style={{ height: 'calc(100% - 40px)' }}
-        selectable
-        onSelectEvent={handleSelectEvent}
-        onSelectSlot={handleSelectSlot}
-        defaultView={view}
-        view={view}
-        onView={onView}
-        date={date}
-        onNavigate={onNavigate}
-        components={{
-          event: EventComponent,
-          toolbar: CustomToolbar,
-        }}
-        eventPropGetter={(event) => {
-          let backgroundColor = '#e3f2fd';
-          let borderColor = '#2196f3';
-          
-          if (event.status === 'Approved') {
-            backgroundColor = '#e8f5e9';
-            borderColor = '#4caf50';
-          } else if (event.status === 'Rejected') {
-            backgroundColor = '#ffebee';
-            borderColor = '#f44336';
-          } else if (event.status === 'Pending') {
-            backgroundColor = '#fff8e1';
-            borderColor = '#ffc107';
-          }
-          
-          return {
-            style: {
-              backgroundColor,
-              borderLeft: `4px solid ${borderColor}`,
-              borderRadius: '4px',
-              color: '#1a1a1a',
-              border: 'none',
-              padding: '2px 8px',
-              fontSize: '0.875rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            },
-          };
-        }}
-      />
-    </div>
-  );
-
-
-
-  return (
-    <div className="h-[700px] bg-white p-4 rounded-lg shadow">
-      <BigCalendar
-        localizer={localizer}
-        events={events}
-        startAccessor="start"
-        endAccessor="end"
-        style={{ height: 'calc(100% - 40px)' }}
-        selectable
-        onSelectEvent={handleSelectEvent}
-        onSelectSlot={handleSelectSlot}
-        defaultView={view}
-        view={view}
-        onView={onView}
-        date={date}
-        onNavigate={onNavigate}
-        components={{
-          event: EventComponent,
-          toolbar: CustomToolbar,
-        }}
-        eventPropGetter={(event) => {
-          let backgroundColor = '#e3f2fd';
-          let borderColor = '#2196f3';
-          
-          if (event.status === 'Approved') {
-            backgroundColor = '#e8f5e9';
-            borderColor = '#4caf50';
-          } else if (event.status === 'Rejected') {
-            backgroundColor = '#ffebee';
-            borderColor = '#f44336';
-          } else if (event.status === 'Pending') {
-            backgroundColor = '#fff8e1';
-            borderColor = '#ffc107';
-          }
-          
-          return {
-            style: {
-              backgroundColor,
-              borderLeft: `4px solid ${borderColor}`,
-              borderRadius: '4px',
-              color: '#1a1a1a',
-              border: 'none',
-              padding: '2px 8px',
-              fontSize: '0.875rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            },
-          };
-        }}
-      />
+      <div className="h-full">
+        <BigCalendar
+          localizer={localizer}
+          events={events}
+          startAccessor="start"
+          endAccessor="end"
+          style={{ height: 'calc(100% - 40px)' }}
+          selectable
+          onSelectEvent={handleSelectEvent}
+          onSelectSlot={handleSelectSlot}
+          defaultView={view}
+          view={view}
+          onView={onView}
+          date={date}
+          onNavigate={onNavigate}
+          components={{
+            event: EventComponent,
+            toolbar: CustomToolbar,
+          }}
+          eventPropGetter={(event) => {
+            let backgroundColor = '#e3f2fd';
+            let borderColor = '#2196f3';
+            
+            if (event.status === 'Approved') {
+              backgroundColor = '#e8f5e9';
+              borderColor = '#4caf50';
+            } else if (event.status === 'Rejected') {
+              backgroundColor = '#ffebee';
+              borderColor = '#f44336';
+            } else if (event.status === 'Pending') {
+              backgroundColor = '#fff8e1';
+              borderColor = '#ffc107';
+            }
+            
+            return {
+              style: {
+                backgroundColor,
+                borderLeft: `4px solid ${borderColor}`,
+                borderRadius: '4px',
+                color: '#1a1a1a',
+                border: 'none',
+                padding: '2px 8px',
+                fontSize: '0.875rem',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              },
+            };
+          }}
+        />
+      </div>
     </div>
   );
 }
