@@ -2,12 +2,14 @@ import { useState, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { EventCalendar } from "@/components/calendar/event-calendar";
 import { Sidebar } from "@/components/sidebar/Sidebar";
+import { UsersPage } from "./users-page";
 import { Menu, Search } from 'lucide-react';
 import scorsLogo from "@/assets/scors-logo.png";
 
 export function DashboardPage({ user, onSignOut }) {
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeView, setActiveView] = useState('calendar');
 
   const handleSearch = useCallback((term) => {
     setSearchTerm(term);
@@ -16,6 +18,10 @@ export function DashboardPage({ user, onSignOut }) {
 
   const toggleSidebar = () => {
     setCollapsed(!collapsed);
+  };
+
+  const handleMenuItemClick = (view) => {
+    setActiveView(view);
   };
   
   // Function to handle event creation from the dashboard's quick add button
@@ -74,13 +80,25 @@ export function DashboardPage({ user, onSignOut }) {
           onSignOut={onSignOut} 
           onReserve={handleQuickAddEvent}
           collapsed={collapsed}
+          onMenuItemClick={handleMenuItemClick}
+          activeView={activeView}
         />
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden pt-[60px]">
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto">
-            <EventCalendar searchTerm={searchTerm} onSearchChange={handleSearch} />
+            {activeView === 'calendar' ? (
+              <EventCalendar searchTerm={searchTerm} onSearchChange={handleSearch} />
+            ) : activeView === 'users' ? (
+              <UsersPage />
+            ) : (
+              <div className="p-6">
+                {activeView === 'venues' && 'Venues Management Coming Soon'}
+                {activeView === 'equipment' && 'Equipment Management Coming Soon'}
+                {activeView === 'approvals' && 'Pending Approvals Coming Soon'}
+              </div>
+            )}
           </main>
         </div>
       </div>
