@@ -23,6 +23,7 @@ import {
   DialogClose
 } from '@/components/ui/dialog';
 import { AssetCard } from '@/components/cards/asset-card';
+import { AddEquipmentDialog } from '@/components/equipment/AddEquipmentDialog';
 
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
@@ -74,6 +75,7 @@ export function EquipmentPage() {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddEquipmentDialogOpen, setIsAddEquipmentDialogOpen] = useState(false);
   const subscriptionRef = useRef(null);
 
   const fetchEquipment = useCallback(async () => {
@@ -105,6 +107,20 @@ export function EquipmentPage() {
       setIsLoading(false);
     }
   }, []);
+
+  const handleAddEquipmentSubmit = async (equipmentFormData, imageFile) => {
+    try {
+      await equipmentService.createEquipment(equipmentFormData, imageFile);
+      toast.success('Equipment added successfully!');
+      fetchEquipment(); // Refresh the list
+      setIsAddEquipmentDialogOpen(false); // Close the dialog
+      return Promise.resolve(); // Explicitly return a resolved promise for the dialog
+    } catch (error) {
+      console.error('Failed to add equipment:', error);
+      toast.error(error.message || 'Failed to add equipment. Please try again.');
+      return Promise.reject(error); // Explicitly return a rejected promise for the dialog
+    }
+  };
 
   // Initial data fetch
   useEffect(() => {
@@ -216,14 +232,11 @@ export function EquipmentPage() {
           
           {/* Add equipment button */}
           <Button
-            variant="default"
-            className="h-10 px-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => {
-              toast.success('Add equipment functionality will be implemented soon!');
-            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 ease-in-out flex items-center group h-10"
+            onClick={() => setIsAddEquipmentDialogOpen(true)}
           >
-            <Plus className="h-4 w-4" />
-            <span className="hidden md:inline">Add Equipment</span>
+            <Plus className="h-5 w-5 mr-2 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
+            Add Equipment
           </Button>
         </div>
       </div>
@@ -376,6 +389,12 @@ export function EquipmentPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <AddEquipmentDialog
+        open={isAddEquipmentDialogOpen}
+        onOpenChange={setIsAddEquipmentDialogOpen}
+        onSubmitSuccess={handleAddEquipmentSubmit}
+      />
     </div>
   );
 }
