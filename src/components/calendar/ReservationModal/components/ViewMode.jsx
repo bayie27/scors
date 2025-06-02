@@ -40,7 +40,12 @@ const ViewMode = ({
     <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl relative overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-800">Reservation Details</h2>
+          <div className="flex items-center space-x-4">
+            <h2 className="text-xl font-semibold text-gray-800">Reservation Details</h2>
+            <div className={`px-3 py-1 rounded-full text-xs font-medium ${statusStyles} shadow-sm text-center`}>
+              {statusName}
+            </div>
+          </div>
           <button 
             onClick={onClose} 
             className="text-gray-400 hover:text-gray-600 transition-colors p-1 -mr-2"
@@ -49,11 +54,15 @@ const ViewMode = ({
             <X size={24} />
           </button>
         </div>
-        <div className="mt-2">
-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusStyles} border`}>
-            {statusName}
-          </span>
-        </div>
+        
+        {form.decision_ts && (form.reservation_status_id === 1 || form.reservation_status_id === 2 || form.reservation_status_id === 4) && (
+          <div className="mt-1 text-xs text-gray-500">
+            {form.reservation_status_id === 1 ? 'Approved on ' :
+             form.reservation_status_id === 2 ? 'Rejected on ' :
+             'Cancelled on '}
+            {new Date(form.decision_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'short'})}
+          </div>
+        )}
       </div>
 
       <div className="overflow-y-auto max-h-[70vh] p-6 space-y-6">
@@ -195,29 +204,17 @@ const ViewMode = ({
         {/* System Information */}
         <div className="space-y-4 pt-4 border-t border-gray-100">
           <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">System Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Created</label>
               <div className="text-sm text-gray-600">
-                {form.reservation_ts ? new Date(form.reservation_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'medium'}) : 'N/A'}
+                {form.reservation_ts ? new Date(form.reservation_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'short'}) : 'N/A'}
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Edited</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Last Edited</label>
               <div className="text-sm text-gray-600">
-                {form.edit_ts ? new Date(form.edit_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'medium'}) : 'N/A'}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                {form.reservation_status_id === 1 ? 'Approved' :
-                 form.reservation_status_id === 2 ? 'Rejected' :
-                 form.reservation_status_id === 4 ? 'Cancelled' :
-                 'Decision Pending'}
-              </label>
-              <div className="text-sm text-gray-600">
-                {form.decision_ts ? new Date(form.decision_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'medium'}) : 
-                 (form.reservation_status_id === 1 || form.reservation_status_id === 2 || form.reservation_status_id === 4) ? 'Unknown' : 'Pending'}
+                {form.edit_ts ? new Date(form.edit_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'short'}) : 'N/A'}
               </div>
             </div>
           </div>
