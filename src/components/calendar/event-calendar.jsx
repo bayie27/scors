@@ -269,7 +269,7 @@ export function EventCalendar(props) {
       );
     }
     
-    // Default for week/day/agenda views - show full details
+    // Default for week/day/list views - show full details
     return (
       <div className="p-1 overflow-hidden h-full">
         <div 
@@ -304,7 +304,7 @@ export function EventCalendar(props) {
     );
   }, [view]);
 
-  // Search function to filter events and switch to agenda view
+  // Search function to filter events and switch to list view
   const handleSearch = useCallback((term) => {
     // If search is empty, show all events
     if (!term.trim()) {
@@ -329,7 +329,7 @@ export function EventCalendar(props) {
     // Update filtered events
     setFilteredEvents(filtered);
     
-    // Switch to agenda view when searching
+    // Switch to list view when searching
     if (term.trim() && view !== 'agenda') {
       setView('agenda');
     }
@@ -367,15 +367,15 @@ function CustomToolbar({ onView, onNavigate, label }) {
       </div>
       <div className="flex flex-wrap gap-2 items-center">
         <div className="flex space-x-1">
-          {['month', 'week', 'day', 'agenda'].map((viewType) => (
+          {['month', 'week', 'day', 'list'].map((viewType) => (
             <button
               key={viewType}
               className={`px-3 py-1 text-sm rounded ${
-                view === viewType
+                view === (viewType === 'list' ? 'agenda' : viewType)
                   ? 'bg-blue-500 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
-              onClick={() => onView(viewType)}
+              onClick={() => onView(viewType === 'list' ? 'agenda' : viewType)}
             >
               {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
             </button>

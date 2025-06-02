@@ -1,6 +1,6 @@
 import "./App.css";
 import LoginPage from "./pages/login-page";
-import { DashboardPage } from "./pages/dashboard-page";
+import { CalendarPage } from "./pages/calendar-page";
 import { useAuth } from "./lib/useAuth";
 
 const App = () => {
@@ -21,7 +21,7 @@ const App = () => {
     return <LoginPage />;
   }
 
-  return <DashboardPage user={user} onSignOut={signOut} />;
+  return <CalendarPage user={user} onSignOut={signOut} />;
 };
 
 export default App;

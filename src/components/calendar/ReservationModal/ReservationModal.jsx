@@ -301,27 +301,23 @@ const ReservationModal = ({
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.keys(newErrors).length === 0; // Return true if no errors
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log('ReservationModal - handleSubmit called, isEdit:', isEdit);
-    console.log('ReservationModal - Current form data:', form);
     
     // Clear any existing errors before validation
     setErrors({});
     
-    // Validate form
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      console.log('ReservationModal - Validation errors:', validationErrors);
-      setErrors(validationErrors);
-      return;
+    // Validate form and check return value
+    if (!validateForm()) {
+      console.log('ReservationModal - Validation failed, not submitting');
+      return; // Stop if validation fails
     }
     
     console.log('ReservationModal - Validation passed, proceeding with submission');
-    console.log('ReservationModal - isEdit:', isEdit);
     
     // Get all dates in the selected range (excluding weekends)
     const dateArray = getDatesInRange(form.start_date, form.end_date);
@@ -335,35 +331,45 @@ const ReservationModal = ({
     // Normalize phone number
     const normalizedPhone = form.contact_no ? normalizePhoneNumber(form.contact_no) : '';
     
+    // Prepare base form data with proper type conversion
+    const prepareFormData = (formData) => ({
+      ...formData,
+      venue_id: formData.venue_id ? Number(formData.venue_id) : null,
+      equipment_id: formData.equipment_id ? Number(formData.equipment_id) : null,
+      org_id: Number(formData.org_id),
+      reserved_by: Number(formData.reserved_by),
+      officer_in_charge: Number(formData.officer_in_charge),
+      contact_no: normalizedPhone,
+      reservation_status_id: formData.reservation_status_id ? Number(formData.reservation_status_id) : 1 // Default to 'Reserved' status
+    });
+    
     if (isEdit) {
       console.log('ReservationModal - Handling EDIT mode submission');
-      // When editing, just update the single reservation with new values
-      // Make sure we preserve the activity_date field for compatibility with existing code
-      const formToSubmit = {
+      const formToSubmit = prepareFormData({
         ...form,
-        activity_date: form.start_date, // Use start_date as the activity_date for the edited reservation
-        contact_no: normalizedPhone
-      };
+        activity_date: form.start_date
+      });
+      
       console.log('ReservationModal - Calling onSubmit with edit data:', formToSubmit);
       onSubmit(formToSubmit);
     } else {
       console.log('ReservationModal - Handling NEW reservation submission');
+      
       // For new reservations, create multiple individual reservations
-      // All reservations including the first one
-      const allReservations = dateArray.map((date, index) => ({
-        ...form,
-        activity_date: date, // Set activity_date to the current date in the array
-        start_date: form.start_date, // Keep original start/end dates for reference
-        end_date: form.end_date,
-        contact_no: normalizedPhone,
-        isFirstDay: index === 0,
-        isMultiDay: dateArray.length > 1,
-        multiDayIndex: index,
-        multiDayTotal: dateArray.length
-      }));
+      const allReservations = dateArray.map((date, index) => 
+        prepareFormData({
+          ...form,
+          activity_date: date,
+          start_date: form.start_date,
+          end_date: form.end_date,
+          isFirstDay: index === 0,
+          isMultiDay: dateArray.length > 1,
+          multiDayIndex: index,
+          multiDayTotal: dateArray.length
+        })
+      );
       
       console.log('ReservationModal - Calling onSubmit with array of', allReservations.length, 'reservations');
-      // Submit all reservations to the parent component
       onSubmit(allReservations);
     }
   };
