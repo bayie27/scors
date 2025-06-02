@@ -27,6 +27,9 @@ export function EventCalendar(props) {
   const [modalView, setModalView] = useState(false); // true = view mode, false = edit/create
   const [selectedReservation, setSelectedReservation] = useState(null);
   
+  // Search state
+  const [localSearchTerm, setLocalSearchTerm] = useState('');
+  
   // Confirmation modal states
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
@@ -42,6 +45,14 @@ export function EventCalendar(props) {
   useEffect(() => {
     console.log('EventCalendar - pendingFormData state changed:', pendingFormData);
   }, [pendingFormData]);
+  
+  // Effect to update localSearchTerm when props.searchTerm changes
+  useEffect(() => {
+    // Only update if props.searchTerm is defined and different from current local state
+    if (props.searchTerm !== undefined && props.searchTerm !== localSearchTerm) {
+      setLocalSearchTerm(props.searchTerm);
+    }
+  }, [props.searchTerm]);
   
   // Lookup data
   const [venues, setVenues] = useState([]);
@@ -214,11 +225,28 @@ export function EventCalendar(props) {
   // Handle when a date/time slot is selected
   // Open modal to create reservation
   const handleSelectSlot = useCallback((slotInfo) => {
+    console.log('Slot selected:', slotInfo);
+    
+    // Format dates
+    const startDate = format(slotInfo.start, 'yyyy-MM-dd');
+    const endDate = format(slotInfo.end, 'yyyy-MM-dd');
+    
+    // For multi-day selections in month view, the end date is the day after the last selected day
+    // So we need to subtract one day for a correct end date
+    const adjustedEndDate = view === 'month' && startDate !== endDate ? 
+      format(new Date(slotInfo.end.getTime() - 86400000), 'yyyy-MM-dd') : 
+      endDate;
+    
     const newReservation = {
-      activity_date: format(slotInfo.start, 'yyyy-MM-dd'),
+      activity_date: startDate,
+      start_date: startDate,
+      end_date: adjustedEndDate, // Use the adjusted end date
       start_time: format(slotInfo.start, 'HH:mm'),
       end_time: format(slotInfo.end, 'HH:mm'),
     };
+    
+    console.log('New reservation:', newReservation);
+    
     setSelectedReservation(newReservation);
     setModalEdit(false);
     setModalView(false);
@@ -228,7 +256,7 @@ export function EventCalendar(props) {
     if (onSlotSelected) {
       onSlotSelected(newReservation);
     }
-  }, [onSlotSelected]);
+  }, [onSlotSelected, view]);
   
   // Handle external slot selection (e.g., from reserve button)
   useEffect(() => {
@@ -316,15 +344,32 @@ export function EventCalendar(props) {
     const searchLower = term.toLowerCase();
     
     // Filter events based on search term
-    const filtered = events.filter(event => 
-      event.title.toLowerCase().includes(searchLower) ||
-      (event.description && event.description.toLowerCase().includes(searchLower)) ||
-      (event.resource && event.resource.toLowerCase().includes(searchLower)) ||
-      (event.rawData?.organization?.org_name && event.rawData.organization.org_name.toLowerCase().includes(searchLower)) ||
-      (event.rawData?.organization?.org_code && event.rawData.organization.org_code.toLowerCase().includes(searchLower)) ||
-      (event.rawData?.officer_in_charge && event.rawData.officer_in_charge.toLowerCase().includes(searchLower)) ||
-      (event.rawData?.reserved_by && event.rawData.reserved_by.toLowerCase().includes(searchLower))
-    );
+    const filtered = events.filter(event => {
+      // Check basic fields
+      if (event.title.toLowerCase().includes(searchLower) ||
+          (event.description && event.description.toLowerCase().includes(searchLower)) ||
+          (event.resource && event.resource.toLowerCase().includes(searchLower)) ||
+          (event.rawData?.organization?.org_name && event.rawData.organization.org_name.toLowerCase().includes(searchLower)) ||
+          (event.rawData?.organization?.org_code && event.rawData.organization.org_code.toLowerCase().includes(searchLower)) ||
+          (event.rawData?.officer_in_charge && event.rawData.officer_in_charge.toLowerCase().includes(searchLower)) ||
+          (event.rawData?.reserved_by && event.rawData.reserved_by.toLowerCase().includes(searchLower))) {
+        return true;
+      }
+      
+      // Check venue name
+      if (event.rawData?.venue?.venue_name && 
+          event.rawData.venue.venue_name.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      // Check equipment name
+      if (event.rawData?.equipment?.equipment_name && 
+          event.rawData.equipment.equipment_name.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      return false;
+    });
     
     // Update filtered events
     setFilteredEvents(filtered);
@@ -435,6 +480,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
   const performReservationAction = async (formData) => {
     try {
       setLoading(true);
+      // Generate timezone-aware timestamp for current time
       const now = new Date().toISOString();
       const isMultiDayReservation = Array.isArray(formData);
 
@@ -444,10 +490,18 @@ function CustomToolbar({ onView, onNavigate, label }) {
       
         // Make sure we use activity_date as the primary date field for updates
         // The database schema has activity_date, not start_date/end_date
+        // Ensure activity_date is set correctly when editing
+        let activity_date = singleFormData.start_date;
+        if (!activity_date && singleFormData.activity_date) {
+          activity_date = singleFormData.activity_date;
+        }
+        if (!activity_date) {
+          activity_date = new Date().toISOString().split('T')[0];
+        }
+        
         const reservationData = {
           org_id: singleFormData.org_id,
-          // For updates, always use start_date as the activity_date if available
-          activity_date: singleFormData.start_date || singleFormData.activity_date,
+          activity_date: activity_date,
           start_time: singleFormData.start_time,
           end_time: singleFormData.end_time,
           purpose: singleFormData.purpose || '',
@@ -456,7 +510,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
           contact_no: singleFormData.contact_no || '',
           venue_id: singleFormData.venue_id || null,
           equipment_id: singleFormData.equipment_id || null,
-          reservation_status_id: singleFormData.reservation_status_id || 3, // Default to Pending (status_id: 3)
+          reservation_status_id: singleFormData.reservation_status_id || 3, // Maintain existing status or default to Pending
           edit_ts: now
         };
         
@@ -477,10 +531,24 @@ function CustomToolbar({ onView, onNavigate, label }) {
           const multiDayInfo = day.multiDayTotal > 1 
             ? ` [Multi-day ${day.multiDayIndex + 1} of ${day.multiDayTotal}]` 
             : '';
+          
+          // CRITICAL: For multi-day reservations, ALWAYS use the activity_date that was set in the ReservationModal
+          // This ensures each reservation gets its own specific date from the dateArray
+          // DO NOT override or modify this value as it contains the unique date for each day's reservation
+          const activity_date = day.activity_date;
+          
+          console.log(`Creating reservation for date: ${activity_date}, day index: ${day.multiDayIndex}`);
+          
+          // Validate that we have a valid activity_date
+          if (!activity_date) {
+            console.error('Missing activity_date for reservation', day);
+          }
             
           return {
             org_id: day.org_id,
-            activity_date: day.activity_date,
+            // Store the specific activity date for this reservation day
+            // This must be preserved for multi-day reservations to work correctly
+            activity_date: activity_date,
             start_time: day.start_time,
             end_time: day.end_time,
             // Store the multi-day info in the purpose field
@@ -490,7 +558,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
             contact_no: day.contact_no || '',
             venue_id: day.venue_id || null,
             equipment_id: day.equipment_id || null,
-            reservation_status_id: day.reservation_status_id || 3, // Default to Pending (status_id: 3)
+            reservation_status_id: 3, // Always set new reservations to Pending (status_id: 3)
             reservation_ts: now,
             edit_ts: now
           };
@@ -511,9 +579,18 @@ function CustomToolbar({ onView, onNavigate, label }) {
         if (error) throw error;
       } else {
         // Create a single new reservation
+        // Ensure activity_date is set correctly - use start_date as the primary source
+        let activity_date = formData.start_date;
+        if (!activity_date && formData.activity_date) {
+          activity_date = formData.activity_date;
+        }
+        if (!activity_date) {
+          activity_date = new Date().toISOString().split('T')[0];
+        }
+        
         const reservationData = {
           org_id: formData.org_id,
-          activity_date: formData.activity_date,
+          activity_date: activity_date,
           start_time: formData.start_time,
           end_time: formData.end_time,
           purpose: formData.purpose || '',
@@ -522,7 +599,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
           contact_no: formData.contact_no || '',
           venue_id: formData.venue_id || null,
           equipment_id: formData.equipment_id || null,
-          reservation_status_id: formData.reservation_status_id || 3, // Default to Pending (status_id: 3)
+          reservation_status_id: 3, // Always set new reservations to Pending (status_id: 3)
           reservation_ts: now,
           edit_ts: now
         };
@@ -639,20 +716,30 @@ function CustomToolbar({ onView, onNavigate, label }) {
     <div className="relative bg-white p-4 rounded-lg shadow h-[calc(100vh-4rem)] flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        {props.onSearchChange && (
-          <form onSubmit={e => e.preventDefault()} className="w-64">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                value={props.searchTerm || ''}
-                onChange={(e) => props.onSearchChange(e.target.value)}
-                placeholder="Search reservations..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </form>
-        )}
+        <form onSubmit={e => e.preventDefault()} className="w-64">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={localSearchTerm}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                // First update local state to ensure the input shows what user is typing
+                setLocalSearchTerm(newValue);
+                
+                // Then propagate the change to search functionality
+                if (props.onSearchChange) {
+                  props.onSearchChange(newValue);
+                } else {
+                  // If no onSearchChange prop, use internal search handling
+                  handleSearch(newValue);
+                }
+              }}
+              placeholder="Search reservations..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </form>
       </div>
       {/* Search bar has been moved to the header */}
       {/* Modal for create/edit */}
