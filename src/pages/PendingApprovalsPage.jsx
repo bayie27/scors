@@ -20,31 +20,11 @@ export function PendingApprovalsPage() {
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
   const [filter, setFilter] = useState('all');
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Function to refresh the reservations list
-  const refreshReservations = () => {
-    setRefreshTrigger(prev => prev + 1);
-  };
-
-  // Fetch pending reservations, venues, equipment, and organizations
+  // Fetch venues, equipment, and organizations (static data)
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    const fetchStaticData = async () => {
       try {
-        // Fetch pending reservations (status_id = 3)
-        const { data: reservations, error: reservationsError } = await supabase
-          .from('reservation')
-          .select(`
-            *,
-            venue:venue_id(venue_id, venue_name),
-            organization:org_id(org_id, org_name, org_code)
-          `)
-          .eq('reservation_status_id', 3)
-          .order('reservation_ts', { ascending: false });
-
-        if (reservationsError) throw reservationsError;
-        
         // Fetch venues
         const { data: venuesData, error: venuesError } = await supabase
           .from('venue')
@@ -66,6 +46,36 @@ export function PendingApprovalsPage() {
         
         if (orgsError) throw orgsError;
 
+        setVenues(venuesData);
+        setEquipment(equipmentData);
+        setOrganizations(orgsData);
+      } catch (error) {
+        console.error('Error fetching static data:', error);
+        toast.error('Failed to load reference data');
+      }
+    };
+
+    fetchStaticData();
+  }, []); // Only fetch static data once
+  
+  // Fetch pending reservations with real-time updates
+  useEffect(() => {
+    setLoading(true);
+    
+    // Initial fetch of pending reservations
+    const fetchPendingReservations = async () => {
+      try {
+        const { data: reservations, error: reservationsError } = await supabase
+          .from('reservation')
+          .select(`
+            *,
+            venue:venue_id (*),
+            organization:org_id (*)
+          `)
+          .eq('reservation_status_id', 3);
+        
+        if (reservationsError) throw reservationsError;
+
         // Process reservations to add equipment_ids array if it doesn't exist
         const processedReservations = reservations.map(res => {
           if (res.equipment_id && !res.equipment_ids) {
@@ -78,28 +88,49 @@ export function PendingApprovalsPage() {
         });
 
         setPendingReservations(processedReservations);
-        setVenues(venuesData);
-        setEquipment(equipmentData);
-        setOrganizations(orgsData);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching pending reservations:', error);
         toast.error('Failed to load pending reservations');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [refreshTrigger, toast]);
-
+    fetchPendingReservations();
+    
+    // Set up real-time subscription to the reservation table
+    const subscription = supabase
+      .channel('reservation-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'reservation'
+        }, 
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          
+          // Refresh the pending reservations list when changes occur
+          fetchPendingReservations();
+        }
+      )
+      .subscribe();
+    
+    // Clean up subscription when component unmounts
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []); // Only set up subscription once
+  
   // Function to handle approving a reservation
   const handleApprove = async (reservation) => {
     try {
+      const now = new Date().toISOString();
       const { error } = await supabase
         .from('reservation')
-        .update({
+        .update({ 
           reservation_status_id: 1, // Approved
-          decision_ts: new Date().toISOString()
+          decision_ts: now
         })
         .eq('reservation_id', reservation.reservation_id);
 
@@ -107,7 +138,7 @@ export function PendingApprovalsPage() {
 
       toast.success(`Reservation for ${reservation.purpose} has been approved.`);
 
-      refreshReservations();
+      // No need to manually refresh - real-time subscription will handle this
       if (viewDetailsOpen) {
         setViewDetailsOpen(false);
       }
@@ -120,11 +151,12 @@ export function PendingApprovalsPage() {
   // Function to handle rejecting a reservation
   const handleReject = async (reservation) => {
     try {
+      const now = new Date().toISOString();
       const { error } = await supabase
         .from('reservation')
-        .update({
+        .update({ 
           reservation_status_id: 2, // Rejected
-          decision_ts: new Date().toISOString()
+          decision_ts: now
         })
         .eq('reservation_id', reservation.reservation_id);
 
@@ -132,7 +164,7 @@ export function PendingApprovalsPage() {
 
       toast.success(`Reservation for ${reservation.purpose} has been rejected.`);
 
-      refreshReservations();
+      // No need to manually refresh - real-time subscription will handle this
       if (viewDetailsOpen) {
         setViewDetailsOpen(false);
       }
@@ -182,15 +214,8 @@ export function PendingApprovalsPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Pending Approvals</h1>
-        <Button
-          variant="outline"
-          onClick={refreshReservations}
-          disabled={loading}
-        >
-          Refresh
-        </Button>
       </div>
 
       {/* Filter buttons */}
