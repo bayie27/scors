@@ -101,7 +101,7 @@ export function DashboardPage({ user, onSignOut }) {
         </div>
       </header>
 
-      <div className="flex">
+<div className="flex min-h-screen">
         {/* Sidebar */}
         <Sidebar 
           user={user} 
