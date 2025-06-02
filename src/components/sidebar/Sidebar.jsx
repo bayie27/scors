@@ -175,11 +175,11 @@ export function Sidebar({
           "flex flex-col bg-white border-r shadow-sm transition-all duration-300 ease-in-out",
           // Different positioning for mobile vs desktop
           isMobile 
-            ? "fixed z-40 top-15 pb-5" // Ensure content isn't cut by browser UI
+            ? "fixed z-40 top-15 bottom-0" // Extend to the bottom of the screen
             : "relative h-[calc(100vh-60px)] mt-[60px]",
           // Control visibility and width
           isMobile 
-            ? isMobileMenuOpen ? "left-0 w-[250px] h-[85vh]" : "-left-[280px] w-[270px]" 
+            ? isMobileMenuOpen ? "left-0 w-[250px]" : "-left-[280px] w-[270px]" 
             : collapsed ? "w-16" : "w-64",
           className
         )}
@@ -197,7 +197,7 @@ export function Sidebar({
         </div>
       )}
       
-      <div className="flex-1 overflow-y-auto safe-bottom">
+      <div className="flex-1 overflow-y-auto safe-bottom flex flex-col">
         {/* Reserve Button - Only show on desktop */}
         {!isMobile && (
           <div className="p-3">
@@ -238,9 +238,12 @@ export function Sidebar({
           </ul>
         </nav>
         
-        {/* User profile and logout - inside scrollable area on mobile */}
+        {/* Spacer to push profile to bottom */}
+        {isMobile && <div className="flex-grow"></div>}
+        
+        {/* User profile and logout - at the bottom of scrollable area on mobile */}
         {isMobile && (
-          <div className="border-t p-4 mt-6">
+          <div className="border-t p-4 mt-auto pb-6">
             <div className="flex flex-col space-y-3">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
