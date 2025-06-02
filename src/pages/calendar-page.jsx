@@ -1,14 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { EventCalendar } from "@/components/calendar/event-calendar";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { UsersPage } from "./users-page";
 import { VenuesPage } from "./venues-page";
-import { Menu, Search } from 'lucide-react';
+import { Menu, Search, Plus } from 'lucide-react';
 import scorsLogo from "@/assets/scors-logo.png";
 import { format } from 'date-fns';
+import { useRoleAccess } from "@/lib/useRoleAccess.jsx";
 
 export function CalendarPage({ user, onSignOut }) {
+  const { isAdmin, canManageUsers } = useRoleAccess();
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeView, setActiveView] = useState('calendar');
@@ -34,8 +36,22 @@ export function CalendarPage({ user, onSignOut }) {
   };
 
   const handleMenuItemClick = (view) => {
-    setActiveView(view);
+    // If user is trying to access Users page or Approvals but doesn't have permission, redirect to Calendar
+    if ((view === 'users' || view === 'approvals') && !canManageUsers()) {
+      console.warn('Access denied: User does not have permission to view this page');
+      setActiveView('calendar');
+    } else {
+      setActiveView(view);
+    }
+    setSearchTerm(''); // Reset search term when changing views
   };
+  
+  // Ensure user is redirected from restricted pages on component mount
+  useEffect(() => {
+    if ((activeView === 'users' || activeView === 'approvals') && !canManageUsers()) {
+      setActiveView('calendar');
+    }
+  }, [canManageUsers, activeView]);
   
   // Function to handle event creation from the calendar's quick add button
   const handleQuickAddEvent = () => {
@@ -59,11 +75,10 @@ export function CalendarPage({ user, onSignOut }) {
         return (
           <EventCalendar 
             searchTerm={searchTerm} 
+            onSearchChange={handleSearch}
+            selectedSlot={selectedSlot}
+            onSlotSelected={() => setIsReserveModalOpen(false)}
             onQuickAddEvent={handleQuickAddEvent}
-            onSlotSelect={(slot) => {
-              setSelectedSlot(slot);
-              setIsReserveModalOpen(true);
-            }}
           />
         );
       case 'users':
@@ -119,6 +134,14 @@ export function CalendarPage({ user, onSignOut }) {
               <span className="text-base text-gray-700">
                 {user.organization.org_name}
               </span>
+              {isAdmin && (
+                <>
+                  <span className="text-gray-300">•</span>
+                  <span className="text-base font-medium text-blue-600">
+                    Admin
+                  </span>
+                </>
+              )}
             </div>
           ) : (
             <span className="text-sm text-red-500">No organization information</span>
@@ -145,6 +168,63 @@ export function CalendarPage({ user, onSignOut }) {
           </main>
         </div>
       </div>
+
+      {/* Reservation Modal */}
+      {isReserveModalOpen && selectedSlot && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4">New Reservation</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Date
+                  </label>
+                  <div className="p-2 border rounded">
+                    {selectedSlot.activity_date}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Start Time
+                    </label>
+                    <div className="p-2 border rounded">
+                      {selectedSlot.start_time}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      End Time
+                    </label>
+                    <div className="p-2 border rounded">
+                      {selectedSlot.end_time}
+                    </div>
+                  </div>
+                </div>
+                {/* Add more form fields as needed */}
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsReserveModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => {
+                    // Handle form submission
+                    console.log('Reservation submitted', selectedSlot);
+                    setIsReserveModalOpen(false);
+                  }}
+                >
+                  Create Reservation
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
