@@ -7,7 +7,7 @@ export const venueService = {
     const { data, error } = await supabase
       .from('venue')
       .select('*')
-      .order('name');
+      .order('venue_name');
 
     if (error) {
       console.error('Error fetching venues:', error);
@@ -18,11 +18,11 @@ export const venueService = {
   },
 
   // Get a single venue by ID
-  async getVenueById(id: string): Promise<Venue | null> {
+  async getVenueById(id: number): Promise<Venue | null> {
     const { data, error } = await supabase
       .from('venue')
       .select('*')
-      .eq('id', id)
+      .eq('venue_id', id)
       .single();
 
     if (error) {
@@ -39,8 +39,7 @@ export const venueService = {
       .from('venue')
       .insert({
         ...venueData,
-        amenities: venueData.amenities || [],
-        status: venueData.status || 'available',
+        equipments: venueData.equipments || []
       })
       .select()
       .single();
@@ -54,19 +53,18 @@ export const venueService = {
   },
 
   // Update an existing venue
-  async updateVenue({ id, ...updates }: UpdateVenueDTO): Promise<Venue> {
+  async updateVenue({ venue_id, ...updates }: UpdateVenueDTO): Promise<Venue> {
     const { data, error } = await supabase
       .from('venue')
       .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
+        ...updates
       })
-      .eq('id', id)
+      .eq('venue_id', venue_id)
       .select()
       .single();
 
     if (error) {
-      console.error(`Error updating venue ${id}:`, error);
+      console.error(`Error updating venue ${venue_id}:`, error);
       throw error;
     }
 
@@ -74,11 +72,11 @@ export const venueService = {
   },
 
   // Delete a venue
-  async deleteVenue(id: string): Promise<void> {
+  async deleteVenue(id: number): Promise<void> {
     const { error } = await supabase
       .from('venue')
       .delete()
-      .eq('id', id);
+      .eq('venue_id', id);
 
     if (error) {
       console.error(`Error deleting venue ${id}:`, error);
