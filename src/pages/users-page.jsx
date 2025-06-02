@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,24 +32,57 @@ export function UsersPage() {
   
   // Track subscription to prevent memory leaks
   const subscriptionRef = useRef(null);
-
-  // Set up real-time subscription
-  useEffect(() => {
-    // Initial fetch
-    fetchUsers();
-    
-    // Set up real-time subscription
-    setupSubscription();
-    
-    // Clean up subscription when component unmounts
-    return () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
+  
+  // Memoize the fetchUsers function to prevent unnecessary re-renders
+  const fetchUsers = useCallback(async () => {
+    try {
+      console.log('Fetching users data...');
+      // Only show loading indicator on initial load, not on refreshes
+      if (users.length === 0) {
+        setLoading(true);
       }
-    };
-  }, []);
-
-  const setupSubscription = async () => {
+      
+      // Fetch users with their associated organizations
+      const { data: _data, error } = await supabase
+        .from("user")
+        .select(`
+          *,
+          organization:org_id (
+            org_id,
+            org_code,
+            org_name
+          )
+        `)
+        .order('user_id', { ascending: true });
+      
+      if (error) throw error;
+      
+      console.log('Users data fetched:', _data?.length || 0, 'records');
+      
+      // Update users state with fresh data
+      setUsers(_data || []);
+      
+      // Update filtered users based on current search query
+      if (searchQuery.trim() === "") {
+        setFilteredUsers(_data || []);
+      } else {
+        const query = searchQuery.toLowerCase();
+        const filtered = (_data || []).filter(user => 
+          user.whitelisted_email?.toLowerCase().includes(query) ||
+          user.organization?.org_code?.toLowerCase().includes(query) ||
+          user.organization?.org_name?.toLowerCase().includes(query)
+        );
+        setFilteredUsers(filtered);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, users.length]);
+  
+  // Set up real-time subscription
+  const setupSubscription = useCallback(async () => {
     try {
       // Clean up any existing subscription first
       if (subscriptionRef.current) {
@@ -63,7 +96,7 @@ export function UsersPage() {
           broadcast: { self: true },
           presence: { key: 'user-management' },
         },
-      })
+      });
       
       channel
         .on('presence', { event: 'sync' }, () => {
@@ -89,26 +122,54 @@ export function UsersPage() {
             console.log('User deleted:', payload);
             fetchUsers();
           }
-        )
+        );
       
       // Subscribe to the channel
-      const status = await channel.subscribe(async (status) => {
+      await channel.subscribe(async (status) => {
         console.log(`Subscription status: ${status}`);
         if (status === 'SUBSCRIBED') {
           // Force a refresh when subscription is established
           await fetchUsers();
         }
-      })
+      });
       
       // Store the channel reference
       subscriptionRef.current = channel;
       console.log('Subscription set up successfully');
+      
+      return channel;
     } catch (error) {
       console.error('Error setting up real-time subscription:', error);
       // Retry subscription after a delay
       setTimeout(() => setupSubscription(), 3000);
+      throw error;
     }
-  };
+  }, [fetchUsers]);
+
+  // Set up subscription on component mount
+  useEffect(() => {
+    let isMounted = true;
+    
+    const init = async () => {
+      try {
+        await setupSubscription();
+      } catch (error) {
+        console.error('Failed to initialize subscription:', error);
+      }
+    };
+    
+    if (isMounted) {
+      init();
+    }
+    
+    // Clean up subscription when component unmounts
+    return () => {
+      isMounted = false;
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe().catch(console.error);
+      }
+    };
+  }, [setupSubscription]);
 
   useEffect(() => {
     // Filter users based on search query
@@ -126,52 +187,7 @@ export function UsersPage() {
     }
   }, [searchQuery, users]);
 
-  const fetchUsers = async () => {
-    try {
-      console.log('Fetching users data...');
-      // Only show loading indicator on initial load, not on refreshes
-      if (users.length === 0) {
-        setLoading(true);
-      }
-      
-      // Fetch users with their associated organizations
-      const { data, error } = await supabase
-        .from("user")
-        .select(`
-          *,
-          organization:org_id (
-            org_id,
-            org_code,
-            org_name
-          )
-        `)
-        .order('user_id', { ascending: true });
-      
-      if (error) throw error;
-      
-      console.log('Users data fetched:', data?.length || 0, 'records');
-      
-      // Update users state with fresh data
-      setUsers(data || []);
-      
-      // Update filtered users based on current search query
-      if (searchQuery.trim() === "") {
-        setFilteredUsers(data || []);
-      } else {
-        const query = searchQuery.toLowerCase();
-        const filtered = (data || []).filter(user => 
-          user.whitelisted_email?.toLowerCase().includes(query) ||
-          user.organization?.org_code?.toLowerCase().includes(query) ||
-          user.organization?.org_name?.toLowerCase().includes(query)
-        );
-        setFilteredUsers(filtered);
-      }
-    } catch (error) {
-      console.error("Error fetching users:", error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
@@ -240,7 +256,7 @@ export function UsersPage() {
       const userId = userToDelete.user_id;
       const userEmail = userToDelete.whitelisted_email;
       
-      const { error, data } = await supabase
+      const { error } = await supabase
         .from('user')
         .delete()
         .eq('user_id', userId)

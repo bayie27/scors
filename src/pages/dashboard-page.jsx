@@ -113,7 +113,7 @@ export function DashboardPage({ user, onSignOut }) {
         />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden pt-[60px]">
+        <div className={`flex-1 flex flex-col overflow-hidden pt-[60px] transition-all duration-300 ease-in-out ${collapsed ? 'ml-16' : 'ml-64'}`}>
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto">
             {activeView === 'calendar' ? (
