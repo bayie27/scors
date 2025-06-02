@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Trash2, Loader2, Plus } from "lucide-react";
+import { Edit, Trash2, Loader2, Plus, Search } from "lucide-react";
 import { supabase } from "../../supabase-client";
 
 // Form for adding/editing an organization
@@ -88,9 +88,9 @@ const OrganizationForm = ({ organization, onClose, onSave }) => {
 
   return (
     <Dialog open={true}>
-      <DialogContent className="sm:max-w-md z-50" style={{ zIndex: 60 }}>
+      <DialogContent className="w-[95%] max-w-md mx-auto p-4 sm:p-6 z-50" style={{ zIndex: 60 }}>
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">
             {organization?.org_id ? "Edit Organization" : "Add Organization"}
           </DialogTitle>
         </DialogHeader>
@@ -139,19 +139,20 @@ const OrganizationForm = ({ organization, onClose, onSave }) => {
             />
           </div>
 
-          <DialogFooter className="mt-6">
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={loading}
+              className="w-full sm:w-auto order-2 sm:order-1"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
             >
               {loading ? (
                 <>
@@ -177,7 +178,7 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirm
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[95%] max-w-md mx-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -186,12 +187,13 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirm
           <p className="text-sm text-gray-600">{message}</p>
         </div>
         
-        <DialogFooter className="flex justify-end gap-3">
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full">
           <Button
             type="button"
             onClick={onClose}
             variant="outline"
             disabled={isLoading}
+            className="w-full sm:w-auto order-2 sm:order-1"
           >
             {cancelText || 'Cancel'}
           </Button>
@@ -199,11 +201,7 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirm
             type="button" 
             onClick={onConfirm}
             disabled={isLoading}
-            className={`${
-              confirmColor === 'red' 
-                ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' 
-                : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
-            } text-white`}
+            className={`${confirmColor === 'red' ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'} text-white w-full sm:w-auto order-1 sm:order-2`}
           >
             {isLoading ? (
               <>
@@ -335,28 +333,27 @@ export function OrganizationDialog({ open, onClose }) {
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-4xl max-h-[80vh] p-0 overflow-hidden">
-          <DialogHeader className="sticky top-0 z-20 bg-white p-6 pb-4 border-b">
-            <DialogTitle className="text-xl font-semibold">List of Organizations</DialogTitle>
+        <DialogContent className="w-[95%] max-w-lg mx-auto p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl font-bold">Organizations</DialogTitle>
           </DialogHeader>
-
-          <div className="flex flex-row gap-3 justify-between items-center sticky top-[4.5rem] z-10 bg-white px-6 py-3 border-b">
-            <div className="flex-1 max-w-xs">
+          
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 pt-2 pb-4">
+            <div className="relative flex items-center w-full sm:w-72">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                type="text"
                 placeholder="Search organizations..."
+                className="pl-8 pr-4 py-2 border-gray-300 rounded-md"
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="w-full"
               />
             </div>
-
+            
             <Button
               onClick={handleAddClick}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
             >
-              <Plus className="mr-1.5 h-4 w-4" />
+              <Plus className="h-4 w-4 mr-1" />
               Add Organization
             </Button>
           </div>
@@ -373,53 +370,104 @@ export function OrganizationDialog({ open, onClose }) {
               <span className="ml-2 text-gray-600 font-medium">Loading organizations...</span>
             </div>
           ) : (
-            <div className="mx-6 mb-6 bg-white rounded-xl shadow border overflow-hidden">
-              <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
-                <Table className="w-full">
-                  <TableHeader className="sticky top-0 bg-white z-10">
-                    <TableRow>
-                      <TableHead className="bg-gray-100 font-medium">Acronym</TableHead>
-                      <TableHead className="bg-gray-100 font-medium">Name</TableHead>
-                      <TableHead className="w-52 text-center bg-gray-100 font-medium">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredOrganizations.length === 0 ? (
+            <div className="mx-2 sm:mx-6 mb-6 bg-white rounded-xl shadow border overflow-hidden">
+              <div className="max-h-[calc(100vh-300px)] overflow-auto">
+                {/* Desktop View - Table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <Table className="w-full">
+                    <TableHeader className="sticky top-0 bg-white z-10">
                       <TableRow>
-                        <TableCell colSpan={3} className="text-center text-gray-500 py-8">
-                          No organizations found.
-                        </TableCell>
+                        <TableHead className="bg-gray-100 font-medium whitespace-nowrap">Acronym</TableHead>
+                        <TableHead className="bg-gray-100 font-medium whitespace-nowrap">Name</TableHead>
+                        <TableHead className="w-52 text-center bg-gray-100 font-medium whitespace-nowrap">Actions</TableHead>
                       </TableRow>
-                    ) : (
-                      filteredOrganizations.map((org) => (
-                        <TableRow key={org.org_id} className="hover:bg-gray-50">
-                          <TableCell className="font-medium text-gray-900">{org.org_code}</TableCell>
-                          <TableCell className="text-gray-700">{org.org_name}</TableCell>
-                          <TableCell className="flex gap-2 justify-center items-center">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditClick(org)}
-                              className="h-8 px-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
-                            >
-                              <Edit className="h-3.5 w-3.5 mr-1" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteClick(org)}
-                              className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
-                            >
-                              <Trash2 className="h-3.5 w-3.5 mr-1" />
-                              Delete
-                            </Button>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredOrganizations.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center text-gray-500 py-8">
+                            No organizations found.
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                      ) : (
+                        filteredOrganizations.map((org) => (
+                          <TableRow key={org.org_id} className="hover:bg-gray-50">
+                            <TableCell className="font-medium text-gray-900 whitespace-nowrap">{org.org_code}</TableCell>
+                            <TableCell className="text-gray-700">{org.org_name}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-row gap-2 justify-center items-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditClick(org)}
+                                  className="h-8 w-auto px-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
+                                >
+                                  <Edit className="h-3.5 w-3.5 mr-1" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteClick(org)}
+                                  className="h-8 w-auto px-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                  Delete
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* Mobile View - Cards */}
+                <div className="sm:hidden">
+                  {filteredOrganizations.length === 0 ? (
+                    <div className="text-center text-gray-500 py-8">
+                      No organizations found.
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {filteredOrganizations.map((org) => (
+                        <div key={org.org_id} className="p-4 hover:bg-gray-50">
+                          <div className="flex flex-col gap-2">
+                            <div>
+                              <div className="font-medium text-sm text-gray-500">Acronym</div>
+                              <div className="font-semibold text-gray-900">{org.org_code}</div>
+                            </div>
+                            <div>
+                              <div className="font-medium text-sm text-gray-500">Name</div>
+                              <div className="text-gray-700">{org.org_name}</div>
+                            </div>
+                            <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditClick(org)}
+                                className="flex-1 h-9 px-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
+                              >
+                                <Edit className="h-3.5 w-3.5 mr-1" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteClick(org)}
+                                className="flex-1 h-9 px-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
