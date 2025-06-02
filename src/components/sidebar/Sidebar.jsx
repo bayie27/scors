@@ -12,6 +12,7 @@ import {
   Calendar,
   Menu,
   X,
+  HelpCircle,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRoleAccess } from "@/lib/useRoleAccess.jsx";
@@ -120,6 +121,12 @@ export function Sidebar({
       icon: <ClipboardCheck size={20} />,
       view: "approvals",
       requiredPermission: canManageUsers(), // Only visible for admin users
+    },
+    {
+      title: "Help",
+      icon: <HelpCircle size={20} />,
+      view: "help",
+      requiredPermission: true, // Always visible
     },
   ];
   

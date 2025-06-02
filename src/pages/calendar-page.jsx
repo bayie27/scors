@@ -4,7 +4,8 @@ import { EventCalendar } from "@/components/calendar/event-calendar";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { UsersPage } from "./users-page";
 import { VenuesPage } from "./venues-page";
-import { Menu, Search, Plus } from 'lucide-react';
+import { HelpPage } from "./help-page";
+import { Users, Building2, Boxes, ClipboardCheck, LogOut, ChevronLeft, ChevronRight, Calendar, HelpCircle, Menu } from "lucide-react";
 import scorsLogo from "@/assets/scors-logo.png";
 import { format } from 'date-fns';
 import { useRoleAccess } from "@/lib/useRoleAccess.jsx";
@@ -85,6 +86,8 @@ export function CalendarPage({ user, onSignOut }) {
         return <UsersPage />;
       case 'venues':
         return <VenuesPage />;
+      case 'help':
+        return <HelpPage />;
       case 'equipment':
       case 'approvals':
         return (
