@@ -89,11 +89,10 @@ export function Sidebar({
   return (
     <div
       className={cn(
-        "flex flex-col bg-white border-r border-gray-200 transition-all duration-300 ease-in-out justify-between fixed top-0 left-0 h-screen",
+        "flex flex-col bg-white border-r border-gray-200 transition-all duration-300 ease-in-out justify-between h-screen fixed top-0 left-0 pt-[60px]",
         collapsed ? "w-16" : "w-64",
         className
       )}
-      style={{ paddingTop: '60px' }}
     >
       <div className="flex-1 overflow-y-auto">
         {/* Reserve Button */}
