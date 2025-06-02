@@ -3,7 +3,9 @@ import PropTypes from 'prop-types';
 import { supabase } from '../../../supabase-client';
 import ViewMode from './components/ViewMode';
 import EditMode from './components/EditMode';
+import ConfirmStatusModal from './ConfirmStatusModal';
 import { toast } from 'react-hot-toast';
+import { getStatusLabel, getStatusStyle } from '../../../statusStyles';
 
 const ReservationModal = ({
   open,
@@ -101,6 +103,7 @@ const ReservationModal = ({
           (initialData.equipment_id ? [initialData.equipment_id] : []);
           
         setForm({
+          reservation_id: initialData.reservation_id || '',
           purpose: initialData.purpose || '',
           // For backward compatibility with existing reservations
           start_date: initialData.start_date ? initialData.start_date.slice(0, 10) : 
@@ -447,25 +450,7 @@ const ReservationModal = ({
     }
   };
 
-  // Map status IDs to labels and styles based on reservation_status table
-  const STATUS_LABELS = {
-    1: 'Reserved',
-    2: 'Rejected',
-    3: 'Pending',
-    4: 'Cancelled',
-    5: 'Ongoing',
-    6: 'Completed',
-  };
 
-  const STATUS_STYLES = {
-    1: 'bg-blue-100 text-blue-800 border-blue-200',      // Reserved
-    2: 'bg-red-100 text-red-800 border-red-200',         // Rejected
-    3: 'bg-yellow-100 text-yellow-800 border-yellow-200',// Pending
-    4: 'bg-gray-200 text-gray-700 border-gray-300',      // Cancelled
-    5: 'bg-green-100 text-green-800 border-green-200',   // Ongoing
-    6: 'bg-purple-100 text-purple-800 border-purple-200',// Completed
-  };
-  
   // Helper function to format date range for display
   const getDateRangeText = () => {
     if (!form.start_date) return '';
@@ -476,8 +461,50 @@ const ReservationModal = ({
   };
 
   const statusId = Number(form.reservation_status_id);
-  const statusName = STATUS_LABELS[statusId] || 'Unknown';
-  const statusStyles = STATUS_STYLES[statusId] || 'bg-gray-100 text-gray-800 border-gray-200';
+  const statusName = getStatusLabel(statusId);
+  const statusStyles = getStatusStyle(statusId);
+
+  // State for status confirmation modal
+  const [statusModal, setStatusModal] = useState({ open: false, action: null });
+
+  // Handler for reservation creation confirmation
+  const handleCreateConfirm = () => {
+    setShowCreateConfirm(false);
+    if (pendingReservations) {
+      onSubmit(pendingReservations);
+      setPendingReservations(null);
+    }
+  };
+
+  // Handler for Reject
+  const handleReject = () => {
+    setStatusModal({ open: true, action: 'reject' });
+  };
+
+  // Handler for Approve
+  const handleApprove = () => {
+    setStatusModal({ open: true, action: 'approve' });
+  };
+
+  // Confirm approve/reject
+  const handleConfirmStatus = async () => {
+    const newStatus = statusModal.action === 'approve' ? 1 : 2;
+    try {
+      const { error } = await supabase
+        .from('reservation')
+        .update({ reservation_status_id: newStatus })
+        .eq('reservation_id', form.reservation_id);
+      if (error) throw error;
+      setForm(prev => ({ ...prev, reservation_status_id: newStatus }));
+      toast.success(
+        statusModal.action === 'approve' ? 'Reservation approved!' : 'Reservation rejected!'
+      );
+    } catch (err) {
+      toast.error('Failed to update reservation status');
+    } finally {
+      setStatusModal({ open: false, action: null });
+    }
+  };
 
   if (!open) return null;
 
@@ -493,6 +520,8 @@ const ReservationModal = ({
           venues={venues}
           equipmentList={equipmentList}
           organizations={organizations}
+          onReject={handleReject}
+          onApprove={handleApprove}
         />
       ) : (
         <EditMode 
@@ -511,15 +540,16 @@ const ReservationModal = ({
       {/* Confirmation modal for create reservation */}
       <CreateConfirmationModal 
         isOpen={showCreateConfirm} 
-        onClose={() => { setShowCreateConfirm(false); setPendingReservations(null); }}
-        onConfirm={() => {
-          setShowCreateConfirm(false);
-          if (pendingReservations) {
-            onSubmit(pendingReservations);
-            setPendingReservations(null);
-          }
-        }}
+        onClose={() => setShowCreateConfirm(false)} 
+        onConfirm={handleCreateConfirm} 
         reservations={pendingReservations} 
+      />
+      {/* Confirmation modal for approve/reject status change */}
+      <ConfirmStatusModal 
+        isOpen={statusModal.open} 
+        onClose={() => setStatusModal({ open: false, action: null })} 
+        onConfirm={handleConfirmStatus} 
+        action={statusModal.action} 
       />
     </>
   );

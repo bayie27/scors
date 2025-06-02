@@ -3,6 +3,7 @@ import { Calendar as BigCalendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import enUS from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import { getStatusStyle } from '../../statusStyles';
 import { supabase } from '../../supabase-client';
 import ReservationModal from './ReservationModal/ReservationModal';
 import { Menu, Search } from 'lucide-react';
@@ -283,10 +284,12 @@ export function EventCalendar(props) {
 
     // Only show time and purpose in month view
     if (view === 'month') {
+      // Use status color for border/label in month view
+      const statusClass = getStatusStyle(event.rawData?.reservation_status_id || event.status);
       return (
         <div className="p-0.5 overflow-hidden h-full">
-          <div className="rounded bg-white border border-gray-200 px-1 py-0.5 flex items-center gap-1 min-w-0 h-full">
-            <span className="text-[10px] text-blue-700 font-semibold whitespace-nowrap">
+          <div className={`rounded border px-1 py-0.5 flex items-center gap-1 min-w-0 h-full ${statusClass}`}>
+            <span className="text-[10px] font-semibold whitespace-nowrap">
               {format(event.start, 'h:mma')}
             </span>
             <span className="truncate" title={event.title}>
@@ -297,33 +300,26 @@ export function EventCalendar(props) {
       );
     }
     
-    // Default for week/day/list views - show full details
+    // Consistent style for week, day, and list views
+    const statusClass = getStatusStyle(event.rawData?.reservation_status_id || event.status);
     return (
       <div className="p-1 overflow-hidden h-full">
-        <div 
-          className={`border-l-4 p-2 rounded h-full flex flex-col ${
-            event.status === 'Approved' 
-              ? 'bg-green-50 border-green-500' 
-              : event.status === 'Rejected' 
-                ? 'bg-red-50 border-red-500' 
-                : 'bg-blue-50 border-blue-500'
-          }`}
-        >
-          <div className="font-medium text-sm truncate">{event.title}</div>
+        <div className={`rounded border-l-4 h-full flex flex-col ${statusClass}`} style={{ background: 'inherit' }}>
+          <div className="font-medium text-sm truncate p-2">{event.title}</div>
           {orgDisplay && (
-            <div className="text-xs text-gray-700 mt-1 truncate" title={orgDisplay}>
+            <div className="text-xs text-gray-700 mt-1 truncate px-2" title={orgDisplay}>
               {orgDisplay}
             </div>
           )}
           {/* Display venue name if available */}
           {raw.venue && (
-            <div className="text-xs text-gray-500 mt-1 truncate">
+            <div className="text-xs text-gray-500 mt-1 truncate px-2">
               {raw.venue.venue_name || 'Venue ' + raw.venue_id}
             </div>
           )}
           {/* Display equipment name if available */}
           {raw.equipment && (
-            <div className="text-xs text-gray-500 mt-1 truncate">
+            <div className="text-xs text-gray-500 mt-1 truncate px-2">
               {raw.equipment.equipment_name || 'Equipment ' + raw.equipment_id}
             </div>
           )}
@@ -860,23 +856,43 @@ function CustomToolbar({ onView, onNavigate, label }) {
             ),
           }}
           eventPropGetter={(event) => {
-            let backgroundColor = '#e3f2fd';
-            let borderColor = '#2196f3';
+            // Get status ID from event data
+            const statusId = event.rawData?.reservation_status_id || 
+              (event.status === 'Reserved' || event.status === 'Approved' ? 1 :
+               event.status === 'Rejected' ? 2 :
+               event.status === 'Pending' ? 3 :
+               event.status === 'Cancelled' ? 4 : 3);
             
-            if (event.status === 'Approved') {
-              backgroundColor = '#e8f5e9';
-              borderColor = '#4caf50';
-            } else if (event.status === 'Rejected') {
-              backgroundColor = '#ffebee';
-              borderColor = '#f44336';
-            } else if (event.status === 'Pending') {
-              backgroundColor = '#fff8e1';
-              borderColor = '#ffc107';
+            // Define soft, pleasant background colors for each status
+            const bgColors = {
+              1: '#edf5ff', // Reserved/Approved - soft blue
+              2: '#fef1f1', // Rejected - soft red
+              3: '#fef9ee', // Pending - soft cream (instead of harsh yellow)
+              4: '#f8f8f8', // Cancelled - light gray
+            };
+            
+            // Get border color from statusStyles
+            let borderClass = getStatusStyle(statusId);
+            let borderColor = '#ddd'; // Default gray
+            
+            // Extract color from class string (e.g. from "border-blue-200" extract "blue")
+            const colorMatch = borderClass.match(/border-(\w+)-\d+/);
+            if (colorMatch && colorMatch[1]) {
+              const color = colorMatch[1];
+              // Map to full hex colors
+              const colorMap = {
+                'blue': '#3b82f6',
+                'red': '#ef4444',
+                'yellow': '#eab308',
+                'gray': '#9ca3af',
+                'purple': '#8b5cf6'
+              };
+              borderColor = colorMap[color] || borderColor;
             }
             
             return {
               style: {
-                backgroundColor,
+                backgroundColor: bgColors[statusId] || '#ffffff',
                 borderLeft: `4px solid ${borderColor}`,
                 borderRadius: '4px',
                 color: '#1a1a1a',
