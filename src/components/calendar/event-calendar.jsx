@@ -36,14 +36,14 @@ export function EventCalendar(props) {
   
   // Add effect to monitor updateConfirmOpen state changes
   useEffect(() => {
-    console.log('EventCalendar - updateConfirmOpen state changed:', updateConfirmOpen);
+    // Monitor updateConfirmOpen state changes
   }, [updateConfirmOpen]);
   
   const [pendingFormData, setPendingFormData] = useState(null);
   
   // Add effect to monitor pendingFormData state changes
   useEffect(() => {
-    console.log('EventCalendar - pendingFormData state changed:', pendingFormData);
+    // Monitor pendingFormData state changes
   }, [pendingFormData]);
   
   // Effect to update localSearchTerm when props.searchTerm changes
@@ -148,7 +148,7 @@ export function EventCalendar(props) {
       setFilteredEvents(formattedEvents); // Initialize filtered events with all events
       setError(null);
     } catch (err) {
-      console.error('Error fetching reservations:', err);
+      // Error fetching reservations
       setError('Failed to load reservations. Please try again later.');
     } finally {
       setLoading(false);
@@ -181,7 +181,7 @@ export function EventCalendar(props) {
         // Now fetch reservations with all lookup data available
         await fetchReservations();
       } catch (err) {
-        console.error('Error loading initial data:', err);
+        // Error loading initial data
         setError('Failed to load initial data. Please refresh the page.');
       } finally {
         setLoading(false);
@@ -215,7 +215,7 @@ export function EventCalendar(props) {
 
   // Handle when an event is clicked (view-only first)
   const handleSelectEvent = useCallback((event) => {
-    console.log('Reservation details:', event.rawData);
+    // Process reservation details
     setSelectedReservation(event.rawData);
     setModalEdit(false);
     setModalView(true); // open in view mode
@@ -225,7 +225,7 @@ export function EventCalendar(props) {
   // Handle when a date/time slot is selected
   // Open modal to create reservation
   const handleSelectSlot = useCallback((slotInfo) => {
-    console.log('Slot selected:', slotInfo);
+    // Process selected slot
     
     // Format dates
     const startDate = format(slotInfo.start, 'yyyy-MM-dd');
@@ -245,7 +245,7 @@ export function EventCalendar(props) {
       end_time: format(slotInfo.end, 'HH:mm'),
     };
     
-    console.log('New reservation:', newReservation);
+    // Process new reservation
     
     setSelectedReservation(newReservation);
     setModalEdit(false);
@@ -452,26 +452,26 @@ function CustomToolbar({ onView, onNavigate, label }) {
       
       // For new reservations, create immediately
       if (!modalEdit || !selectedReservation?.reservation_id) {
-        console.log('EventCalendar - New reservation, proceeding immediately');
+        // New reservation, proceed immediately
         performReservationAction(formData);
       } else {
-        console.log('EventCalendar - Update existing reservation, showing confirmation');
-        console.log('EventCalendar - modalEdit:', modalEdit);
-        console.log('EventCalendar - selectedReservation:', selectedReservation);
+        // Update existing reservation, showing confirmation
+
+
         
         // Store the form data and show the confirmation dialog
         setPendingFormData(formData);
-        console.log('EventCalendar - Setting updateConfirmOpen to true, value before:', updateConfirmOpen);
+
         setUpdateConfirmOpen(true);
         
         // Force render the confirmation dialog by using setTimeout
         setTimeout(() => {
-          console.log('EventCalendar - Confirmation dialog should be visible now, updateConfirmOpen:', updateConfirmOpen);
+
         }, 100);
       }
       
     } catch (err) {
-      console.error('Validation error:', err);
+      // Validation error
       alert(err.message); // Keep simple validation alerts
     }
   }, [modalEdit, selectedReservation]);
@@ -537,11 +537,11 @@ function CustomToolbar({ onView, onNavigate, label }) {
           // DO NOT override or modify this value as it contains the unique date for each day's reservation
           const activity_date = day.activity_date;
           
-          console.log(`Creating reservation for date: ${activity_date}, day index: ${day.multiDayIndex}`);
+          // Creating reservation for the selected date and day
           
           // Validate that we have a valid activity_date
           if (!activity_date) {
-            console.error('Missing activity_date for reservation', day);
+            // Missing activity_date for reservation
           }
             
           return {
@@ -634,7 +634,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
       fetchReservations();
       
     } catch (err) {
-      console.error('Error performing reservation action:', err);
+      // Error performing reservation action
       alert(`Failed to ${modalEdit ? 'update' : 'create'} reservation: ${err.message}`);
     } finally {
       setLoading(false);
@@ -666,7 +666,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
       setSelectedReservation(null);
       fetchReservations();
     } catch (err) {
-      console.error('Error deleting reservation:', err);
+      // Error deleting reservation
       alert(`Failed to delete reservation: ${err.message}`);
     } finally {
       setLoading(false);
@@ -675,9 +675,9 @@ function CustomToolbar({ onView, onNavigate, label }) {
 
   // Confirmation Modal Component
   const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText, confirmColor }) => {
-    console.log(`ConfirmationModal - Rendering with isOpen=${isOpen}, title=${title}`);
+
     if (!isOpen) {
-      console.log('ConfirmationModal - Modal is not open, returning null');
+
       return null;
     }
     
@@ -756,11 +756,11 @@ function CustomToolbar({ onView, onNavigate, label }) {
         isEdit={modalEdit}
         isView={modalView && !modalEdit}
         onEditView={() => { 
-          console.log('EventCalendar - Edit view button clicked, switching from view to edit mode');
-          console.log('EventCalendar - Before state change - modalEdit:', modalEdit, 'modalView:', modalView);
+
+
           setModalEdit(true); 
           setModalView(false); 
-          console.log('EventCalendar - After state change - modalEdit should now be true');
+
         }}
       />
       
@@ -786,7 +786,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
               <button
                 type="button"
                 onClick={() => {
-                  console.log('EventCalendar - Update confirmation modal close clicked');
+
                   setUpdateConfirmOpen(false);
                 }}
                 className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
@@ -796,12 +796,12 @@ function CustomToolbar({ onView, onNavigate, label }) {
               <button
                 type="button"
                 onClick={() => {
-                  console.log('EventCalendar - Update confirmation confirmed, pendingFormData:', pendingFormData);
+
                   if (pendingFormData) {
                     performReservationAction(pendingFormData);
                     setUpdateConfirmOpen(false);
                   } else {
-                    console.error('EventCalendar - No pendingFormData available for update');
+                    // No pendingFormData available for update
                   }
                 }}
                 className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"

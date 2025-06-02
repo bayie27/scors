@@ -210,120 +210,6 @@ const ReservationModal = ({
     return dateArray;
   };
 
-  // Function to check for booking conflicts
-  const checkBookingConflicts = async () => {
-    setIsCheckingConflicts(true);
-    const conflicts = [];
-    
-    try {
-      // Get date range for the reservation
-      const startDate = form.start_date;
-      const endDate = form.end_date || form.start_date;
-      
-      // Format times for comparison
-      const startTime = form.start_time;
-      const endTime = form.end_time;
-      
-      // Check venue conflicts if a venue is selected
-      if (form.venue_id) {
-        const { data: venueConflicts, error: venueError } = await supabase
-          .from('reservation')
-          .select('reservation_id, purpose, activity_date, start_time, end_time')
-          .eq('venue_id', form.venue_id)
-          .gte('activity_date', startDate)
-          .lte('activity_date', endDate)
-          .neq('reservation_status_id', 3) // Exclude rejected reservations
-          .order('activity_date', { ascending: true });
-        
-        if (venueError) {
-          console.error('Error checking venue conflicts:', venueError);
-          setIsCheckingConflicts(false);
-          return { hasConflicts: true, message: 'Error checking venue availability' };
-        }
-        
-        // Check for time overlaps on each day
-        const venueOverlaps = venueConflicts.filter(conflict => {
-          // Skip the current reservation if editing
-          if (isEdit && conflict.reservation_id === initialData.reservation_id) {
-            return false;
-          }
-          
-          // Check if times overlap
-          return (
-            (conflict.start_time <= endTime && conflict.end_time >= startTime)
-          );
-        });
-        
-        if (venueOverlaps.length > 0) {
-          const venue = venues.find(v => v.venue_id === form.venue_id);
-          const venueName = venue ? venue.venue_name : `Venue ${form.venue_id}`;
-          
-          conflicts.push({
-            type: 'venue',
-            name: venueName,
-            conflicts: venueOverlaps
-          });
-        }
-      }
-      
-      // Check equipment conflicts for each selected equipment
-      if (form.equipment_ids && form.equipment_ids.length > 0) {
-        for (const equipmentId of form.equipment_ids) {
-          const { data: equipmentConflicts, error: equipmentError } = await supabase
-            .from('reservation')
-            .select('reservation_id, purpose, activity_date, start_time, end_time')
-            .eq('equipment_id', equipmentId)
-            .gte('activity_date', startDate)
-            .lte('activity_date', endDate)
-            .neq('reservation_status_id', 3) // Exclude rejected reservations
-            .order('activity_date', { ascending: true });
-          
-          if (equipmentError) {
-            console.error('Error checking equipment conflicts:', equipmentError);
-            setIsCheckingConflicts(false);
-            return { hasConflicts: true, message: 'Error checking equipment availability' };
-          }
-          
-          // Check for time overlaps on each day
-          const equipmentOverlaps = equipmentConflicts.filter(conflict => {
-            // Skip the current reservation if editing
-            if (isEdit && conflict.reservation_id === initialData.reservation_id) {
-              return false;
-            }
-            
-            // Check if times overlap
-            return (
-              (conflict.start_time <= endTime && conflict.end_time >= startTime)
-            );
-          });
-          
-          if (equipmentOverlaps.length > 0) {
-            const equipment = equipmentList.find(e => String(e.equipment_id) === String(equipmentId));
-            const equipmentName = equipment ? equipment.equipment_name : `Equipment ${equipmentId}`;
-            
-            conflicts.push({
-              type: 'equipment',
-              name: equipmentName,
-              conflicts: equipmentOverlaps
-            });
-          }
-        }
-      }
-      
-      setIsCheckingConflicts(false);
-      
-      if (conflicts.length > 0) {
-        return { hasConflicts: true, conflicts };
-      }
-      
-      return { hasConflicts: false };
-    } catch (error) {
-      console.error('Error checking conflicts:', error);
-      setIsCheckingConflicts(false);
-      return { hasConflicts: true, message: 'Error checking availability' };
-    }
-  };
-
   const validateForm = async () => {
     const newErrors = {};
 
@@ -335,6 +221,16 @@ const ReservationModal = ({
     // Check if start date is empty
     if (!form.start_date) {
       newErrors.start_date = 'Start date is required';
+    } else {
+      // Enforce 2 days in advance policy
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const minDate = new Date(today);
+      minDate.setDate(minDate.getDate() + 2); // 2 days in advance
+      const startDateObj = new Date(form.start_date);
+      if (startDateObj < minDate) {
+        newErrors.start_date = 'Reservations should be made at least 2 days in advance (today and tomorrow are not allowed).';
+      }
     }
 
     // Check if end date is before start date
@@ -395,41 +291,16 @@ const ReservationModal = ({
       newErrors.contact_no = 'Please enter a valid contact number';
     }
     
-    // If there are basic validation errors, don't proceed to check conflicts
+    // If there are basic validation errors, don't proceed
     if (Object.keys(newErrors).length > 0) {
       console.log('Form validation failed with errors:', newErrors);
       setErrors(newErrors);
       return false;
     }
-    
-    console.log('Basic validation passed, checking for booking conflicts...');
-    
-    // Check for booking conflicts
-    const conflictResult = await checkBookingConflicts();
-    
-    if (conflictResult.hasConflicts) {
-      if (conflictResult.message) {
-        newErrors.booking = conflictResult.message;
-        console.log('Conflict detected with message:', conflictResult.message);
-      } else if (conflictResult.conflicts) {
-        const conflictMessages = [];
-        
-        conflictResult.conflicts.forEach(conflict => {
-          if (conflict.type === 'venue') {
-            conflictMessages.push(`${conflict.name} is already booked during the selected time`);
-          } else if (conflict.type === 'equipment') {
-            conflictMessages.push(`${conflict.name} is already booked during the selected time`);
-          }
-        });
-        
-        newErrors.booking = conflictMessages.join('. ');
-        console.log('Conflicts detected:', conflictMessages);
-      }
-    }
 
     // Set the errors state and return validation result
     setErrors({...newErrors});
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -441,38 +312,19 @@ const ReservationModal = ({
     setErrors({});
     
     try {
-      // Validate the form - this now includes conflict checking
+      // Validate the form
       const formValidation = await validateForm();
       
       // Get updated errors directly from the validation result
       const currentErrors = {...errors};
       
-      // If validation failed, show toast notification for booking conflicts
-      if (!formValidation && currentErrors.booking) {
-        toast.error(currentErrors.booking, {
-          duration: 4000,
-          position: 'top-center',
-          style: {
-            border: '1px solid #F8BD5A',
-            padding: '16px',
-            color: '#713200',
-          },
-          iconTheme: {
-            primary: '#F8BD5A',
-            secondary: '#FFFAEE',
-          },
-        });
-        
-        console.log('ReservationModal - Validation failed with booking conflicts:', currentErrors.booking);
-        return; // Stop if validation fails
-      }
-      
+      // If validation failed, do not submit
       if (!formValidation) {
         console.log('ReservationModal - Validation failed, not submitting');
         return; // Stop if validation fails
       }
     } catch (error) {
-      console.error('Error during form validation:', error);
+      // Error during form validation
       toast.error('An error occurred while validating the form');
       return;
     }

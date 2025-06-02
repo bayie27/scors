@@ -28,7 +28,6 @@ export function RoleAccessProvider({ children, user }) {
     const orgId = userData.org_id || (userData.organization?.org_id);
     const isCSAO = orgId === 1;
     
-    console.log('User role check:', { userData, orgId, isCSAO });
     
     setUserRole(isCSAO ? ROLES.ADMIN : ROLES.ORGANIZATION);
     setIsAdmin(isCSAO);

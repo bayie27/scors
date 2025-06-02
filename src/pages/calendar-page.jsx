@@ -38,7 +38,7 @@ export function CalendarPage({ user, onSignOut }) {
   const handleMenuItemClick = (view) => {
     // If user is trying to access Users page or Approvals but doesn't have permission, redirect to Calendar
     if ((view === 'users' || view === 'approvals') && !canManageUsers()) {
-      console.warn('Access denied: User does not have permission to view this page');
+      // User doesn't have permission to view this page
       setActiveView('calendar');
     } else {
       setActiveView(view);
@@ -64,7 +64,7 @@ export function CalendarPage({ user, onSignOut }) {
         end: new Date(new Date().setHours(new Date().getHours() + 1)),
         resource: 'Quick Add'
       };
-      console.log('New event from quick add:', newEvent);
+      // Event creation would be implemented here
     }
   };
 
@@ -169,62 +169,7 @@ export function CalendarPage({ user, onSignOut }) {
         </div>
       </div>
 
-      {/* Reservation Modal */}
-      {isReserveModalOpen && selectedSlot && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="text-xl font-semibold mb-4">New Reservation</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date
-                  </label>
-                  <div className="p-2 border rounded">
-                    {selectedSlot.activity_date}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Start Time
-                    </label>
-                    <div className="p-2 border rounded">
-                      {selectedSlot.start_time}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      End Time
-                    </label>
-                    <div className="p-2 border rounded">
-                      {selectedSlot.end_time}
-                    </div>
-                  </div>
-                </div>
-                {/* Add more form fields as needed */}
-              </div>
-              <div className="mt-6 flex justify-end space-x-3">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsReserveModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={() => {
-                    // Handle form submission
-                    console.log('Reservation submitted', selectedSlot);
-                    setIsReserveModalOpen(false);
-                  }}
-                >
-                  Create Reservation
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

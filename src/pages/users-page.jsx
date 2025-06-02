@@ -54,7 +54,7 @@ export function UsersPage() {
       // Clean up any existing subscription first
       if (subscriptionRef.current) {
         await subscriptionRef.current.unsubscribe();
-        console.log('Unsubscribed from previous channel');
+        // Unsubscribed from previous channel
       }
       
       // Create new subscription to the user table with specific event handlers for each operation type
@@ -67,33 +67,33 @@ export function UsersPage() {
       
       channel
         .on('presence', { event: 'sync' }, () => {
-          console.log('Presence synced');
+          // Presence synced
         })
         .on('postgres_changes', 
           { event: 'INSERT', schema: 'public', table: 'user' }, 
           (payload) => {
-            console.log('User added:', payload);
+            // User added
             fetchUsers();
           }
         )
         .on('postgres_changes', 
           { event: 'UPDATE', schema: 'public', table: 'user' }, 
           (payload) => {
-            console.log('User updated:', payload);
+            // User updated
             fetchUsers();
           }
         )
         .on('postgres_changes', 
           { event: 'DELETE', schema: 'public', table: 'user' }, 
           (payload) => {
-            console.log('User deleted:', payload);
+            // User deleted
             fetchUsers();
           }
         )
       
       // Subscribe to the channel
       const status = await channel.subscribe(async (status) => {
-        console.log(`Subscription status: ${status}`);
+        // Subscription status updated
         if (status === 'SUBSCRIBED') {
           // Force a refresh when subscription is established
           await fetchUsers();
@@ -102,9 +102,9 @@ export function UsersPage() {
       
       // Store the channel reference
       subscriptionRef.current = channel;
-      console.log('Subscription set up successfully');
+      // Subscription set up successfully
     } catch (error) {
-      console.error('Error setting up real-time subscription:', error);
+      // Error setting up real-time subscription
       // Retry subscription after a delay
       setTimeout(() => setupSubscription(), 3000);
     }
@@ -128,7 +128,7 @@ export function UsersPage() {
 
   const fetchUsers = async () => {
     try {
-      console.log('Fetching users data...');
+      // Fetching users data
       // Only show loading indicator on initial load, not on refreshes
       if (users.length === 0) {
         setLoading(true);
@@ -149,7 +149,7 @@ export function UsersPage() {
       
       if (error) throw error;
       
-      console.log('Users data fetched:', data?.length || 0, 'records');
+      // Users data fetched
       
       // Update users state with fresh data
       setUsers(data || []);
@@ -167,7 +167,7 @@ export function UsersPage() {
         setFilteredUsers(filtered);
       }
     } catch (error) {
-      console.error("Error fetching users:", error.message);
+      // Error fetching users
     } finally {
       setLoading(false);
     }
@@ -234,7 +234,7 @@ export function UsersPage() {
     
     try {
       setDeleteLoading(true);
-      console.log('Deleting user with ID:', userToDelete.user_id);
+      // Deleting user
       
       // Store user ID in case we need it after state is cleared
       const userId = userToDelete.user_id;
@@ -248,7 +248,7 @@ export function UsersPage() {
       
       if (error) throw error;
       
-      console.log('User deleted successfully:', userEmail);
+      // User deleted successfully
       
       // Close dialog first, then clear state
       setDeleteDialogOpen(false);
@@ -265,7 +265,7 @@ export function UsersPage() {
       }, 300);
       
     } catch (err) {
-      console.error("Error deleting user:", err);
+      // Error deleting user
       alert(`Failed to delete user: ${err.message}`);
     } finally {
       setDeleteLoading(false);
@@ -273,7 +273,7 @@ export function UsersPage() {
   };
 
   const handleUserSave = () => {
-    console.log('User saved, updating UI...');
+    // User saved, updating UI
     // Close the dialog first
     setUserDialogOpen(false);
     

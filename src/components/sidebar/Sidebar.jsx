@@ -25,8 +25,8 @@ import { useRoleAccess } from "@/lib/useRoleAccess.jsx";
  */
 export function Sidebar({ 
   user = {}, 
-  onSignOut = () => console.log('Sign out clicked'), 
-  onReserve = () => console.log('Reserve clicked'), 
+  onSignOut = () => {}, 
+  onReserve = () => {}, 
   className = '', 
   collapsed = false, onMenuItemClick, activeView = 'calendar' 
 }) { 
@@ -38,7 +38,7 @@ export function Sidebar({
       setIsSigningOut(true);
       await onSignOut();
     } catch (error) {
-      console.error('Error during sign out:', error);
+      // Handle sign out error
     } finally {
       setIsSigningOut(false);
     }
@@ -55,7 +55,7 @@ export function Sidebar({
         .toUpperCase()
         .substring(0, 2);
     } catch (error) {
-      console.error('Error generating initials:', error);
+      // Error generating initials
       return 'U';
     }
   };

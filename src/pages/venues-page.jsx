@@ -160,11 +160,11 @@ export function VenuesPage() {
       
       // Subscribe to the channel
       await channel.subscribe((status) => {
-        console.log(`Venue subscription status: ${status}`);
+        // Venue subscription status updated
         if (status === 'SUBSCRIBED') {
           // Force a refresh when subscription is established
           fetchVenues().catch(error => {
-            console.error('Error refreshing after subscription:', error);
+            // Error refreshing after subscription
             toast.error('Failed to refresh venues after subscription');
           });
         }
@@ -174,7 +174,7 @@ export function VenuesPage() {
       subscriptionRef.current = channel;
       
     } catch (error) {
-      console.error('Error setting up venue subscription:', error);
+      // Error setting up venue subscription
       toast.error('Failed to set up real-time updates');
       throw error; // Re-throw to be caught by the useEffect
     }
@@ -192,7 +192,7 @@ export function VenuesPage() {
           return cleanup; // Return cleanup function
         }
       } catch (error) {
-        console.error('Initialization error:', error);
+        // Initialization error
         toast.error('Failed to initialize venues');
       }
     };

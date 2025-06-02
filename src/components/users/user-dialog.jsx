@@ -73,7 +73,7 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
       
       setOrganizations(data || []);
     } catch (err) {
-      console.error("Error fetching organizations:", err);
+      // Error fetching organizations
       setError("Failed to load organizations");
     } finally {
       setFetchingOrgs(false);
@@ -163,7 +163,7 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
       onSave();
       setLoading(false);
     } catch (err) {
-      console.error("Error saving user:", err);
+      // Error saving user
       setError(err.message);
       setLoading(false);
     }
