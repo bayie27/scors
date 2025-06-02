@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { EventCalendar } from "@/components/calendar/event-calendar";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { UsersPage } from "./users-page";
+import { VenuesPage } from "./venues-page";
 import { Menu, Search } from 'lucide-react';
 import scorsLogo from "@/assets/scors-logo.png";
 import { format } from 'date-fns';
@@ -48,6 +49,46 @@ export function CalendarPage({ user, onSignOut }) {
         resource: 'Quick Add'
       };
       console.log('New event from quick add:', newEvent);
+    }
+  };
+
+  // Render the appropriate component based on activeView
+  const renderContent = () => {
+    switch (activeView) {
+      case 'calendar':
+        return (
+          <EventCalendar 
+            searchTerm={searchTerm} 
+            onQuickAddEvent={handleQuickAddEvent}
+            onSlotSelect={(slot) => {
+              setSelectedSlot(slot);
+              setIsReserveModalOpen(true);
+            }}
+          />
+        );
+      case 'users':
+        return <UsersPage />;
+      case 'venues':
+        return <VenuesPage />;
+      case 'equipment':
+      case 'approvals':
+        return (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center p-8">
+              <h2 className="text-2xl font-semibold text-gray-700 mb-2">Coming Soon</h2>
+              <p className="text-gray-500">This feature is under development.</p>
+            </div>
+          </div>
+        );
+      default:
+        return (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center p-8">
+              <h2 className="text-2xl font-semibold text-gray-700 mb-2">Page Not Found</h2>
+              <p className="text-gray-500">The requested page could not be found.</p>
+            </div>
+          </div>
+        );
     }
   };
 
@@ -97,27 +138,10 @@ export function CalendarPage({ user, onSignOut }) {
         />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden pt-[60px]">
+        <div className="flex-1 flex flex-col overflow-hidden pt-[60px] h-[calc(100vh-60px)]">
           {/* Main Content */}
-          <main className="flex-1 overflow-y-auto">
-            {activeView === 'calendar' ? (
-              <>
-                <EventCalendar 
-                  searchTerm={searchTerm} 
-                  onSearchChange={handleSearch} 
-                  selectedSlot={selectedSlot}
-                  onSlotSelected={() => setIsReserveModalOpen(false)}
-                />
-              </>
-            ) : activeView === 'users' ? (
-              <UsersPage />
-            ) : (
-              <div className="p-6">
-                {activeView === 'venues' && 'Venues Management Coming Soon'}
-                {activeView === 'equipment' && 'Equipment Management Coming Soon'}
-                {activeView === 'approvals' && 'Pending Approvals Coming Soon'}
-              </div>
-            )}
+          <main className="flex-1 overflow-y-auto p-6">
+            {renderContent()}
           </main>
         </div>
       </div>
