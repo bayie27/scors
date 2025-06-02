@@ -5,7 +5,7 @@ export default function LoginPage() {
     <div className="relative min-h-svh flex items-center justify-center p-4">
       <div className="absolute inset-0 -z-10">
         <img
-          src="student-center.jpg"
+          src="student-center.png"
           alt="DLSL Campus"
           className="h-full w-full object-cover"
           loading="lazy"
