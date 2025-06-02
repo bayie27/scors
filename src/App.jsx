@@ -2,6 +2,7 @@ import "./App.css";
 import LoginPage from "./pages/login-page";
 import { CalendarPage } from "./pages/calendar-page";
 import { useAuth } from "./lib/useAuth";
+import { RoleAccessProvider } from "./lib/useRoleAccess.jsx";
 
 const App = () => {
   const { user, isAuthorized, loading, signOut } = useAuth();
@@ -21,7 +22,11 @@ const App = () => {
     return <LoginPage />;
   }
 
-  return <CalendarPage user={user} onSignOut={signOut} />;
+  return (
+    <RoleAccessProvider user={user}>
+      <CalendarPage user={user} onSignOut={signOut} />
+    </RoleAccessProvider>
+  );
 };
 
 export default App;

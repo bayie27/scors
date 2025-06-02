@@ -12,20 +12,42 @@ export function useAuth() {
     try {
       console.log('[Auth] Checking whitelist for email:', email);
       
-      // Try exact match first
+      // Try exact match first with a simple query to see if user exists
+      const { data: userExists, error: userExistsError } = await supabase
+        .from("user")
+        .select("user_id")
+        .eq("whitelisted_email", email)
+        .maybeSingle();
+        
+      if (userExistsError) {
+        console.error("Error checking if user exists:", userExistsError);
+        return false;
+      }
+      
+      // If exact match found, fetch full details
+      if (userExists) {
+        const { data, error } = await supabase
+          .from("user")
+          .select("whitelisted_email, org_id, organization(org_code, org_name)")
+          .eq("whitelisted_email", email)
+          .maybeSingle();
+
+        if (error) {
+          console.error(`Error fetching user details for ${email}:`, error);
+          return false;
+        }
+
+        if (data) {
+          return data; // Return the full record if found
+        }
+      }
+      
+      // If no exact match, try case-insensitive match
+      console.log('[Auth] No exact match found, trying case-insensitive match');
       let { data, error } = await supabase
         .from("user")
         .select("whitelisted_email, org_id, organization(org_code, org_name)")
-        .eq("whitelisted_email", email);
-      
-      // If no match, try case-insensitive match
-      if (!data || data.length === 0) {
-        console.log('[Auth] No exact match found, trying case-insensitive match');
-        ({ data, error } = await supabase
-          .from("user")
-          .select("whitelisted_email, org_id, organization(org_code, org_name)")
-          .ilike("whitelisted_email", email));
-      }
+        .ilike("whitelisted_email", email);
       
       // If still no match, try the email domain
       if (!data || data.length === 0) {
@@ -62,8 +84,8 @@ export function useAuth() {
       }
 
       // Log the data for debugging
-      console.log('[Auth] Found user data:', data[0]);
-      return data[0]; // return the full record for later use
+      console.log('[Auth] Found user data:', data.length ? data[0] : data);
+      return data.length ? data[0] : data; // return the full record for later use
     } catch (err) {
       console.error("[Auth] Unexpected error in checkWhitelist:", err);
       return false;
@@ -86,8 +108,14 @@ export function useAuth() {
         if (whitelistData) {
           setUser({ 
             ...user, 
+            org_id: whitelistData.org_id, // Add org_id directly to user object
             organization: whitelistData.organization, 
             avatar_url: user.user_metadata?.picture
+          });
+          
+          console.log('User data after whitelist:', {
+            org_id: whitelistData.org_id,
+            organization: whitelistData.organization
           });
           setIsAuthorized(true);
         } else {
