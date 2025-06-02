@@ -5,9 +5,14 @@ import enUS from 'date-fns/locale/en-US';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { supabase } from '../../supabase-client';
 import ReservationModal from './ReservationModal/ReservationModal';
-import { Menu, Search } from 'lucide-react';
+import { Menu, Search, Filter, X, ChevronDown } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-// ... rest of the code remains the same ...
 const locales = {
   'en-US': enUS,
 };
@@ -21,14 +26,32 @@ const localizer = dateFnsLocalizer({
 });
 
 export function EventCalendar(props) {
+  // Status label mapping for reservation_status_id
+  const statusLabelMap = {
+    1: 'Reserved',
+    2: 'Rejected',
+    3: 'Pending',
+    4: 'Cancelled',
+  };
+
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalEdit, setModalEdit] = useState(false);
   const [modalView, setModalView] = useState(false); // true = view mode, false = edit/create
   const [selectedReservation, setSelectedReservation] = useState(null);
   
-  // Search state
+  // Search and filter state
   const [localSearchTerm, setLocalSearchTerm] = useState('');
+  
+  // Filter states
+  const [organizationFilter, setOrganizationFilter] = useState(null);
+  const [venueFilter, setVenueFilter] = useState(null);
+  const [equipmentFilters, setEquipmentFilters] = useState([]);
+  const [statusFilters, setStatusFilters] = useState([]);
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState([]);
+  const [equipmentSearchTerm, setEquipmentSearchTerm] = useState('');
   
   // Confirmation modal states
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -81,7 +104,7 @@ export function EventCalendar(props) {
 
   // Fetch lookup data for form (now handled in the initial useEffect)
 
-  // Fetch reservations from the database
+  // Fetch reservations from the database with filters
   const fetchReservations = useCallback(async () => {
     try {
       setLoading(true);
@@ -93,7 +116,8 @@ export function EventCalendar(props) {
         setOrganizations(orgs || []);
       }
 
-      const { data: reservations, error: fetchError } = await supabase
+      // Build query with filters
+      let query = supabase
         .from('reservation')
         .select(`
           *,
@@ -102,6 +126,27 @@ export function EventCalendar(props) {
           status:reservation_status_id(*),
           organization:org_id(*)
         `);
+      
+      // Apply filters if they exist
+      if (organizationFilter) {
+        query = query.eq('org_id', organizationFilter.org_id);
+      }
+      
+      if (venueFilter) {
+        query = query.eq('venue_id', venueFilter.venue_id);
+      }
+      
+      if (equipmentFilters.length > 0) {
+        const equipmentIds = equipmentFilters.map(eq => eq.equipment_id);
+        query = query.in('equipment_id', equipmentIds);
+      }
+      
+      if (statusFilters.length > 0) {
+        const statusIds = statusFilters.map(st => st.reservation_status_id);
+        query = query.in('reservation_status_id', statusIds);
+      }
+      
+      const { data: reservations, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
@@ -302,7 +347,7 @@ export function EventCalendar(props) {
       <div className="p-1 overflow-hidden h-full">
         <div 
           className={`border-l-4 p-2 rounded h-full flex flex-col ${
-            event.status === 'Approved' 
+            event.status === 'Cancelled' 
               ? 'bg-green-50 border-green-500' 
               : event.status === 'Rejected' 
                 ? 'bg-red-50 border-red-500' 
@@ -332,58 +377,154 @@ export function EventCalendar(props) {
     );
   }, [view]);
 
-  // Search function to filter events and switch to list view
+  // Search and filter function
   const handleSearch = useCallback((term) => {
-    // If search is empty, show all events
-    if (!term.trim()) {
-      setFilteredEvents(events);
-      return;
+    // Filter events based on search term and filters
+    let filtered = events;
+    
+    // Apply search term filter if it exists
+    if (term.trim()) {
+      const searchLower = term.toLowerCase();
+      
+      filtered = filtered.filter(event => {
+        // Check basic fields
+        if (event.title.toLowerCase().includes(searchLower) ||
+            (event.description && event.description.toLowerCase().includes(searchLower)) ||
+            (event.resource && event.resource.toLowerCase().includes(searchLower)) ||
+            (event.rawData?.organization?.org_name && event.rawData.organization.org_name.toLowerCase().includes(searchLower)) ||
+            (event.rawData?.organization?.org_code && event.rawData.organization.org_code.toLowerCase().includes(searchLower)) ||
+            (event.rawData?.officer_in_charge && event.rawData.officer_in_charge.toLowerCase().includes(searchLower)) ||
+            (event.rawData?.reserved_by && event.rawData.reserved_by.toLowerCase().includes(searchLower))) {
+          return true;
+        }
+        
+        // Check venue name
+        if (event.rawData?.venue?.venue_name && 
+            event.rawData.venue.venue_name.toLowerCase().includes(searchLower)) {
+          return true;
+        }
+        
+        // Check equipment name
+        if (event.rawData?.equipment?.equipment_name && 
+            event.rawData.equipment.equipment_name.toLowerCase().includes(searchLower)) {
+          return true;
+        }
+        
+        return false;
+      });
+      
+      // Switch to list view when searching
+      if (view !== 'agenda') {
+        setView('agenda');
+      }
     }
     
-    // Convert to lowercase for case-insensitive search
-    const searchLower = term.toLowerCase();
+    // Apply organization filter
+    if (organizationFilter) {
+      filtered = filtered.filter(event => 
+        event.rawData?.organization?.org_id === organizationFilter.org_id
+      );
+    }
     
-    // Filter events based on search term
-    const filtered = events.filter(event => {
-      // Check basic fields
-      if (event.title.toLowerCase().includes(searchLower) ||
-          (event.description && event.description.toLowerCase().includes(searchLower)) ||
-          (event.resource && event.resource.toLowerCase().includes(searchLower)) ||
-          (event.rawData?.organization?.org_name && event.rawData.organization.org_name.toLowerCase().includes(searchLower)) ||
-          (event.rawData?.organization?.org_code && event.rawData.organization.org_code.toLowerCase().includes(searchLower)) ||
-          (event.rawData?.officer_in_charge && event.rawData.officer_in_charge.toLowerCase().includes(searchLower)) ||
-          (event.rawData?.reserved_by && event.rawData.reserved_by.toLowerCase().includes(searchLower))) {
-        return true;
-      }
-      
-      // Check venue name
-      if (event.rawData?.venue?.venue_name && 
-          event.rawData.venue.venue_name.toLowerCase().includes(searchLower)) {
-        return true;
-      }
-      
-      // Check equipment name
-      if (event.rawData?.equipment?.equipment_name && 
-          event.rawData.equipment.equipment_name.toLowerCase().includes(searchLower)) {
-        return true;
-      }
-      
-      return false;
-    });
+    // Apply venue filter
+    if (venueFilter) {
+      filtered = filtered.filter(event => 
+        event.rawData?.venue?.venue_id === venueFilter.venue_id
+      );
+    }
+    
+    // Apply equipment filters
+    if (equipmentFilters.length > 0) {
+      const equipmentIds = equipmentFilters.map(eq => eq.equipment_id);
+      filtered = filtered.filter(event => 
+        event.rawData?.equipment && equipmentIds.includes(event.rawData.equipment.equipment_id)
+      );
+    }
+    
+    // Apply status filters
+    if (statusFilters.length > 0) {
+      const statusIds = statusFilters.map(st => st.reservation_status_id);
+      filtered = filtered.filter(event => 
+        event.rawData?.status && statusIds.includes(event.rawData.status.reservation_status_id)
+      );
+    }
     
     // Update filtered events
     setFilteredEvents(filtered);
-    
-    // Switch to list view when searching
-    if (term.trim() && view !== 'agenda') {
-      setView('agenda');
-    }
-  }, [events, view]);
+  }, [events, view, organizationFilter, venueFilter, equipmentFilters, statusFilters]);
   
-  // Update search results when searchTerm or events change
+  // Clear all filters
+  const clearAllFilters = useCallback(() => {
+    setOrganizationFilter(null);
+    setVenueFilter(null);
+    setEquipmentFilters([]);
+    setStatusFilters([]);
+    toast.success('All filters cleared');
+  }, []);
+  
+  // Remove individual filter
+  const removeFilter = useCallback((type, id) => {
+    switch (type) {
+      case 'organization':
+        setOrganizationFilter(null);
+        break;
+      case 'venue':
+        setVenueFilter(null);
+        break;
+      case 'equipment':
+        setEquipmentFilters(prev => prev.filter(eq => eq.equipment_id !== id));
+        break;
+      case 'status':
+        setStatusFilters(prev => prev.filter(st => st.reservation_status_id !== id));
+        break;
+      default:
+        break;
+    }
+  }, []);
+  
+  // Update search results when searchTerm, events, or filters change
   useEffect(() => {
     handleSearch(searchTerm);
-  }, [searchTerm, events, handleSearch]);
+  }, [searchTerm, events, handleSearch, organizationFilter, venueFilter, equipmentFilters, statusFilters]);
+  
+  // Update active filters display
+  useEffect(() => {
+    const newActiveFilters = [];
+    
+    if (organizationFilter) {
+      newActiveFilters.push({
+        type: 'organization',
+        value: organizationFilter.org_code || organizationFilter.org_name,
+        id: organizationFilter.org_id
+      });
+    }
+    
+    if (venueFilter) {
+      newActiveFilters.push({
+        type: 'venue',
+        value: venueFilter.venue_name,
+        id: venueFilter.venue_id
+      });
+    }
+    
+    equipmentFilters.forEach(eq => {
+      newActiveFilters.push({
+        type: 'equipment',
+        value: eq.equipment_name,
+        id: eq.equipment_id
+      });
+    });
+    
+    statusFilters.forEach(st => {
+      newActiveFilters.push({
+        type: 'status',
+        value: st.name,
+        id: st.reservation_status_id
+      });
+    });
+    
+    setActiveFilters(newActiveFilters);
+  }, [organizationFilter, venueFilter, equipmentFilters, statusFilters]);
 
   // CustomToolbar handles only navigation and view controls
 function CustomToolbar({ onView, onNavigate, label }) {
@@ -714,32 +855,218 @@ function CustomToolbar({ onView, onNavigate, label }) {
   // Main calendar UI with loading overlay
   return (
     <div className="relative bg-white p-4 rounded-lg shadow h-[calc(100vh-4rem)] flex flex-col">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        <form onSubmit={e => e.preventDefault()} className="w-64">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              value={localSearchTerm}
-              onChange={(e) => {
-                const newValue = e.target.value;
-                // First update local state to ensure the input shows what user is typing
-                setLocalSearchTerm(newValue);
-                
-                // Then propagate the change to search functionality
-                if (props.onSearchChange) {
-                  props.onSearchChange(newValue);
-                } else {
-                  // If no onSearchChange prop, use internal search handling
-                  handleSearch(newValue);
-                }
-              }}
-              placeholder="Search reservations..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          <div className="flex gap-2">
+            <form onSubmit={e => e.preventDefault()} className="w-64">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={localSearchTerm}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    // First update local state to ensure the input shows what user is typing
+                    setLocalSearchTerm(newValue);
+                    
+                    // Then propagate the change to search functionality
+                    if (props.onSearchChange) {
+                      props.onSearchChange(newValue);
+                    } else {
+                      // If no onSearchChange prop, use internal search handling
+                      handleSearch(newValue);
+                    }
+                  }}
+                  placeholder="Search reservations..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </form>
+            
+            {/* Filter Dropdown/Popover */}
+            <div className="flex items-center gap-2">
+              <Popover open={filterDropdownOpen} onOpenChange={setFilterDropdownOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2 text-sm">
+                    <Filter className="h-4 w-4" />
+                    <span>Filter</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-80 p-4">
+                  <div className="flex flex-col gap-4">
+                    {/* Organization Filter */}
+                    <div>
+                      <div className="font-semibold text-sm mb-1">Organization</div>
+                      <Command className="border rounded-md">
+                        <CommandInput placeholder="Search organization..." />
+                        <CommandEmpty>No organization found</CommandEmpty>
+                        <CommandGroup className="max-h-32 overflow-auto">
+                          {organizations.map((org) => (
+                            <CommandItem
+                              key={org.org_id}
+                              value={org.org_name}
+                              onSelect={() => {
+                                setOrganizationFilter(organizationFilter?.org_id === org.org_id ? null : org);
+                              }}
+                              className="flex items-center"
+                            >
+                              <div className="flex items-center gap-2 w-full">
+                                <Checkbox 
+                                  checked={organizationFilter?.org_id === org.org_id}
+                                  id={`org-${org.org_id}`}
+                                />
+                                <span>{org.org_name}</span>
+                                {org.org_code && (
+                                  <span className="text-xs text-muted-foreground ml-auto">{org.org_code}</span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </div>
+                    {/* Venue Filter */}
+                    <div>
+                      <div className="font-semibold text-sm mb-1">Venue</div>
+                      <Command className="border rounded-md">
+                        <CommandInput placeholder="Search venue..." />
+                        <CommandEmpty>No venue found</CommandEmpty>
+                        <CommandGroup className="max-h-32 overflow-auto">
+                          {venues.map((venue) => (
+                            <CommandItem
+                              key={venue.venue_id}
+                              value={venue.venue_name}
+                              onSelect={() => {
+                                setVenueFilter(venueFilter?.venue_id === venue.venue_id ? null : venue);
+                              }}
+                              className="flex items-center"
+                            >
+                              <div className="flex items-center gap-2 w-full">
+                                <Checkbox 
+                                  checked={venueFilter?.venue_id === venue.venue_id}
+                                  id={`venue-${venue.venue_id}`}
+                                />
+                                <span>{venue.venue_name}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </div>
+                    {/* Equipment Filter */}
+                    <div>
+                      <div className="font-semibold text-sm mb-1">Equipment</div>
+                      <Command className="border rounded-md">
+                        <CommandInput
+                          placeholder="Search equipment..."
+                          value={equipmentSearchTerm}
+                          onValueChange={setEquipmentSearchTerm}
+                        />
+                        <CommandGroup className="max-h-32 overflow-auto p-2">
+                          {equipmentList
+                            .filter(eq =>
+                              !equipmentSearchTerm ||
+                              eq.equipment_name.toLowerCase().includes(equipmentSearchTerm.toLowerCase())
+                            )
+                            .map((equipment) => (
+                              <div key={equipment.equipment_id} className="flex items-center space-x-2 mb-2">
+                                <Checkbox 
+                                  id={`equipment-${equipment.equipment_id}`}
+                                  checked={equipmentFilters.some(eqf => eqf.equipment_id === equipment.equipment_id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setEquipmentFilters(prev => [...prev, equipment]);
+                                    } else {
+                                      setEquipmentFilters(prev => 
+                                        prev.filter(eqf => eqf.equipment_id !== equipment.equipment_id)
+                                      );
+                                    }
+                                  }}
+                                />
+                                <label 
+                                  htmlFor={`equipment-${equipment.equipment_id}`}
+                                  className="text-sm cursor-pointer"
+                                >
+                                  {equipment.equipment_name}
+                                </label>
+                              </div>
+                            ))}
+                        </CommandGroup>
+                      </Command>
+                    </div>
+                    {/* Status Filter */}
+                    <div className="grid grid-cols-1 gap-2 max-h-32 overflow-auto border rounded-md p-2">
+                      {statuses.map((status) => (
+                        <div key={status.reservation_status_id} className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={`status-${status.reservation_status_id}`}
+                            checked={statusFilters.some(st => st.reservation_status_id === status.reservation_status_id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setStatusFilters(prev => [...prev, status]);
+                              } else {
+                                setStatusFilters(prev => 
+                                  prev.filter(st => st.reservation_status_id !== status.reservation_status_id)
+                                );
+                              }
+                            }}
+                          />
+                          <label 
+                            htmlFor={`status-${status.reservation_status_id}`}
+                            className="text-sm cursor-pointer w-full text-gray-900"
+                          >
+                            {statusLabelMap[status.reservation_status_id] || status.name || `Status ${status.reservation_status_id}`}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Clear All Button */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-2" 
+                      onClick={clearAllFilters}
+                    >
+                      Clear All Filters
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
-        </form>
+        </div>
+        
+        {/* Active Filters Display */}
+        {activeFilters.length > 0 && (
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-sm text-gray-500">Active filters:</span>
+            {activeFilters.map((filter, index) => (
+              <Badge 
+                key={`${filter.type}-${filter.id}-${index}`} 
+                variant="secondary"
+                className="flex items-center gap-1 text-xs px-2 py-1"
+              >
+                <span className="font-medium">{filter.type}:</span> {filter.value}
+                <button 
+                  onClick={() => removeFilter(filter.type, filter.id)}
+                  className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-xs h-6 px-2" 
+              onClick={clearAllFilters}
+            >
+              Clear All
+            </Button>
+          </div>
+        )}
       </div>
       {/* Search bar has been moved to the header */}
       {/* Modal for create/edit */}
@@ -858,7 +1185,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
             let backgroundColor = '#e3f2fd';
             let borderColor = '#2196f3';
             
-            if (event.status === 'Approved') {
+            if (event.status === 'Cancelled') {
               backgroundColor = '#e8f5e9';
               borderColor = '#4caf50';
             } else if (event.status === 'Rejected') {
