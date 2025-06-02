@@ -12,6 +12,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useRoleAccess } from "@/lib/useRoleAccess.jsx";
 
 
 /**
@@ -29,6 +30,7 @@ export function Sidebar({
   className = '', 
   collapsed = false, onMenuItemClick, activeView = 'calendar' 
 }) { 
+  const { isAdmin, canManageUsers } = useRoleAccess();
   const [isSigningOut, setIsSigningOut] = useState(false);
   
   const handleSignOut = async () => {
@@ -58,33 +60,42 @@ export function Sidebar({
     }
   };
 
-  const menuItems = [
+  // Define all possible menu items
+  const allMenuItems = [
     {
       title: "Calendar",
       icon: <Calendar size={20} />,
       view: "calendar",
+      requiredPermission: true, // Always visible
     },
     {
       title: "Users",
       icon: <Users size={20} />,
       view: "users",
+      requiredPermission: canManageUsers(), // Only visible for admin users
     },
     {
       title: "Venues",
       icon: <Building2 size={20} />,
       view: "venues",
+      requiredPermission: true, // Always visible
     },
     {
       title: "Equipment",
       icon: <Boxes size={20} />,
       view: "equipment",
+      requiredPermission: true, // Always visible
     },
     {
       title: "Pending Approvals",
       icon: <ClipboardCheck size={20} />,
       view: "approvals",
+      requiredPermission: canManageUsers(), // Only visible for admin users
     },
   ];
+  
+  // Filter menu items based on user permissions
+  const menuItems = allMenuItems.filter(item => item.requiredPermission);
 
   return (
     <div

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { EventCalendar } from "@/components/calendar/event-calendar";
 import { Sidebar } from "@/components/sidebar/Sidebar";
@@ -7,8 +7,10 @@ import { VenuesPage } from "./venues-page";
 import { Menu, Search, Plus } from 'lucide-react';
 import scorsLogo from "@/assets/scors-logo.png";
 import { format } from 'date-fns';
+import { useRoleAccess } from "@/lib/useRoleAccess.jsx";
 
 export function DashboardPage({ user, onSignOut }) {
+  const { isAdmin, canManageUsers } = useRoleAccess();
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeView, setActiveView] = useState('calendar');
@@ -34,9 +36,22 @@ export function DashboardPage({ user, onSignOut }) {
   };
 
   const handleMenuItemClick = (view) => {
-    setActiveView(view);
+    // If user is trying to access Users page but doesn't have permission, redirect to Calendar
+    if (view === 'users' && !canManageUsers()) {
+      console.warn('Access denied: User does not have permission to view Users page');
+      setActiveView('calendar');
+    } else {
+      setActiveView(view);
+    }
     setSearchTerm(''); // Reset search term when changing views
   };
+  
+  // Ensure user is redirected from restricted pages on component mount
+  useEffect(() => {
+    if (activeView === 'users' && !canManageUsers()) {
+      setActiveView('calendar');
+    }
+  }, [canManageUsers, activeView]);
   
   // Function to handle event creation from the dashboard's quick add button
   const handleQuickAddEvent = () => {
@@ -74,17 +89,7 @@ export function DashboardPage({ user, onSignOut }) {
             alt="SCORS" 
             className="h-10 w-auto"
           />
-          <div className="flex items-center space-x-4">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleQuickAddEvent}
-              className="hidden md:flex items-center gap-1"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Quick Add</span>
-            </Button>
-          </div>
+
           {user?.organization ? (
             <div className="hidden md:flex items-center space-x-2 border-l border-gray-200 pl-4">
               <span className="text-base font-medium text-gray-800">
@@ -94,6 +99,14 @@ export function DashboardPage({ user, onSignOut }) {
               <span className="text-base text-gray-700">
                 {user.organization.org_name}
               </span>
+              {isAdmin && (
+                <>
+                  <span className="text-gray-300">•</span>
+                  <span className="text-base font-medium text-blue-600">
+                    Admin
+                  </span>
+                </>
+              )}
             </div>
           ) : (
             <span className="text-sm text-red-500">No organization information</span>

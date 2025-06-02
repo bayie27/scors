@@ -10,19 +10,45 @@ export function useAuth() {
 
   const checkWhitelist = async (email) => {
     try {
+      console.log(`Checking whitelist for email: ${email}`);
+      
+      // First try a simple query to see if user exists
+      const { data: userExists, error: userExistsError } = await supabase
+        .from("user")
+        .select("user_id")
+        .eq("whitelisted_email", email)
+        .maybeSingle();
+        
+      if (userExistsError) {
+        console.error("Error checking if user exists:", userExistsError);
+        return false;
+      }
+      
+      if (!userExists) {
+        console.warn(`User not found in whitelist: ${email}`);
+        return false;
+      }
+      
+      // If user exists, fetch the full details
       const { data, error } = await supabase
         .from("user")
         .select("whitelisted_email, org_id, organization(org_code, org_name)")
-        .eq("whitelisted_email", email);
+        .eq("whitelisted_email", email)
+        .maybeSingle();
 
-      if (error || !data || data.length === 0) {
-        console.warn(`Whitelist check failed for email: ${email}`);
+      if (error) {
+        console.error(`Error fetching user details for ${email}:`, error);
+        return false;
+      }
+
+      if (!data) {
+        console.warn(`No data returned for whitelisted email: ${email}`);
         return false;
       }
 
       // Log the data for debugging
-      console.log('[Whitelist] Found user data:', data[0]);
-      return data[0]; // return the full record for later use
+      console.log('[Whitelist] Found user data:', data);
+      return data; // return the full record for later use
     } catch (err) {
       console.error("Unexpected error in checkWhitelist:", err);
       return false;
@@ -45,8 +71,14 @@ export function useAuth() {
         if (whitelistData) {
           setUser({ 
             ...user, 
+            org_id: whitelistData.org_id, // Add org_id directly to user object
             organization: whitelistData.organization, 
             avatar_url: user.user_metadata?.picture
+          });
+          
+          console.log('User data after whitelist:', {
+            org_id: whitelistData.org_id,
+            organization: whitelistData.organization
           });
           setIsAuthorized(true);
         } else {
