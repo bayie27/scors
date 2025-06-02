@@ -4,6 +4,7 @@ import { EventCalendar } from "@/components/calendar/event-calendar";
 import { Sidebar } from "@/components/sidebar/Sidebar";
 import { UsersPage } from "./users-page";
 import { VenuesPage } from "./venues-page";
+import { PendingApprovalsPage } from "./PendingApprovalsPage";
 import { Menu, Search, Plus } from 'lucide-react';
 import scorsLogo from "@/assets/scors-logo.png";
 import { format } from 'date-fns';
@@ -86,7 +87,6 @@ export function CalendarPage({ user, onSignOut }) {
       case 'venues':
         return <VenuesPage />;
       case 'equipment':
-      case 'approvals':
         return (
           <div className="flex items-center justify-center h-full">
             <div className="text-center p-8">
@@ -95,6 +95,8 @@ export function CalendarPage({ user, onSignOut }) {
             </div>
           </div>
         );
+      case 'approvals':
+        return <PendingApprovalsPage />;
       default:
         return (
           <div className="flex items-center justify-center h-full">
