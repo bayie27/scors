@@ -175,11 +175,11 @@ export function Sidebar({
           "flex flex-col bg-white border-r shadow-sm transition-all duration-300 ease-in-out",
           // Different positioning for mobile vs desktop
           isMobile 
-            ? "fixed z-40 top-15 pb-25" // Ensure content isn't cut by browser UI
+            ? "fixed z-40 top-15 pb-5" // Ensure content isn't cut by browser UI
             : "relative h-[calc(100vh-60px)] mt-[60px]",
           // Control visibility and width
           isMobile 
-            ? isMobileMenuOpen ? "left-0 w-[250px] h-[95vh]" : "-left-[280px] w-[270px]" 
+            ? isMobileMenuOpen ? "left-0 w-[250px] h-[85vh]" : "-left-[280px] w-[270px]" 
             : collapsed ? "w-16" : "w-64",
           className
         )}
@@ -237,40 +237,77 @@ export function Sidebar({
             ))}
           </ul>
         </nav>
+        
+        {/* User profile and logout - inside scrollable area on mobile */}
+        {isMobile && (
+          <div className="border-t p-4 mt-6">
+            <div className="flex flex-col space-y-3">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={user?.avatar_url} alt={user?.email || 'User'} />
+                  <AvatarFallback className="bg-gray-200 text-gray-700">
+                    {user?.email ? getInitials(user.email) : 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.email}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {user?.organization?.org_name}
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full justify-start gap-2"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+              >
+                <LogOut className={`h-4 w-4 ${isSigningOut ? 'animate-spin' : ''}`} />
+                <span>{isSigningOut ? 'Signing out...' : 'Sign out'}</span>
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="border-t p-4 mt-auto">
-        <div className="flex flex-col space-y-3">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={user?.avatar_url} alt={user?.email || 'User'} />
-              <AvatarFallback className="bg-gray-200 text-gray-700">
-                {user?.email ? getInitials(user.email) : 'U'}
-              </AvatarFallback>
-            </Avatar>
-            {(!collapsed || isMobile) && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {user?.email}
-                </p>
-                <p className="text-xs text-gray-500 truncate">
-                  {user?.organization?.org_name}
-                </p>
-              </div>
-            )}
+      {/* User profile and logout - fixed at bottom for desktop */}
+      {!isMobile && (
+        <div className="border-t p-4 mt-auto">
+          <div className="flex flex-col space-y-3">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={user?.avatar_url} alt={user?.email || 'User'} />
+                <AvatarFallback className="bg-gray-200 text-gray-700">
+                  {user?.email ? getInitials(user.email) : 'U'}
+                </AvatarFallback>
+              </Avatar>
+              {!collapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.email}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {user?.organization?.org_name}
+                  </p>
+                </div>
+              )}
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full justify-start gap-2"
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+            >
+              <LogOut className={`h-4 w-4 ${isSigningOut ? 'animate-spin' : ''}`} />
+              {!collapsed && <span>{isSigningOut ? 'Signing out...' : 'Sign out'}</span>}
+            </Button>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full justify-start gap-2"
-            onClick={handleSignOut}
-            disabled={isSigningOut}
-          >
-            <LogOut className={`h-4 w-4 ${isSigningOut ? 'animate-spin' : ''}`} />
-            {(!collapsed || isMobile) && <span>{isSigningOut ? 'Signing out...' : 'Sign out'}</span>}
-          </Button>
         </div>
-      </div>
+      )}
     </div>
 
       {/* Floating Action Button for Mobile - Only on Calendar View */}
