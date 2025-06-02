@@ -221,7 +221,7 @@ const EditMode = ({
                           id={`equipment-${equipment.equipment_id}`}
                           name="equipment_checkbox"
                           value={String(equipment.equipment_id)}
-                          checked={form.equipment_ids?.includes(String(equipment.equipment_id))}
+                          checked={form.equipment_ids?.some(id => String(id) === String(equipment.equipment_id))}
                           onCheckedChange={(checked) => {
                             handleChange({
                               target: {
@@ -331,15 +331,6 @@ const EditMode = ({
                 >
                   Cancel
                 </button>
-                {isEdit && onDelete && (
-                  <button 
-                    type="button" 
-                    onClick={onDelete} 
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                  >
-                    Delete
-                  </button>
-                )}
                 <button 
                   type="submit" 
                   onClick={(e) => {
@@ -363,7 +354,6 @@ EditMode.propTypes = {
   form: PropTypes.object.isRequired,
   onClose: PropTypes.func.isRequired,
   onSubmit: PropTypes.func.isRequired,
-  onDelete: PropTypes.func,
   isEdit: PropTypes.bool,
   venues: PropTypes.array,
   equipmentList: PropTypes.array,

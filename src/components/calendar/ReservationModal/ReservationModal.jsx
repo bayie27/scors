@@ -555,13 +555,13 @@ const ReservationModal = ({
           onReject={handleReject}
           onApprove={handleApprove}
           onCancel={handleCancel}
+          onDelete={onDelete}
         />
       ) : (
         <EditMode 
           form={form}
           onClose={onClose}
           onSubmit={handleSubmit}
-          onDelete={onDelete}
           isEdit={isEdit}
           venues={venues}
           equipmentList={equipmentList}

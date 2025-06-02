@@ -755,7 +755,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
         open={modalOpen}
         onClose={() => { setModalOpen(false); setSelectedReservation(null); setModalView(false); setModalEdit(false); }}
         onSubmit={handleModalSubmit}
-        onDelete={modalEdit ? handleModalDelete : undefined}
+        onDelete={handleModalDelete}
         initialData={selectedReservation || {}}
         venues={venues}
         equipmentList={equipmentList}

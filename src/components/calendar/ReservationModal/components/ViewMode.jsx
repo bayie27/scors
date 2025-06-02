@@ -24,6 +24,7 @@ const ViewMode = ({
   onReject, 
   onApprove, 
   onCancel,
+  onDelete,
   venues, 
   equipmentList,
   organizations = []
@@ -202,16 +203,21 @@ const ViewMode = ({
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Last Updated</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Edited</label>
               <div className="text-sm text-gray-600">
                 {form.edit_ts ? new Date(form.edit_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'medium'}) : 'N/A'}
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Decision Time</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                {form.reservation_status_id === 1 ? 'Approved' :
+                 form.reservation_status_id === 2 ? 'Rejected' :
+                 form.reservation_status_id === 4 ? 'Cancelled' :
+                 'Decision Pending'}
+              </label>
               <div className="text-sm text-gray-600">
                 {form.decision_ts ? new Date(form.decision_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'medium'}) : 
-                 (form.reservation_status_id === 1 || form.reservation_status_id === 2) ? 'Unknown' : 'Pending'}
+                 (form.reservation_status_id === 1 || form.reservation_status_id === 2 || form.reservation_status_id === 4) ? 'Unknown' : 'Pending'}
               </div>
             </div>
           </div>
@@ -264,7 +270,7 @@ const ViewMode = ({
               Cancel Reservation
             </button>
           </>
-        ) : (
+        ) : form.reservation_status_id !== 2 && form.reservation_status_id !== 4 ? (
           <button
             type="button"
             onClick={onEditView}
@@ -272,6 +278,15 @@ const ViewMode = ({
           >
             <Edit2 size={16} className="mr-2" />
             Edit
+          </button>
+        ) : (
+          // For cancelled or rejected reservations, only show delete button
+          <button
+            type="button"
+            onClick={onDelete}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Delete
           </button>
         )}
       </div>
@@ -289,6 +304,7 @@ ViewMode.propTypes = {
   onReject: PropTypes.func.isRequired,
   onApprove: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
+  onDelete: PropTypes.func,
   venues: PropTypes.array,
   equipmentList: PropTypes.array,
   organizations: PropTypes.array,
