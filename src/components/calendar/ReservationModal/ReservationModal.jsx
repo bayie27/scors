@@ -121,6 +121,7 @@ const ReservationModal = ({
           contact_no: initialData.contact_no || '',
           reservation_ts: initialData.reservation_ts || '',
           edit_ts: initialData.edit_ts || '',
+          decision_ts: initialData.decision_ts || '',
         });
       }
     }
@@ -486,16 +487,33 @@ const ReservationModal = ({
     setStatusModal({ open: true, action: 'approve' });
   };
 
+  // Helper to get local time ISO string (Asia/Manila, UTC+8)
+  function getLocalISOString() {
+    // The user's current local time is 2025-06-03T01:25:21+08:00
+    const now = new Date();
+    const tzOffset = now.getTimezoneOffset() * 60000;
+    const localISO = new Date(now - tzOffset).toISOString().slice(0, -1); // remove 'Z'
+    return localISO;
+  }
+
   // Confirm approve/reject
   const handleConfirmStatus = async () => {
     const newStatus = statusModal.action === 'approve' ? 1 : 2;
+    const now = getLocalISOString();
     try {
       const { error } = await supabase
         .from('reservation')
-        .update({ reservation_status_id: newStatus })
+        .update({ 
+          reservation_status_id: newStatus,
+          decision_ts: now
+        })
         .eq('reservation_id', form.reservation_id);
       if (error) throw error;
-      setForm(prev => ({ ...prev, reservation_status_id: newStatus }));
+      setForm(prev => ({ 
+        ...prev, 
+        reservation_status_id: newStatus,
+        decision_ts: now
+      }));
       toast.success(
         statusModal.action === 'approve' ? 'Reservation approved!' : 'Reservation rejected!'
       );

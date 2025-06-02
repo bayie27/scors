@@ -193,7 +193,7 @@ const ViewMode = ({
         {/* System Information */}
         <div className="space-y-4 pt-4 border-t border-gray-100">
           <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">System Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Created</label>
               <div className="text-sm text-gray-600">
@@ -204,6 +204,13 @@ const ViewMode = ({
               <label className="block text-xs font-medium text-gray-500 mb-1">Last Updated</label>
               <div className="text-sm text-gray-600">
                 {form.edit_ts ? new Date(form.edit_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'medium'}) : 'N/A'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Decision Time</label>
+              <div className="text-sm text-gray-600">
+                {form.decision_ts ? new Date(form.decision_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'medium'}) : 
+                 (form.reservation_status_id === 1 || form.reservation_status_id === 2) ? 'Unknown' : 'Pending'}
               </div>
             </div>
           </div>

@@ -477,7 +477,14 @@ function CustomToolbar({ onView, onNavigate, label }) {
     try {
       setLoading(true);
       // Generate timezone-aware timestamp for current time
-      const now = new Date().toISOString();
+      // Helper to get local time ISO string (Asia/Manila, UTC+8)
+      function getLocalISOString() {
+        const now = new Date();
+        const tzOffset = now.getTimezoneOffset() * 60000;
+        const localISO = new Date(now - tzOffset).toISOString().slice(0, -1); // remove 'Z'
+        return localISO;
+      }
+      const now = getLocalISOString();
       const isMultiDayReservation = Array.isArray(formData);
 
       if (modalEdit && selectedReservation?.reservation_id) {
@@ -515,7 +522,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
           .from('reservation')
           .update({
             ...reservationData,
-            edit_ts: new Date().toISOString()
+            edit_ts: now
           })
           .eq('reservation_id', selectedReservation.reservation_id);
         if (error) {
@@ -716,7 +723,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
   return (
     <div className="relative bg-white p-4 rounded-lg shadow h-[calc(100vh-4rem)] flex flex-col">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Calendar</h1>
         <form onSubmit={e => e.preventDefault()} className="w-64">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
