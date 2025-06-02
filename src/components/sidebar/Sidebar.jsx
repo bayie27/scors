@@ -175,11 +175,11 @@ export function Sidebar({
           "flex flex-col bg-white border-r shadow-sm transition-all duration-300 ease-in-out",
           // Different positioning for mobile vs desktop
           isMobile 
-            ? "fixed z-40 top-15 pb-5" // Ensure content isn't cut by browser UI
+            ? "fixed z-40 top-15 pb-25" // Ensure content isn't cut by browser UI
             : "relative h-[calc(100vh-60px)] mt-[60px]",
           // Control visibility and width
           isMobile 
-            ? isMobileMenuOpen ? "left-0 w-[250px] h-[85vh]" : "-left-[280px] w-[270px]" 
+            ? isMobileMenuOpen ? "left-0 w-[250px] h-[95vh]" : "-left-[280px] w-[270px]" 
             : collapsed ? "w-16" : "w-64",
           className
         )}
