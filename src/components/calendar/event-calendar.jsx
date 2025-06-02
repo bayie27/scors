@@ -45,8 +45,8 @@ export function EventCalendar(props) {
   const [localSearchTerm, setLocalSearchTerm] = useState('');
   
   // Filter states
-  const [organizationFilter, setOrganizationFilter] = useState(null);
-  const [venueFilter, setVenueFilter] = useState(null);
+  const [organizationFilters, setOrganizationFilters] = useState([]);
+  const [venueFilters, setVenueFilters] = useState([]);
   const [equipmentFilters, setEquipmentFilters] = useState([]);
   const [statusFilters, setStatusFilters] = useState([]);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
@@ -128,12 +128,14 @@ export function EventCalendar(props) {
         `);
       
       // Apply filters if they exist
-      if (organizationFilter) {
-        query = query.eq('org_id', organizationFilter.org_id);
+      if (organizationFilters.length > 0) {
+        const orgIds = organizationFilters.map(org => org.org_id);
+        query = query.in('org_id', orgIds);
       }
       
-      if (venueFilter) {
-        query = query.eq('venue_id', venueFilter.venue_id);
+      if (venueFilters.length > 0) {
+        const venueIds = venueFilters.map(v => v.venue_id);
+        query = query.in('venue_id', venueIds);
       }
       
       if (equipmentFilters.length > 0) {
@@ -419,17 +421,19 @@ export function EventCalendar(props) {
       }
     }
     
-    // Apply organization filter
-    if (organizationFilter) {
+    // Apply organization filters
+    if (organizationFilters.length > 0) {
+      const orgIds = organizationFilters.map(org => org.org_id);
       filtered = filtered.filter(event => 
-        event.rawData?.organization?.org_id === organizationFilter.org_id
+        event.rawData?.organization && orgIds.includes(event.rawData.organization.org_id)
       );
     }
     
-    // Apply venue filter
-    if (venueFilter) {
+    // Apply venue filters
+    if (venueFilters.length > 0) {
+      const venueIds = venueFilters.map(v => v.venue_id);
       filtered = filtered.filter(event => 
-        event.rawData?.venue?.venue_id === venueFilter.venue_id
+        event.rawData?.venue && venueIds.includes(event.rawData.venue.venue_id)
       );
     }
     
@@ -451,12 +455,12 @@ export function EventCalendar(props) {
     
     // Update filtered events
     setFilteredEvents(filtered);
-  }, [events, view, organizationFilter, venueFilter, equipmentFilters, statusFilters]);
+  }, [events, view, organizationFilters, venueFilters, equipmentFilters, statusFilters]);
   
   // Clear all filters
   const clearAllFilters = useCallback(() => {
-    setOrganizationFilter(null);
-    setVenueFilter(null);
+    setOrganizationFilters([]);
+    setVenueFilters([]);
     setEquipmentFilters([]);
     setStatusFilters([]);
     toast.success('All filters cleared');
@@ -466,10 +470,10 @@ export function EventCalendar(props) {
   const removeFilter = useCallback((type, id) => {
     switch (type) {
       case 'organization':
-        setOrganizationFilter(null);
+        setOrganizationFilters(prev => prev.filter(org => org.org_id !== id));
         break;
       case 'venue':
-        setVenueFilter(null);
+        setVenueFilters(prev => prev.filter(v => v.venue_id !== id));
         break;
       case 'equipment':
         setEquipmentFilters(prev => prev.filter(eq => eq.equipment_id !== id));
@@ -485,27 +489,27 @@ export function EventCalendar(props) {
   // Update search results when searchTerm, events, or filters change
   useEffect(() => {
     handleSearch(searchTerm);
-  }, [searchTerm, events, handleSearch, organizationFilter, venueFilter, equipmentFilters, statusFilters]);
+  }, [searchTerm, events, handleSearch, organizationFilters, venueFilters, equipmentFilters, statusFilters]);
   
   // Update active filters display
   useEffect(() => {
     const newActiveFilters = [];
     
-    if (organizationFilter) {
+    organizationFilters.forEach(org => {
       newActiveFilters.push({
         type: 'organization',
-        value: organizationFilter.org_code || organizationFilter.org_name,
-        id: organizationFilter.org_id
+        value: org.org_code || org.org_name,
+        id: org.org_id
       });
-    }
+    });
     
-    if (venueFilter) {
+    venueFilters.forEach(venue => {
       newActiveFilters.push({
         type: 'venue',
-        value: venueFilter.venue_name,
-        id: venueFilter.venue_id
+        value: venue.venue_name,
+        id: venue.venue_id
       });
-    }
+    });
     
     equipmentFilters.forEach(eq => {
       newActiveFilters.push({
@@ -524,7 +528,7 @@ export function EventCalendar(props) {
     });
     
     setActiveFilters(newActiveFilters);
-  }, [organizationFilter, venueFilter, equipmentFilters, statusFilters]);
+  }, [organizationFilters, venueFilters, equipmentFilters, statusFilters]);
 
   // CustomToolbar handles only navigation and view controls
 function CustomToolbar({ onView, onNavigate, label }) {
@@ -894,7 +898,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-[42rem] max-w-[42rem] p-8 right-0 mr-8 z-50" style={{overflowX: 'visible'}}>
+                <PopoverContent align="start" className="w-[42rem] max-w-[42rem] min-h-[32rem] max-h-[46rem] p-8 right-0 mr-8 z-50" style={{overflowX: 'visible'}}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                     {/* Organization Filter */}
                     <div>
@@ -902,28 +906,35 @@ function CustomToolbar({ onView, onNavigate, label }) {
                       <Command className="border rounded-md">
                         <CommandInput placeholder="Search organization..." />
                         <CommandEmpty>No organization found</CommandEmpty>
-                        <CommandGroup className="max-h-32 overflow-auto">
-                          {organizations.map((org) => (
-                            <CommandItem
-                              key={org.org_id}
-                              value={org.org_name}
-                              onSelect={() => {
-                                setOrganizationFilter(organizationFilter?.org_id === org.org_id ? null : org);
-                              }}
-                              className="flex items-center"
-                            >
-                              <div className="flex items-center gap-2 w-full">
-                                <Checkbox 
-                                  checked={organizationFilter?.org_id === org.org_id}
-                                  id={`org-${org.org_id}`}
-                                />
-                                <span>{org.org_name}</span>
-                                {org.org_code && (
-                                  <span className="text-xs text-muted-foreground ml-auto">{org.org_code}</span>
-                                )}
-                              </div>
-                            </CommandItem>
-                          ))}
+                        <CommandGroup className="max-h-56 overflow-auto">
+                          {organizations.map((org) => {
+                            const checked = organizationFilters.some(o => o.org_id === org.org_id);
+                            return (
+                              <CommandItem
+                                key={org.org_id}
+                                value={org.org_name}
+                                onSelect={() => {
+                                  if (checked) {
+                                    setOrganizationFilters(prev => prev.filter(o => o.org_id !== org.org_id));
+                                  } else {
+                                    setOrganizationFilters(prev => [...prev, org]);
+                                  }
+                                }}
+                                className="flex items-center"
+                              >
+                                <div className="flex items-center gap-2 w-full">
+                                  <Checkbox 
+                                    checked={checked}
+                                    id={`org-${org.org_id}`}
+                                  />
+                                  <span>{org.org_name}</span>
+                                  {org.org_code && (
+                                    <span className="text-xs text-muted-foreground ml-auto">{org.org_code}</span>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
                         </CommandGroup>
                       </Command>
                     </div>
@@ -933,25 +944,32 @@ function CustomToolbar({ onView, onNavigate, label }) {
                       <Command className="border rounded-md">
                         <CommandInput placeholder="Search venue..." />
                         <CommandEmpty>No venue found</CommandEmpty>
-                        <CommandGroup className="max-h-32 overflow-auto">
-                          {venues.map((venue) => (
-                            <CommandItem
-                              key={venue.venue_id}
-                              value={venue.venue_name}
-                              onSelect={() => {
-                                setVenueFilter(venueFilter?.venue_id === venue.venue_id ? null : venue);
-                              }}
-                              className="flex items-center"
-                            >
-                              <div className="flex items-center gap-2 w-full">
-                                <Checkbox 
-                                  checked={venueFilter?.venue_id === venue.venue_id}
-                                  id={`venue-${venue.venue_id}`}
-                                />
-                                <span>{venue.venue_name}</span>
-                              </div>
-                            </CommandItem>
-                          ))}
+                        <CommandGroup className="max-h-56 overflow-auto">
+                          {venues.map((venue) => {
+                            const checked = venueFilters.some(v => v.venue_id === venue.venue_id);
+                            return (
+                              <CommandItem
+                                key={venue.venue_id}
+                                value={venue.venue_name}
+                                onSelect={() => {
+                                  if (checked) {
+                                    setVenueFilters(prev => prev.filter(v => v.venue_id !== venue.venue_id));
+                                  } else {
+                                    setVenueFilters(prev => [...prev, venue]);
+                                  }
+                                }}
+                                className="flex items-center"
+                              >
+                                <div className="flex items-center gap-2 w-full">
+                                  <Checkbox 
+                                    checked={checked}
+                                    id={`venue-${venue.venue_id}`}
+                                  />
+                                  <span>{venue.venue_name}</span>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
                         </CommandGroup>
                       </Command>
                     </div>
@@ -964,7 +982,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
                           value={equipmentSearchTerm}
                           onValueChange={setEquipmentSearchTerm}
                         />
-                        <CommandGroup className="max-h-32 overflow-auto p-2">
+                        <CommandGroup className="max-h-56 overflow-y-scroll p-2">
                           {equipmentList
                             .filter(eq =>
                               !equipmentSearchTerm ||
@@ -999,7 +1017,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
                     {/* Status Filter */}
                     <div>
                       <div className="font-semibold text-sm mb-2">Status</div>
-                      <div className="grid grid-cols-1 gap-3 max-h-40 overflow-auto border rounded-md p-3">
+                      <div className="grid grid-cols-1 gap-3 max-h-56 overflow-auto border rounded-md p-3">
                         {statuses.map((status) => (
                           <div key={status.reservation_status_id} className="flex items-center space-x-2">
                             <Checkbox 
@@ -1030,7 +1048,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="w-full mt-4" 
+                    className="w-full mt-10" 
                     onClick={clearAllFilters}
                   >
                     Clear All Filters
