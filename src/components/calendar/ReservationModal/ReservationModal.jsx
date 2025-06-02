@@ -486,6 +486,11 @@ const ReservationModal = ({
   const handleApprove = () => {
     setStatusModal({ open: true, action: 'approve' });
   };
+  
+  // Handler for Cancel
+  const handleCancel = () => {
+    setStatusModal({ open: true, action: 'cancel' });
+  };
 
   // Helper to get local time ISO string (Asia/Manila, UTC+8)
   function getLocalISOString() {
@@ -496,9 +501,10 @@ const ReservationModal = ({
     return localISO;
   }
 
-  // Confirm approve/reject
+  // Confirm approve/reject/cancel
   const handleConfirmStatus = async () => {
-    const newStatus = statusModal.action === 'approve' ? 1 : 2;
+    // 1 = approved/reserved, 2 = rejected, 4 = cancelled
+    const newStatus = statusModal.action === 'approve' ? 1 : (statusModal.action === 'cancel' ? 4 : 2);
     const now = getLocalISOString();
     try {
       const { error } = await supabase
@@ -514,9 +520,17 @@ const ReservationModal = ({
         reservation_status_id: newStatus,
         decision_ts: now
       }));
-      toast.success(
-        statusModal.action === 'approve' ? 'Reservation approved!' : 'Reservation rejected!'
-      );
+      
+      let successMessage = '';
+      if (statusModal.action === 'approve') {
+        successMessage = 'Reservation approved!';
+      } else if (statusModal.action === 'reject') {
+        successMessage = 'Reservation rejected!';
+      } else if (statusModal.action === 'cancel') {
+        successMessage = 'Reservation cancelled!';
+      }
+      
+      toast.success(successMessage);
     } catch (err) {
       toast.error('Failed to update reservation status');
     } finally {
@@ -540,6 +554,7 @@ const ReservationModal = ({
           organizations={organizations}
           onReject={handleReject}
           onApprove={handleApprove}
+          onCancel={handleCancel}
         />
       ) : (
         <EditMode 

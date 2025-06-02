@@ -23,6 +23,7 @@ const ViewMode = ({
   onEditView, 
   onReject, 
   onApprove, 
+  onCancel,
   venues, 
   equipmentList,
   organizations = []
@@ -245,6 +246,24 @@ const ViewMode = ({
               Approve
             </button>
           </>
+        ) : form.reservation_status_id === 1 ? (
+          <>
+            <button
+              type="button"
+              onClick={onEditView}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Edit2 size={16} className="mr-2" />
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+              Cancel Reservation
+            </button>
+          </>
         ) : (
           <button
             type="button"
@@ -269,6 +288,7 @@ ViewMode.propTypes = {
   onEditView: PropTypes.func.isRequired,
   onReject: PropTypes.func.isRequired,
   onApprove: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
   venues: PropTypes.array,
   equipmentList: PropTypes.array,
   organizations: PropTypes.array,
