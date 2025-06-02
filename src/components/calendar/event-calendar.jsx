@@ -27,10 +27,33 @@ export function EventCalendar(props) {
   const [modalView, setModalView] = useState(false); // true = view mode, false = edit/create
   const [selectedReservation, setSelectedReservation] = useState(null);
   
+  // Search state
+  const [localSearchTerm, setLocalSearchTerm] = useState('');
+  
   // Confirmation modal states
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
+  
+  // Add effect to monitor updateConfirmOpen state changes
+  useEffect(() => {
+    console.log('EventCalendar - updateConfirmOpen state changed:', updateConfirmOpen);
+  }, [updateConfirmOpen]);
+  
   const [pendingFormData, setPendingFormData] = useState(null);
+  
+  // Add effect to monitor pendingFormData state changes
+  useEffect(() => {
+    console.log('EventCalendar - pendingFormData state changed:', pendingFormData);
+  }, [pendingFormData]);
+  
+  // Effect to update localSearchTerm when props.searchTerm changes
+  useEffect(() => {
+    // Only update if props.searchTerm is defined and different from current local state
+    if (props.searchTerm !== undefined && props.searchTerm !== localSearchTerm) {
+      setLocalSearchTerm(props.searchTerm);
+    }
+  }, [props.searchTerm]);
+  
   // Lookup data
   const [venues, setVenues] = useState([]);
   const [equipmentList, setEquipmentList] = useState([]);
@@ -202,11 +225,28 @@ export function EventCalendar(props) {
   // Handle when a date/time slot is selected
   // Open modal to create reservation
   const handleSelectSlot = useCallback((slotInfo) => {
+    console.log('Slot selected:', slotInfo);
+    
+    // Format dates
+    const startDate = format(slotInfo.start, 'yyyy-MM-dd');
+    const endDate = format(slotInfo.end, 'yyyy-MM-dd');
+    
+    // For multi-day selections in month view, the end date is the day after the last selected day
+    // So we need to subtract one day for a correct end date
+    const adjustedEndDate = view === 'month' && startDate !== endDate ? 
+      format(new Date(slotInfo.end.getTime() - 86400000), 'yyyy-MM-dd') : 
+      endDate;
+    
     const newReservation = {
-      activity_date: format(slotInfo.start, 'yyyy-MM-dd'),
+      activity_date: startDate,
+      start_date: startDate,
+      end_date: adjustedEndDate, // Use the adjusted end date
       start_time: format(slotInfo.start, 'HH:mm'),
       end_time: format(slotInfo.end, 'HH:mm'),
     };
+    
+    console.log('New reservation:', newReservation);
+    
     setSelectedReservation(newReservation);
     setModalEdit(false);
     setModalView(false);
@@ -216,7 +256,7 @@ export function EventCalendar(props) {
     if (onSlotSelected) {
       onSlotSelected(newReservation);
     }
-  }, [onSlotSelected]);
+  }, [onSlotSelected, view]);
   
   // Handle external slot selection (e.g., from reserve button)
   useEffect(() => {
@@ -257,7 +297,7 @@ export function EventCalendar(props) {
       );
     }
     
-    // Default for week/day/agenda views - show full details
+    // Default for week/day/list views - show full details
     return (
       <div className="p-1 overflow-hidden h-full">
         <div 
@@ -292,7 +332,7 @@ export function EventCalendar(props) {
     );
   }, [view]);
 
-  // Search function to filter events and switch to agenda view
+  // Search function to filter events and switch to list view
   const handleSearch = useCallback((term) => {
     // If search is empty, show all events
     if (!term.trim()) {
@@ -304,20 +344,37 @@ export function EventCalendar(props) {
     const searchLower = term.toLowerCase();
     
     // Filter events based on search term
-    const filtered = events.filter(event => 
-      event.title.toLowerCase().includes(searchLower) ||
-      (event.description && event.description.toLowerCase().includes(searchLower)) ||
-      (event.resource && event.resource.toLowerCase().includes(searchLower)) ||
-      (event.rawData?.organization?.org_name && event.rawData.organization.org_name.toLowerCase().includes(searchLower)) ||
-      (event.rawData?.organization?.org_code && event.rawData.organization.org_code.toLowerCase().includes(searchLower)) ||
-      (event.rawData?.officer_in_charge && event.rawData.officer_in_charge.toLowerCase().includes(searchLower)) ||
-      (event.rawData?.reserved_by && event.rawData.reserved_by.toLowerCase().includes(searchLower))
-    );
+    const filtered = events.filter(event => {
+      // Check basic fields
+      if (event.title.toLowerCase().includes(searchLower) ||
+          (event.description && event.description.toLowerCase().includes(searchLower)) ||
+          (event.resource && event.resource.toLowerCase().includes(searchLower)) ||
+          (event.rawData?.organization?.org_name && event.rawData.organization.org_name.toLowerCase().includes(searchLower)) ||
+          (event.rawData?.organization?.org_code && event.rawData.organization.org_code.toLowerCase().includes(searchLower)) ||
+          (event.rawData?.officer_in_charge && event.rawData.officer_in_charge.toLowerCase().includes(searchLower)) ||
+          (event.rawData?.reserved_by && event.rawData.reserved_by.toLowerCase().includes(searchLower))) {
+        return true;
+      }
+      
+      // Check venue name
+      if (event.rawData?.venue?.venue_name && 
+          event.rawData.venue.venue_name.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      // Check equipment name
+      if (event.rawData?.equipment?.equipment_name && 
+          event.rawData.equipment.equipment_name.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      return false;
+    });
     
     // Update filtered events
     setFilteredEvents(filtered);
     
-    // Switch to agenda view when searching
+    // Switch to list view when searching
     if (term.trim() && view !== 'agenda') {
       setView('agenda');
     }
@@ -355,15 +412,15 @@ function CustomToolbar({ onView, onNavigate, label }) {
       </div>
       <div className="flex flex-wrap gap-2 items-center">
         <div className="flex space-x-1">
-          {['month', 'week', 'day', 'agenda'].map((viewType) => (
+          {['month', 'week', 'day', 'list'].map((viewType) => (
             <button
               key={viewType}
               className={`px-3 py-1 text-sm rounded ${
-                view === viewType
+                view === (viewType === 'list' ? 'agenda' : viewType)
                   ? 'bg-blue-500 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
-              onClick={() => onView(viewType)}
+              onClick={() => onView(viewType === 'list' ? 'agenda' : viewType)}
             >
               {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
             </button>
@@ -377,22 +434,40 @@ function CustomToolbar({ onView, onNavigate, label }) {
   // Handle form submission from the reservation modal
   const handleModalSubmit = useCallback((formData) => {
     try {
-      if (!formData.org_id) {
+      // Check if formData is an array (multi-day reservations)
+      const isMultiDayReservation = Array.isArray(formData);
+      
+      // Basic validation for single or first reservation
+      const firstReservation = isMultiDayReservation ? formData[0] : formData;
+      
+      if (!firstReservation.org_id) {
         throw new Error('Please select an organization');
       }
-
-      if (!formData.activity_date || !formData.start_time || !formData.end_time) {
+      
+      // Check for required date fields - support both old activity_date and new start_date
+      const hasDateField = firstReservation.activity_date || firstReservation.start_date;
+      if (!hasDateField || !firstReservation.start_time || !firstReservation.end_time) {
         throw new Error('Please fill in all required date and time fields');
       }
       
       // For new reservations, create immediately
       if (!modalEdit || !selectedReservation?.reservation_id) {
-        // For new reservations, proceed immediately
+        console.log('EventCalendar - New reservation, proceeding immediately');
         performReservationAction(formData);
       } else {
-        // For updates, show confirmation modal
+        console.log('EventCalendar - Update existing reservation, showing confirmation');
+        console.log('EventCalendar - modalEdit:', modalEdit);
+        console.log('EventCalendar - selectedReservation:', selectedReservation);
+        
+        // Store the form data and show the confirmation dialog
         setPendingFormData(formData);
+        console.log('EventCalendar - Setting updateConfirmOpen to true, value before:', updateConfirmOpen);
         setUpdateConfirmOpen(true);
+        
+        // Force render the confirmation dialog by using setTimeout
+        setTimeout(() => {
+          console.log('EventCalendar - Confirmation dialog should be visible now, updateConfirmOpen:', updateConfirmOpen);
+        }, 100);
       }
       
     } catch (err) {
@@ -405,26 +480,40 @@ function CustomToolbar({ onView, onNavigate, label }) {
   const performReservationAction = async (formData) => {
     try {
       setLoading(true);
+      // Generate timezone-aware timestamp for current time
       const now = new Date().toISOString();
-
-      const reservationData = {
-        org_id: formData.org_id,
-        activity_date: formData.activity_date,
-        start_time: formData.start_time,
-        end_time: formData.end_time,
-        purpose: formData.purpose || '',
-        officer_in_charge: formData.officer_in_charge || '',
-        reserved_by: formData.reserved_by || '',
-        contact_no: formData.contact_no || '',
-        venue_id: formData.venue_id || null,
-        equipment_id: formData.equipment_id || null,
-        reservation_status_id: formData.reservation_status_id || 3, // Default to Pending (status_id: 3)
-        reservation_ts: now,
-        edit_ts: now
-      };
+      const isMultiDayReservation = Array.isArray(formData);
 
       if (modalEdit && selectedReservation?.reservation_id) {
-        // Update existing reservation
+        // Update existing reservation - always a single reservation
+        const singleFormData = isMultiDayReservation ? formData[0] : formData;
+      
+        // Make sure we use activity_date as the primary date field for updates
+        // The database schema has activity_date, not start_date/end_date
+        // Ensure activity_date is set correctly when editing
+        let activity_date = singleFormData.start_date;
+        if (!activity_date && singleFormData.activity_date) {
+          activity_date = singleFormData.activity_date;
+        }
+        if (!activity_date) {
+          activity_date = new Date().toISOString().split('T')[0];
+        }
+        
+        const reservationData = {
+          org_id: singleFormData.org_id,
+          activity_date: activity_date,
+          start_time: singleFormData.start_time,
+          end_time: singleFormData.end_time,
+          purpose: singleFormData.purpose || '',
+          officer_in_charge: singleFormData.officer_in_charge || '',
+          reserved_by: singleFormData.reserved_by || '',
+          contact_no: singleFormData.contact_no || '',
+          venue_id: singleFormData.venue_id || null,
+          equipment_id: singleFormData.equipment_id || null,
+          reservation_status_id: singleFormData.reservation_status_id || 3, // Maintain existing status or default to Pending
+          edit_ts: now
+        };
+        
         const { error } = await supabase
           .from('reservation')
           .update({
@@ -434,8 +523,87 @@ function CustomToolbar({ onView, onNavigate, label }) {
           .eq('reservation_id', selectedReservation.reservation_id);
         
         if (error) throw error;
+      } else if (isMultiDayReservation) {
+        // Create multiple reservations for multi-day booking
+        // Store multi-day information in the purpose field by appending it
+        const reservationsToInsert = formData.map(day => {
+          // Format purpose to include multi-day information
+          const multiDayInfo = day.multiDayTotal > 1 
+            ? ` [Multi-day ${day.multiDayIndex + 1} of ${day.multiDayTotal}]` 
+            : '';
+          
+          // CRITICAL: For multi-day reservations, ALWAYS use the activity_date that was set in the ReservationModal
+          // This ensures each reservation gets its own specific date from the dateArray
+          // DO NOT override or modify this value as it contains the unique date for each day's reservation
+          const activity_date = day.activity_date;
+          
+          console.log(`Creating reservation for date: ${activity_date}, day index: ${day.multiDayIndex}`);
+          
+          // Validate that we have a valid activity_date
+          if (!activity_date) {
+            console.error('Missing activity_date for reservation', day);
+          }
+            
+          return {
+            org_id: day.org_id,
+            // Store the specific activity date for this reservation day
+            // This must be preserved for multi-day reservations to work correctly
+            activity_date: activity_date,
+            start_time: day.start_time,
+            end_time: day.end_time,
+            // Store the multi-day info in the purpose field
+            purpose: `${day.purpose || ''}${multiDayInfo}`,
+            officer_in_charge: day.officer_in_charge || '',
+            reserved_by: day.reserved_by || '',
+            contact_no: day.contact_no || '',
+            venue_id: day.venue_id || null,
+            equipment_id: day.equipment_id || null,
+            reservation_status_id: 3, // Always set new reservations to Pending (status_id: 3)
+            reservation_ts: now,
+            edit_ts: now
+          };
+        });
+
+        // Insert all reservations at once
+        const { data, error } = await supabase
+          .from('reservation')
+          .insert(reservationsToInsert)
+          .select(`
+            *,
+            organization:org_id (org_id, org_name, org_code),
+            venue:venue_id (*),
+            equipment:equipment_id (*),
+            status:reservation_status_id (*)
+          `);
+        
+        if (error) throw error;
       } else {
-        // Create new reservation
+        // Create a single new reservation
+        // Ensure activity_date is set correctly - use start_date as the primary source
+        let activity_date = formData.start_date;
+        if (!activity_date && formData.activity_date) {
+          activity_date = formData.activity_date;
+        }
+        if (!activity_date) {
+          activity_date = new Date().toISOString().split('T')[0];
+        }
+        
+        const reservationData = {
+          org_id: formData.org_id,
+          activity_date: activity_date,
+          start_time: formData.start_time,
+          end_time: formData.end_time,
+          purpose: formData.purpose || '',
+          officer_in_charge: formData.officer_in_charge || '',
+          reserved_by: formData.reserved_by || '',
+          contact_no: formData.contact_no || '',
+          venue_id: formData.venue_id || null,
+          equipment_id: formData.equipment_id || null,
+          reservation_status_id: 3, // Always set new reservations to Pending (status_id: 3)
+          reservation_ts: now,
+          edit_ts: now
+        };
+        
         const { data, error } = await supabase
           .from('reservation')
           .insert([reservationData])
@@ -507,7 +675,11 @@ function CustomToolbar({ onView, onNavigate, label }) {
 
   // Confirmation Modal Component
   const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, cancelText, confirmColor }) => {
-    if (!isOpen) return null;
+    console.log(`ConfirmationModal - Rendering with isOpen=${isOpen}, title=${title}`);
+    if (!isOpen) {
+      console.log('ConfirmationModal - Modal is not open, returning null');
+      return null;
+    }
     
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -544,20 +716,30 @@ function CustomToolbar({ onView, onNavigate, label }) {
     <div className="relative bg-white p-4 rounded-lg shadow h-[calc(100vh-4rem)] flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        {props.onSearchChange && (
-          <form onSubmit={e => e.preventDefault()} className="w-64">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                value={props.searchTerm || ''}
-                onChange={(e) => props.onSearchChange(e.target.value)}
-                placeholder="Search reservations..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </form>
-        )}
+        <form onSubmit={e => e.preventDefault()} className="w-64">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={localSearchTerm}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                // First update local state to ensure the input shows what user is typing
+                setLocalSearchTerm(newValue);
+                
+                // Then propagate the change to search functionality
+                if (props.onSearchChange) {
+                  props.onSearchChange(newValue);
+                } else {
+                  // If no onSearchChange prop, use internal search handling
+                  handleSearch(newValue);
+                }
+              }}
+              placeholder="Search reservations..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </form>
       </div>
       {/* Search bar has been moved to the header */}
       {/* Modal for create/edit */}
@@ -573,7 +755,13 @@ function CustomToolbar({ onView, onNavigate, label }) {
         statuses={statuses}
         isEdit={modalEdit}
         isView={modalView && !modalEdit}
-        onEditView={() => { setModalEdit(true); setModalView(false); }}
+        onEditView={() => { 
+          console.log('EventCalendar - Edit view button clicked, switching from view to edit mode');
+          console.log('EventCalendar - Before state change - modalEdit:', modalEdit, 'modalView:', modalView);
+          setModalEdit(true); 
+          setModalView(false); 
+          console.log('EventCalendar - After state change - modalEdit should now be true');
+        }}
       />
       
       {/* Delete Confirmation Modal */}
@@ -587,16 +775,43 @@ function CustomToolbar({ onView, onNavigate, label }) {
         confirmColor="red"
       />
       
-      {/* Update Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={updateConfirmOpen}
-        onClose={() => setUpdateConfirmOpen(false)}
-        onConfirm={() => pendingFormData && performReservationAction(pendingFormData)}
-        title="Confirm Update"
-        message="Are you sure you want to update this reservation? This will overwrite the current information."
-        confirmText="Update"
-        confirmColor="blue"
-      />
+      {/* Update Confirmation Modal - Added key to force re-render */}
+      {updateConfirmOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <div className="relative bg-white rounded-lg p-8 max-w-lg mx-auto" style={{ minWidth: '400px' }}>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Confirm Update</h3>
+            <p className="text-sm text-gray-500 mb-6">Are you sure you want to update this reservation? This will overwrite the current information.</p>
+            
+            <div className="mt-6 flex justify-end space-x-4">
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('EventCalendar - Update confirmation modal close clicked');
+                  setUpdateConfirmOpen(false);
+                }}
+                className="inline-flex justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('EventCalendar - Update confirmation confirmed, pendingFormData:', pendingFormData);
+                  if (pendingFormData) {
+                    performReservationAction(pendingFormData);
+                    setUpdateConfirmOpen(false);
+                  } else {
+                    console.error('EventCalendar - No pendingFormData available for update');
+                  }
+                }}
+                className="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
+              >
+                Update
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Loading overlay */}
       {loading && (

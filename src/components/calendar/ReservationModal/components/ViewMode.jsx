@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { Calendar, Clock, User, Users, Phone, MapPin, Package, Edit2, X } from 'react-feather';
+import { Badge } from "@/components/ui/badge";
 
 // Helper function to convert 24h time to 12h format (e.g., '13:30' -> '1:30 PM')
 const formatTime12Hour = (timeString) => {
@@ -87,7 +88,7 @@ const ViewMode = ({
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 flex items-center">
                   <Calendar className="text-gray-400 mr-2" size={16} />
-                  <span className="text-gray-900">{form.activity_date || 'Not set'}</span>
+                  <span className="text-gray-900">{form.activity_date ? new Date(form.activity_date).toLocaleDateString() : (form.start_date ? new Date(form.start_date).toLocaleDateString() : 'Not set')}</span>
                 </div>
               </div>
               <div>
@@ -126,11 +127,30 @@ const ViewMode = ({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Equipment</label>
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 flex items-center">
-                <Package className="text-gray-400 mr-2" size={16} />
-                <span className="text-gray-900">
-                  {equipmentList.find(e => e.equipment_id == form.equipment_id)?.equipment_name || 'No equipment selected'}
-                </span>
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                <div className="flex items-start">
+                  <Package className="text-gray-400 mr-2 mt-0.5" size={16} />
+                  <div className="flex-1">
+                    {form.equipment_ids && form.equipment_ids.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {form.equipment_ids.map(id => {
+                          const equipment = equipmentList.find(e => String(e.equipment_id) === String(id));
+                          return (
+                            <Badge key={id} variant="secondary" className="mb-1">
+                              {equipment?.equipment_name || `Equipment ${id}`}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    ) : form.equipment_id ? (
+                      <span className="text-gray-900">
+                        {equipmentList.find(e => e.equipment_id == form.equipment_id)?.equipment_name || 'Unknown equipment'}
+                      </span>
+                    ) : (
+                      <span className="text-gray-500">No equipment selected</span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -174,13 +194,13 @@ const ViewMode = ({
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Created</label>
               <div className="text-sm text-gray-600">
-                {form.reservation_ts ? new Date(form.reservation_ts).toLocaleString() : 'N/A'}
+                {form.reservation_ts ? new Date(form.reservation_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'medium'}) : 'N/A'}
               </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Last Updated</label>
               <div className="text-sm text-gray-600">
-                {form.edit_ts ? new Date(form.edit_ts).toLocaleString() : 'N/A'}
+                {form.edit_ts ? new Date(form.edit_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'medium'}) : 'N/A'}
               </div>
             </div>
           </div>
