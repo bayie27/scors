@@ -124,13 +124,7 @@ export function EquipmentPage() {
     };
   }, [fetchEquipment]);
 
-  // Handle search icon click
-  const handleSearchIconClick = () => {
-    setIsSearchExpanded(true);
-    setTimeout(() => {
-      searchInputRef.current?.focus();
-    }, 100);
-  };
+  // Filter equipment based on search query - updated to match venue page pattern
 
   // Get status text based on asset_status_id
   const getStatusText = (assetStatusId) => {
@@ -167,64 +161,58 @@ export function EquipmentPage() {
   });
 
   return (
-    <div className="container mx-auto p-4 max-w-7xl">
-      {/* Header section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Equipment</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage your equipment inventory</p>
-        </div>
-        
-        <div className="flex gap-3 w-full md:w-auto">
-          {/* Search bar */}
-          <div className={`relative flex items-center transition-all duration-300 ${
-            isSearchExpanded ? 'flex-1 md:w-80' : 'w-10'
-          }`}>
-            {isSearchExpanded ? (
-              <Input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search equipment..."
-                className="pl-10 pr-4 py-2 h-10 w-full"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onBlur={() => {
-                  if (!searchQuery) {
-                    setIsSearchExpanded(false);
-                  }
+    <div className="container mx-auto py-6 px-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl font-bold">Equipment Management</h1>
+        <div className="flex items-center gap-4">
+          {/* Search pill - icon only by default, expands to input on click */}
+          <div className="h-10 flex items-center">
+            <div
+              className={`flex items-center transition-all duration-300 ease-in-out cursor-pointer overflow-hidden group ${isSearchExpanded ? 'border border-gray-200 shadow-sm bg-white rounded-full w-64 px-4 py-2 justify-start' : 'w-10 h-10 p-0 justify-center border-0 shadow-none bg-none'}`}
+              onClick={() => {
+                if (!isSearchExpanded) {
+                  setIsSearchExpanded(true);
+                  setTimeout(() => searchInputRef.current && searchInputRef.current.focus(), 100);
+                }
+              }}
+              tabIndex={0}
+              onBlur={e => {
+                // Only collapse if clicking outside
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                  setIsSearchExpanded(false);
+                }
+              }}
+              style={{ transform: 'translateZ(0)' }} /* Force GPU acceleration */
+            >
+              <SearchIcon className={`h-5 w-5 text-gray-500 flex-shrink-0 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'ml-0' : 'mx-auto'} ${!isSearchExpanded ? '!bg-none !shadow-none !rounded-none' : ''}`} />
+              <div className={`relative flex-1 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'}`}>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search"
+                  className={`bg-transparent outline-none border-none text-sm placeholder-gray-400 w-full ml-2 ${isSearchExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                  style={{ minWidth: 0 }}
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                  onFocus={() => setIsSearchExpanded(true)}
+                />
+              </div>
+              <button
+                tabIndex={0}
+                onClick={e => {
+                  e.stopPropagation();
+                  setSearchQuery('');
+                  searchInputRef.current && searchInputRef.current.focus();
                 }}
-              />
-            ) : (
-              <button
-                onClick={handleSearchIconClick}
-                className="h-10 w-10 flex items-center justify-center rounded-md bg-white border border-gray-300 text-gray-500 hover:bg-gray-50"
+                className={`ml-2 text-gray-400 hover:text-gray-600 focus:outline-none transition-all duration-300 ease-in-out ${isSearchExpanded && searchQuery ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
               >
-                <SearchIcon className="h-4 w-4" />
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
+                </svg>
               </button>
-            )}
-            
-            {isSearchExpanded && (
-              <SearchIcon className="absolute left-3 h-4 w-4 text-gray-400" />
-            )}
-            
-            {isSearchExpanded && searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 h-4 w-4 text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+            </div>
           </div>
-          
-          {/* Filter button */}
-          <Button
-            variant="outline"
-            className="h-10 px-4 flex items-center gap-2 text-gray-700"
-          >
-            <Filter className="h-4 w-4" />
-            <span className="hidden md:inline">Filter</span>
-          </Button>
           
           {/* Add equipment button */}
           <Button
@@ -253,12 +241,9 @@ export function EquipmentPage() {
           <p className="text-gray-500 mb-6">
             {searchQuery ? 'Try adjusting your search terms' : 'Get started by adding your first equipment item'}
           </p>
-          <Button
-            variant="default"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => {
-              toast.success('Add equipment functionality will be implemented soon!');
-            }}
+          <Button 
+            className="ml-4 bg-green-600 hover:bg-green-700 w-full sm:w-auto whitespace-nowrap"
+            onClick={() => alert('Add equipment functionality coming soon')}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Equipment

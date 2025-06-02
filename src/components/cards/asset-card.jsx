@@ -79,7 +79,7 @@ export function AssetCard({
       {/* Header Section */}
       <CardHeader className="pb-0 pt-4 px-4">
         <div className="flex justify-between items-start">
-          <CardTitle className="text-base font-semibold line-clamp-1">
+          <CardTitle className="text-base font-semibold line-clamp-1 pb-1">
             {title}
           </CardTitle>
           {statusId && (
