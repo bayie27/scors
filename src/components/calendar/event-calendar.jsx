@@ -487,10 +487,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
       if (modalEdit && selectedReservation?.reservation_id) {
         // Update existing reservation - always a single reservation
         const singleFormData = isMultiDayReservation ? formData[0] : formData;
-      
         // Make sure we use activity_date as the primary date field for updates
-        // The database schema has activity_date, not start_date/end_date
-        // Ensure activity_date is set correctly when editing
         let activity_date = singleFormData.start_date;
         if (!activity_date && singleFormData.activity_date) {
           activity_date = singleFormData.activity_date;
@@ -498,7 +495,12 @@ function CustomToolbar({ onView, onNavigate, label }) {
         if (!activity_date) {
           activity_date = new Date().toISOString().split('T')[0];
         }
-        
+        // Log the data being sent for debugging
+        console.log('[EDIT RESERVATION] Updating with:', {
+          ...singleFormData,
+          activity_date,
+          reservation_id: selectedReservation.reservation_id
+        });
         const reservationData = {
           org_id: singleFormData.org_id,
           activity_date: activity_date,
@@ -513,7 +515,6 @@ function CustomToolbar({ onView, onNavigate, label }) {
           reservation_status_id: singleFormData.reservation_status_id || 3, // Maintain existing status or default to Pending
           edit_ts: now
         };
-        
         const { error } = await supabase
           .from('reservation')
           .update({
@@ -521,8 +522,11 @@ function CustomToolbar({ onView, onNavigate, label }) {
             edit_ts: new Date().toISOString()
           })
           .eq('reservation_id', selectedReservation.reservation_id);
-        
-        if (error) throw error;
+        if (error) {
+          console.error('[EDIT RESERVATION] Supabase error:', error);
+          alert('Failed to update reservation: ' + (error.message || error));
+          throw error;
+        }
       } else if (isMultiDayReservation) {
         // Create multiple reservations for multi-day booking
         // Store multi-day information in the purpose field by appending it
@@ -635,7 +639,8 @@ function CustomToolbar({ onView, onNavigate, label }) {
       
     } catch (err) {
       // Error performing reservation action
-      alert(`Failed to ${modalEdit ? 'update' : 'create'} reservation: ${err.message}`);
+      console.error('[RESERVATION ACTION ERROR]', err);
+      alert(`Failed to ${modalEdit ? 'update' : 'create'} reservation: ${err.message || err}`);
     } finally {
       setLoading(false);
     }

@@ -19,6 +19,45 @@ const ReservationModal = ({
   isView = false,
   onEditView = () => {},
 }) => {
+  // Confirmation modal state for create
+  const [showCreateConfirm, setShowCreateConfirm] = useState(false);
+  const [pendingReservations, setPendingReservations] = useState(null);
+
+  // Confirmation modal for create reservation
+  const CreateConfirmationModal = ({ isOpen, onClose, onConfirm, reservations }) => {
+    if (!isOpen) return null;
+    // Summarize reservation info for user confirmation
+    const count = Array.isArray(reservations) ? reservations.length : 1;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md relative overflow-hidden p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Reservation</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            {count > 1
+              ? `Are you sure you want to create ${count} reservations for the selected date range and resources?`
+              : 'Are you sure you want to create this reservation?'}
+          </p>
+          <div className="flex justify-end gap-3 mt-5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              className="px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const [form, setForm] = useState({
     purpose: '',
     start_date: '',
@@ -285,9 +324,9 @@ const ReservationModal = ({
     }
 
     // Check if contact number is empty or not valid (basic validation)
-    if (!form.contact_no || !form.contact_no.trim()) {
+    if (!(form.contact_no && String(form.contact_no).trim())) {
       newErrors.contact_no = 'Contact number is required';
-    } else if (!/^\+?[0-9]{10,15}$/.test(form.contact_no.replace(/[\s-]/g, ''))) {
+    } else if (!/^\+?[0-9]{10,15}$/.test(String(form.contact_no).replace(/[\s-]/g, ''))) {
       newErrors.contact_no = 'Please enter a valid contact number';
     }
     
@@ -310,10 +349,10 @@ const ReservationModal = ({
     
     // Clear any existing errors before validation
     setErrors({});
-    
+    let formValidation = false;
     try {
       // Validate the form
-      const formValidation = await validateForm();
+      formValidation = await validateForm();
       
       // Get updated errors directly from the validation result
       const currentErrors = {...errors};
@@ -324,25 +363,14 @@ const ReservationModal = ({
         return; // Stop if validation fails
       }
     } catch (error) {
-      // Error during form validation
-      toast.error('An error occurred while validating the form');
+      // Validation or other error
+      console.error('ReservationModal - Error during validation or submit:', error);
+      alert('Validation failed: ' + (error.message || error));
       return;
     }
-    
-    console.log('ReservationModal - Validation passed, proceeding with submission');
-    
-    // Get all dates in the selected range (excluding weekends)
-    const dateArray = getDatesInRange(form.start_date, form.end_date);
-    
-    if (dateArray.length === 0) {
-      console.log('ReservationModal - No valid dates in range');
-      setErrors({ start_date: 'No valid dates in range (all dates may be weekends)' });
-      return;
-    }
-    
-    console.log('ReservationModal - Multiple dates in range:', dateArray);
-    
-    // Normalize phone number
+
+    // Prepare data for submission
+    const dateArray = getDatesInRange(form.start_date, form.end_date || form.start_date);
     const normalizedPhone = form.contact_no ? normalizePhoneNumber(form.contact_no) : '';
     
     // Prepare base form data with proper type conversion
@@ -413,7 +441,9 @@ const ReservationModal = ({
       });
       
       console.log('ReservationModal - Calling onSubmit with array of', allReservations.length, 'reservations');
-      onSubmit(allReservations);
+      // Instead of submitting directly, show confirmation modal
+      setPendingReservations(allReservations);
+      setShowCreateConfirm(true);
     }
   };
 
@@ -451,34 +481,49 @@ const ReservationModal = ({
 
   if (!open) return null;
 
-
-
-  return isView ? (
-    <ViewMode 
-      form={form} 
-      statusName={statusName}
-      statusStyles={statusStyles}
-      onClose={onClose}
-      onEditView={onEditView}
-      venues={venues}
-      equipmentList={equipmentList}
-      organizations={organizations}
-    />
-  ) : (
-    <EditMode 
-      form={form}
-      onClose={onClose}
-      onSubmit={handleSubmit}
-      onDelete={onDelete}
-      isEdit={isEdit}
-      venues={venues}
-      equipmentList={equipmentList}
-      organizations={organizations}
-      handleChange={handleChange}
-      errors={errors}
-    />
+  return (
+    <>
+      {isView ? (
+        <ViewMode 
+          form={form} 
+          statusName={statusName}
+          statusStyles={statusStyles}
+          onClose={onClose}
+          onEditView={onEditView}
+          venues={venues}
+          equipmentList={equipmentList}
+          organizations={organizations}
+        />
+      ) : (
+        <EditMode 
+          form={form}
+          onClose={onClose}
+          onSubmit={handleSubmit}
+          onDelete={onDelete}
+          isEdit={isEdit}
+          venues={venues}
+          equipmentList={equipmentList}
+          organizations={organizations}
+          handleChange={handleChange}
+          errors={errors}
+        />
+      )}
+      {/* Confirmation modal for create reservation */}
+      <CreateConfirmationModal 
+        isOpen={showCreateConfirm} 
+        onClose={() => { setShowCreateConfirm(false); setPendingReservations(null); }}
+        onConfirm={() => {
+          setShowCreateConfirm(false);
+          if (pendingReservations) {
+            onSubmit(pendingReservations);
+            setPendingReservations(null);
+          }
+        }}
+        reservations={pendingReservations} 
+      />
+    </>
   );
-};
+}
 
 ReservationModal.propTypes = {
   open: PropTypes.bool.isRequired,
