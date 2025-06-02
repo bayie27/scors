@@ -13,7 +13,8 @@ import {
   Monitor, 
   Clipboard, 
   AirVent, 
-  Book 
+  Book,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -336,13 +337,13 @@ export function VenuesPage() {
                   <CardTitle className="text-base font-semibold">
                     {venue.venue_name}
                   </CardTitle>
-                  <Badge className={venue.status === 'available' ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'} variant="secondary">
-                    {venue.status === 'available' ? 'Available' : 'Maintenance'}
+                  <Badge className={venue.asset_status_id === 1 ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'} variant="secondary">
+                    {venue.asset_status_id === 1 ? 'Available' : 'Not Available'}
                   </Badge>
                 </div>
               </CardHeader>
               
-              <CardContent className="pb-0 pt-1 px-4">
+              <CardContent className="pb-4 pt-1 px-4">
                 <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -363,16 +364,21 @@ export function VenuesPage() {
                   {venue.description || 'Perfect for small team meetings and presentations with modern amenities'}
                 </p>
                 
-                <div className="flex flex-wrap gap-2 mt-auto pt-1 pb-4">
-                  {venue.amenities && venue.amenities.map((amenity, idx) => (
-                    <span
-                      key={idx}
-                      className="rounded-full bg-gray-100 text-black font-semibold text-xs px-3 py-1"
-                    >
-                      {amenity}
-                    </span>
-                  ))}
-                </div>
+                {/* Equipment Section - Moved to bottom of card */}
+                {(venue.equipments && venue.equipments.length > 0) && (
+                  <div className="mt-4 pt-0">
+                    <div className="flex flex-wrap gap-2">
+                      {venue.equipments.map((item, idx) => (
+                        <span
+                          key={idx}
+                          className="rounded-full bg-gray-100 text-black font-semibold text-xs px-3 py-1"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -401,116 +407,128 @@ export function VenuesPage() {
 
       {/* Venue Modal */}
       {selectedVenue && (
-        <Dialog open={!!selectedVenue} onOpenChange={() => setSelectedVenue(null)}>
-          <DialogContent className="max-w-2xl w-full p-0 overflow-hidden">
-            <div className="px-6 pt-6 pb-2 text-left border-b">
-              <DialogTitle className="text-lg font-bold text-gray-900">{selectedVenue.venue_name}</DialogTitle>
+        <Dialog open={!!selectedVenue} onOpenChange={(open) => !open && setSelectedVenue(null)}>
+          <DialogContent className="max-w-2xl w-full p-0 overflow-hidden bg-white rounded-lg shadow-xl">
+            {/* Header */}
+            <div className="px-6 pt-6 pb-2 border-b">
+              <DialogTitle className="text-2xl font-bold text-gray-900">{selectedVenue.venue_name}</DialogTitle>
+              <div className="flex items-center mt-1">
+                <Badge variant="outline" className={`text-xs ${selectedVenue.asset_status_id === 1 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
+                  {selectedVenue.asset_status_id === 1 ? 'Available' : 'Not Available'}
+                </Badge>
+                <div className="ml-3 text-sm text-gray-500 flex items-center">
+                  <MapPinIcon className="h-4 w-4 mr-1" />
+                  {selectedVenue.location || 'Ground Floor, Building A'}
+                </div>
+              </div>
             </div>
             
-            {/* Image Carousel */}
-            <div className="px-6 pb-4">
-              <div className="overflow-hidden rounded-lg">
-                <VenueImageCarousel images={
-  Array.isArray(selectedVenue.images)
-    ? selectedVenue.images
-    : typeof selectedVenue.images === 'string' && selectedVenue.images.includes(',')
-      ? selectedVenue.images.split(',').map(img => img.trim())
-      : selectedVenue.images
-        ? [selectedVenue.images]
-        : [selectedVenue.image_url]
-} />
+            <div className="overflow-y-auto max-h-[65vh]">
+              {/* Image Carousel */}
+              <div className="px-5 py-3">
+                <div className="overflow-hidden rounded-lg border border-gray-200">
+                  <VenueImageCarousel images={
+                    Array.isArray(selectedVenue.images)
+                      ? selectedVenue.images
+                      : typeof selectedVenue.images === 'string' && selectedVenue.images.includes(',')
+                        ? selectedVenue.images.split(',').map(img => img.trim())
+                        : selectedVenue.images
+                          ? [selectedVenue.images]
+                          : [selectedVenue.image_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80']
+                  } />
+                </div>
               </div>
-            </div>
       
-      <div className="px-6 pb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Left column: Details & Description */}
-          <div>
-            {/* Details */}
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold mb-2">Details</h3>
-              <div className="flex items-center gap-2 mb-2">
-                <PeopleIcon className="text-gray-400" size={16} />
-                <span className="text-xs">Capacity: {selectedVenue.capacity || 12} people</span>
-              </div>
-              <div className="flex items-center gap-2 mb-3">
-                <MapPinIcon className="text-gray-400" size={16} />
-                <span className="text-xs">Ground Floor, Building A</span>
-              </div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-xs">Status:</span>
-                <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Available
-                </span>
-              </div>
-            </div>
-            {/* Description */}
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold mb-1">Description</h3>
-              <p className="text-xs text-gray-600">
-                {selectedVenue.description || 'Perfect for small team meetings and presentations with modern amenities'}
-              </p>
-            </div>
-          </div>
-          {/* Right column: Amenities & Equipment */}
-          <div className="pl-8">
-            {/* Amenities */}
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold mb-2">Amenities</h3>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                {(selectedVenue.amenities || ['Projector', 'Whiteboard', 'AC']).map((amenity, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-600"></span>
-                    <span className="text-xs">{amenity}</span>
+              <div className="px-5 pb-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left column: Description */}
+                  <div className="space-y-5">
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900 mb-2">Description</h3>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        {selectedVenue.description || 'No description available for this venue.'}
+                      </p>
+                    </div>
                   </div>
-                ))}
+                  
+                  {/* Right column: Equipment */}
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900 mb-2">Equipment Available</h3>
+                    <div className="space-y-2">
+                      {(selectedVenue.equipments || []).length > 0 ? (
+                        selectedVenue.equipments.map((item, idx) => (
+                          <div key={idx} className="flex items-center">
+                            <EquipmentIcon name={item} className="h-4 w-4 text-indigo-500 mr-2" />
+                            <span className="text-sm text-gray-700">{item}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500">No equipment listed</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            {/* Equipment */}
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold mb-2">Equipment Available</h3>
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-2">
-                  <svg className="text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9V8c0-.6.4-1 1-1h2c.6 0 1 .4 1 1v1"></path><path d="M2 13v2c0 .6.4 1 1 1h2c.6 0 1-.4 1-1v-2"></path><path d="M18 11V8c0-.6.4-1 1-1h2c.6 0 1 .4 1 1v3"></path><path d="M18 15v1c0 .6.4 1 1 1h2c.6 0 1-.4 1-1v-1"></path><path d="M8 9h1"></path><path d="M10 9h6"></path><path d="M17 9h-1"></path><path d="M8 13h1"></path><path d="M10 13h6"></path><path d="M17 13h-1"></path><path d="M9 17h6"></path></svg>
-                  <span className="text-xs">Projector & Screen</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <svg className="text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 2v20"></path><path d="M8 2v20"></path><path d="M12 14v.01"></path><path d="M22 8h-4"></path><path d="M6 8H2"></path><path d="M22 16h-4"></path><path d="M6 16H2"></path><path d="M18 12h.01"></path><path d="M6 12h.01"></path></svg>
-                  <span className="text-xs">Audio System</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <svg className="text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
-                  <span className="text-xs">High-Speed WiFi</span>
+            
+            {/* Footer */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-t bg-gray-50">
+              <div className="text-sm text-gray-500">
+                Last updated: {new Date(selectedVenue.updated_at || new Date()).toLocaleDateString()}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <div className="flex justify-between sm:justify-end gap-3 w-full">
+                  <Button 
+                    variant="ghost"
+                    className="h-10 px-4 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    onClick={() => setSelectedVenue(null)}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Close
+                  </Button>
+                  <div className="flex gap-3">
+                    <Button 
+                      variant="outline" 
+                      className="h-10 px-4 flex items-center gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                      onClick={() => {
+                        // Handle edit
+                        toast.success('Edit functionality will be implemented soon!');
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600">
+                        <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
+                      </svg>
+                      Edit Venue
+                    </Button>
+                    <div className="border-l border-gray-200 h-6 self-center hidden sm:block"></div>
+                    <Button 
+                      variant="outline" 
+                      className="h-10 px-4 flex items-center gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300"
+                      onClick={async () => {
+                        if (window.confirm(`Are you sure you want to delete "${selectedVenue.venue_name}"? This action cannot be undone.`)) {
+                          try {
+                            // Handle delete
+                            toast.success('Delete functionality will be implemented soon!');
+                            setSelectedVenue(null);
+                          } catch (error) {
+                            toast.error('Failed to delete venue');
+                            console.error('Error deleting venue:', error);
+                          }
+                        }
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span className="whitespace-nowrap">Delete Venue</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div> {/* END grid row */}
-      </div> {/* END modal content wrapper */}
-      {/* Buttons */}
-      <div className="flex justify-end gap-3 px-6 py-4 border-t">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="text-xs h-9 px-4" 
-          onClick={() => setSelectedVenue(null)}
-        >
-          Close
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="text-xs h-9 px-4 flex items-center gap-1.5 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
-        >
-          <svg width="12" height="12" viewBox="0 0 15 15" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-            <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
-          </svg>
-          Edit Venue
-        </Button>
-      </div>
-    </DialogContent>
-  </Dialog>
-    )}
+          </DialogContent>
+        </Dialog>
+      )}
   </div>
 );
 }
