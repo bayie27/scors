@@ -894,8 +894,8 @@ function CustomToolbar({ onView, onNavigate, label }) {
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-80 p-4">
-                  <div className="flex flex-col gap-4">
+                <PopoverContent align="start" className="w-[42rem] max-w-[42rem] p-8 right-0 mr-8 z-50" style={{overflowX: 'visible'}}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                     {/* Organization Filter */}
                     <div>
                       <div className="font-semibold text-sm mb-1">Organization</div>
@@ -997,41 +997,44 @@ function CustomToolbar({ onView, onNavigate, label }) {
                       </Command>
                     </div>
                     {/* Status Filter */}
-                    <div className="grid grid-cols-1 gap-2 max-h-32 overflow-auto border rounded-md p-2">
-                      {statuses.map((status) => (
-                        <div key={status.reservation_status_id} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`status-${status.reservation_status_id}`}
-                            checked={statusFilters.some(st => st.reservation_status_id === status.reservation_status_id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setStatusFilters(prev => [...prev, status]);
-                              } else {
-                                setStatusFilters(prev => 
-                                  prev.filter(st => st.reservation_status_id !== status.reservation_status_id)
-                                );
-                              }
-                            }}
-                          />
-                          <label 
-                            htmlFor={`status-${status.reservation_status_id}`}
-                            className="text-sm cursor-pointer w-full text-gray-900"
-                          >
-                            {statusLabelMap[status.reservation_status_id] || status.name || `Status ${status.reservation_status_id}`}
-                          </label>
-                        </div>
-                      ))}
+                    <div>
+                      <div className="font-semibold text-sm mb-2">Status</div>
+                      <div className="grid grid-cols-1 gap-3 max-h-40 overflow-auto border rounded-md p-3">
+                        {statuses.map((status) => (
+                          <div key={status.reservation_status_id} className="flex items-center space-x-2">
+                            <Checkbox 
+                              id={`status-${status.reservation_status_id}`}
+                              checked={statusFilters.some(st => st.reservation_status_id === status.reservation_status_id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setStatusFilters(prev => [...prev, status]);
+                                } else {
+                                  setStatusFilters(prev => 
+                                    prev.filter(st => st.reservation_status_id !== status.reservation_status_id)
+                                  );
+                                }
+                              }}
+                            />
+                            <label 
+                              htmlFor={`status-${status.reservation_status_id}`}
+                              className="text-sm cursor-pointer w-full text-gray-900"
+                            >
+                              {statusLabelMap[status.reservation_status_id] || status.name || `Status ${status.reservation_status_id}`}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    {/* Clear All Button */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full mt-2" 
-                      onClick={clearAllFilters}
-                    >
-                      Clear All Filters
-                    </Button>
                   </div>
+                  {/* Clear All Button below the grid */}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-4" 
+                    onClick={clearAllFilters}
+                  >
+                    Clear All Filters
+                  </Button>
                 </PopoverContent>
               </Popover>
             </div>
