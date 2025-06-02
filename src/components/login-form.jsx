@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/useAuth"
+import scorsLogo from "@/assets/scors-logo.png"
 
 export function LoginForm() {
   const { signInWithGoogle } = useAuth()
@@ -11,7 +12,7 @@ export function LoginForm() {
           <h1 className="text-3xl font-bold tracking-tight text-green-900">Welcome to</h1>
           <div className="h-24 flex items-center justify-center p-2">
             <img
-              src="/src/assets/scors-logo.png"
+              src={scorsLogo}
               alt="SCORS Logo"
               className="w-auto h-full object-contain"
             />
