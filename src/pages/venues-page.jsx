@@ -1106,19 +1106,25 @@ export function VenuesPage() {
               onClick={() => setSelectedVenue(venue)}
             >
               {/* Venue Image */}
-              <div className="relative h-48 overflow-hidden group">
+              <div 
+                className="relative h-48 overflow-hidden group cursor-pointer"
+                onClick={() => setSelectedVenue(venue)}
+              >
                 {venue.image_url ? (
-                  <img 
-                    src={venue.image_url} 
-                    alt={venue.venue_name} 
-                    className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
-                  />
+                  <>
+                    <img 
+                      src={venue.image_url} 
+                      alt={venue.venue_name} 
+                      className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                      crossOrigin="anonymous"
+                    />
+                    <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  </>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gray-100">
                     <Camera className="h-8 w-8 text-gray-400" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="absolute top-2 right-2 flex space-x-1 z-10">
                   <Button
                     size="icon"
