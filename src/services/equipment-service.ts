@@ -9,6 +9,7 @@ export const equipmentService = {
     const { data, error } = await supabase
       .from('equipment')
       .select('*')
+      .eq('asset_status_id', 1) // Only get available equipment
       .order('equipment_name');
     if (error) {
       console.error('Error fetching equipment:', error);

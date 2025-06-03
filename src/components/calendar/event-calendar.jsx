@@ -280,8 +280,10 @@ export function EventCalendar(props) {
           { data: s },
           { data: orgs }
         ] = await Promise.all([
-          supabase.from('venue').select('*'),
-          supabase.from('equipment').select('*'),
+          // Only get available venues (asset_status_id = 1)
+          supabase.from('venue').select('*').eq('asset_status_id', 1),
+          // Only get available equipment (asset_status_id = 1)
+          supabase.from('equipment').select('*').eq('asset_status_id', 1),
           supabase.from('reservation_status').select('*'),
           supabase.from('organization').select('org_id, org_name, org_code')
         ]);
