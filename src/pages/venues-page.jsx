@@ -85,8 +85,8 @@ function VenueImageCarousel({ images = [] }) {
   const goPrev = (e) => { e.stopPropagation(); setIdx(idx === 0 ? images.length - 1 : idx - 1); };
   const goNext = (e) => { e.stopPropagation(); setIdx(idx === images.length - 1 ? 0 : idx + 1); };
   return (
-    <div className="relative w-full h-64 bg-black">
-      <img src={images[idx]} alt="Venue" className="w-full h-64 object-cover" />
+    <div className="relative w-full h-48 sm:h-64 bg-black">
+      <img src={images[idx]} alt="Venue" className="w-full h-full object-cover" />
       {images.length > 1 && (
         <>
           <button onClick={goPrev} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full w-8 h-8 flex items-center justify-center shadow">
@@ -129,34 +129,31 @@ const addVenueFormSchema = z.object({
 });
 
 function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatuses }) {
+  // Form submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Equipment input state
+  const [equipmentInput, setEquipmentInput] = useState('');
+  
+  // Image handling
   const [selectedImage, setSelectedImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
   const fileInputRef = useRef(null);
 
   // Initialize form
   const form = useForm({
-    resolver: zodResolver(addVenueFormSchema), // Use the external schema
+    resolver: zodResolver(addVenueFormSchema),
     defaultValues: {
       venue_name: '',
-      asset_status_id: undefined, // Matches addVenueFormSchema
+      asset_status_id: undefined,
       description: '',
       location: '',
-      capacity: null, // Matches addVenueFormSchema (number | null)
-      equipments: [], // Matches addVenueFormSchema
+      capacity: null,
+      equipments: [],
     },
   });
-
-  // The rest of the defaultValues from the original internal schema are covered by addVenueFormSchema
-  // Original internal default values for reference (now removed):
-  // description: '',
-  // location: '',
-  // capacity: '', // This was problematic, schema expects number or null
-  // asset_status_id: 1, // Now undefined to show placeholder
-  // equipments: []
-
-  // onSubmit function and other component logic follows...
   
+  // Remove selected image
   // Handle image selection
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
@@ -171,17 +168,26 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
       reader.readAsDataURL(file);
     }
   };
-  
-  // Remove selected image
+
   const handleRemoveImage = () => {
     setSelectedImage(null);
-    setImagePreview(null);
+    setImagePreview('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    form.setValue('image', null);
   };
   
-  // Open file dialog
+  const handleAddEquipment = () => {
+    if (!equipmentInput.trim()) return;
+    
+    const currentEquipments = form.getValues('equipments') || [];
+    if (!currentEquipments.includes(equipmentInput.trim())) {
+      form.setValue('equipments', [...currentEquipments, equipmentInput.trim()]);
+    }
+    setEquipmentInput('');
+  };
+
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
@@ -209,103 +215,48 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
   
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <DialogHeader className="px-4 sm:px-6 pt-6 pb-4">
-          <DialogTitle>Add New Venue</DialogTitle>
-          <DialogDescription>
-            Fill in the details below to add a new venue to the system.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6">
-          {/* Left column - Form fields */}
-          <div className="space-y-4">
-            {/* Venue Name */}
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="flex items-start px-6 pt-4 pb-3 border-b">
+          <div>
+            <h2 className="text-xl font-semibold">Add New Venue</h2>
+            <p className="text-sm text-gray-500 mt-1">Fill in the details below to add a new venue to the inventory.</p>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {/* Venue Name */}
+          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
+            <FormLabel htmlFor="venue_name" className="text-right">Name <span className="text-red-500">*</span></FormLabel>
             <FormField
               control={form.control}
               name="venue_name"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Venue Name*</FormLabel>
+                <FormItem className="m-0">
                   <FormControl>
-                    <Input placeholder="Enter venue name" {...field} />
+                    <Input id="venue_name" placeholder="e.g., Main Auditorium" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
-            {/* Description */}
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Describe the venue..."
-                      className="resize-none min-h-[100px]"
-                      {...field} 
-                      value={field.value || ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {/* Location */}
-            <FormField
-              control={form.control}
-              name="location"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Venue location" {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {/* Capacity */}
-            <FormField
-              control={form.control}
-              name="capacity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Capacity</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="Maximum capacity"
-                      min="1"
-                      {...field}
-                      value={field.value || ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {/* Asset Status */}
+          </div>
+          
+          {/* Asset Status */}
+          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
+            <FormLabel htmlFor="asset_status" className="text-right">Status <span className="text-red-500">*</span></FormLabel>
             <FormField
               control={form.control}
               name="asset_status_id"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Asset Status*</FormLabel>
+                <FormItem className="m-0">
                   <Select
-                    onValueChange={(value) => field.onChange(Number(value))} // RHF expects number based on schema
-                    defaultValue={field.value?.toString()} // Select expects string value for defaultValue/value
+                    onValueChange={(value) => field.onChange(Number(value))}
+                    defaultValue={field.value?.toString()}
                     disabled={isLoadingAssetStatuses || isSubmitting}
                   >
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={isLoadingAssetStatuses ? "Loading statuses..." : "Select a status"} />
+                      <SelectTrigger id="asset_status">
+                        <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -325,23 +276,89 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                 </FormItem>
               )}
             />
-            
-            {/* Equipments */}
+          </div>
+
+          {/* Location */}
+          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
+            <FormLabel htmlFor="location" className="text-right">Location</FormLabel>
+            <FormField
+              control={form.control}
+              name="location"
+              render={({ field }) => (
+                <FormItem className="m-0">
+                  <FormControl>
+                    <Input id="location" placeholder="e.g., Building B, 3rd Floor" {...field} value={field.value || ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          {/* Capacity */}
+          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
+            <FormLabel htmlFor="capacity" className="text-right">Capacity</FormLabel>
+            <FormField
+              control={form.control}
+              name="capacity"
+              render={({ field }) => (
+                <FormItem className="m-0">
+                  <FormControl>
+                    <Input 
+                      id="capacity"
+                      type="number" 
+                      placeholder="e.g., 100"
+                      min="1"
+                      {...field}
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          {/* Description */}
+          <div className="grid gap-2">
+            <FormLabel htmlFor="description" className="text-right mt-2">Description</FormLabel>
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem className="m-0">
+                  <FormControl>
+                    <Textarea 
+                      id="description"
+                      placeholder="Enter a brief description of the venue..."
+                      className="resize-none min-h-[100px]"
+                      {...field} 
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          {/* Equipment & Amenities */}
+          <div className="grid gap-2">
+            <FormLabel htmlFor="equipments">Equipment</FormLabel>
             <FormField
               control={form.control}
               name="equipments"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Equipment & Amenities</FormLabel>
+                <FormItem className="m-0">
                   <FormControl>
                     <div className="space-y-2">
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-1.5">
                         {field.value.map((item, index) => (
-                          <Badge key={index} className="bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1">
+                          <Badge key={index} className="bg-blue-50 text-blue-700 hover:bg-blue-100 px-2 py-1">
                             {item}
                             <button 
                               type="button"
-                              className="ml-2 text-blue-700 hover:text-blue-900"
+                              className="ml-1.5 text-blue-700 hover:text-blue-900"
                               onClick={() => {
                                 const newValues = [...field.value];
                                 newValues.splice(index, 1);
@@ -353,99 +370,80 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                           </Badge>
                         ))}
                       </div>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Add equipment item"
-                          className="flex-1"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && e.target.value) {
+                      <div className="flex space-x-2 w-full">
+                        <Input 
+                          placeholder="Add equipment item" 
+                          value={equipmentInput} 
+                          onChange={e => setEquipmentInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
                               e.preventDefault();
-                              field.onChange([...field.value, e.target.value]);
-                              e.target.value = '';
+                              handleAddEquipment();
                             }
                           }}
+                          className="flex-1"
                         />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            const input = e.target.previousSibling;
-                            if (input.value) {
-                              field.onChange([...field.value, input.value]);
-                              input.value = '';
-                            }
-                          }}
+                        <Button 
+                          type="button" 
+                          onClick={handleAddEquipment}
+                          disabled={!equipmentInput.trim()}
                         >
                           Add
                         </Button>
                       </div>
                     </div>
                   </FormControl>
-                  <FormDescription>
-                    Press Enter or click Add to add equipment items. Examples: Projector, Whiteboard, Air Conditioning
-                  </FormDescription>
+                  <p className="text-xs text-gray-500">Examples: Projector, Whiteboard, Air Conditioning</p>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
           
-          {/* Right column - Image upload */}
-          <div className="space-y-4">
-            <FormLabel>Venue Image</FormLabel>
-            <div 
-              className={`border-2 border-dashed rounded-lg p-4 text-center ${imagePreview ? 'border-gray-300' : 'border-gray-200 hover:border-gray-300'} transition-colors`}
-            >
-              {imagePreview ? (
-                <div className="relative">
-                  <img 
-                    src={imagePreview} 
-                    alt="Venue preview" 
-                    className="mx-auto max-h-[180px] sm:max-h-[250px] rounded-md object-contain" 
-                  />
-                  <div className="absolute top-2 right-2 flex gap-2">
-                    <Button 
-                      type="button" 
-                      variant="destructive" 
-                      size="sm"
-                      onClick={handleRemoveImage}
-                      className="h-8 w-8 p-0 rounded-full"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+          {/* Venue Image */}
+          <div className="grid gap-2">
+            <FormLabel>Image</FormLabel>
+            <FormItem className="m-0">
+              <FormControl>
+                <div className="w-full h-40 sm:h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 relative overflow-hidden">
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="Venue preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-center p-4">
+                      <Image className="mx-auto h-10 sm:h-12 w-10 sm:w-12" />
+                      <p className="mt-2 text-xs sm:text-sm">Click to upload or drag & drop</p>
+                    </div>
+                  )}
+                  <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                 </div>
-              ) : (
-                <div 
-                  className="flex flex-col items-center justify-center py-6 sm:py-10 cursor-pointer"
-                  onClick={triggerFileInput}
-                >
-                  <div className="bg-gray-100 p-3 rounded-full mb-3">
-                    <Camera className="h-6 w-6 text-gray-500" />
-                  </div>
-                  <div className="text-sm font-medium mb-1">Click to upload an image</div>
-                  <p className="text-xs text-gray-500">SVG, PNG, JPG or GIF (max. 5MB)</p>
+              </FormControl>
+              {imagePreview && (
+                <div className="flex flex-col sm:flex-row justify-end gap-2 mt-2">
+                  <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full sm:w-auto">
+                    <Upload className="mr-2 h-4 w-4" /> Change Image
+                  </Button>
+                  <Button type="button" variant="destructive" size="sm" onClick={handleRemoveImage} className="w-full sm:w-auto">
+                    <Trash2 className="mr-2 h-4 w-4" /> Remove Image
+                  </Button>
                 </div>
               )}
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                onChange={handleImageSelect} 
-                accept="image/*" 
-                className="hidden" 
-              />
-            </div>
+              {!imagePreview && (
+                <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full mt-2">
+                  <Upload className="mr-2 h-4 w-4" /> Select Image
+                </Button>
+              )}
+              <FormMessage />
+            </FormItem>
           </div>
         </div>
         
-        <DialogFooter className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6 px-4 sm:px-0">
+        <div className="border-t p-4 flex flex-col-reverse sm:flex-row justify-end gap-3">
           <Button 
             type="button" 
             variant="outline" 
             onClick={onCancel}
             disabled={isSubmitting}
-            className="w-full sm:w-auto mt-2 sm:mt-0"
+            className="w-full sm:w-auto"
           >
             Cancel
           </Button>
@@ -455,9 +453,9 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
             disabled={isSubmitting}
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Creating...' : 'Create Venue'}
+            {isSubmitting ? 'Creating...' : 'Add Venue'}
           </Button>
-        </DialogFooter>
+        </div>
       </form>
     </Form>
   );
@@ -563,43 +561,48 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <DialogHeader className="px-4 sm:px-6 pt-6 pb-4">
-          <DialogTitle>Edit Venue: {venueToEdit?.venue_name}</DialogTitle>
-          <DialogDescription>
-            Update the details for this venue.
-          </DialogDescription>
-        </DialogHeader>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="flex items-start px-6 pt-4 pb-3 border-b">
+          <div>
+            <h2 className="text-xl font-semibold">Edit Venue</h2>
+            <p className="text-sm text-gray-500 mt-1">Update the details for this venue.</p>
+          </div>
+        </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6">
-          {/* Left column - Form fields */}
-          <div className="space-y-4">
-            <FormField control={form.control} name="venue_name" render={({ field }) => (
-              <FormItem><FormLabel>Venue Name*</FormLabel><FormControl><Input placeholder="Enter venue name" {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
-            <FormField control={form.control} name="description" render={({ field }) => (
-              <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="Describe the venue..." className="resize-none min-h-[100px]" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-            )} />
-            <FormField control={form.control} name="location" render={({ field }) => (
-              <FormItem><FormLabel>Location</FormLabel><FormControl><Input placeholder="Venue location" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-            )} />
-            <FormField control={form.control} name="capacity" render={({ field }) => (
-              <FormItem><FormLabel>Capacity</FormLabel><FormControl><Input type="number" placeholder="Maximum capacity" min="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-            )} />
+        <div className="p-6 space-y-4">
+          {/* Venue Name */}
+          <div className="grid gap-2">
+            <FormLabel htmlFor="venue_name">Name <span className="text-red-500">*</span></FormLabel>
+            <FormField
+              control={form.control}
+              name="venue_name"
+              render={({ field }) => (
+                <FormItem className="m-0">
+                  <FormControl>
+                    <Input id="venue_name" placeholder="e.g., Main Auditorium" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          {/* Asset Status */}
+          <div className="grid gap-2">
+            <FormLabel htmlFor="asset_status">Status <span className="text-red-500">*</span></FormLabel>
             <FormField
               control={form.control}
               name="asset_status_id"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Asset Status*</FormLabel>
+                <FormItem className="m-0">
                   <Select
-                    onValueChange={(value) => field.onChange(Number(value))} // RHF expects number
-                    value={field.value?.toString()} // Ensure the component is fully controlled
+                    onValueChange={(value) => field.onChange(Number(value))}
+                    value={field.value?.toString()}
                     disabled={isLoadingAssetStatuses || isSubmitting}
                   >
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={isLoadingAssetStatuses ? "Loading statuses..." : "Select a status"} />
+                      <SelectTrigger id="asset_status">
+                        <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -619,46 +622,143 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
                 </FormItem>
               )}
             />
-            <FormField control={form.control} name="equipments" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Equipment & Amenities</FormLabel>
+          </div>
+
+          {/* Location */}
+          <div className="grid gap-2">
+            <FormLabel htmlFor="location">Location</FormLabel>
+            <FormField
+              control={form.control}
+              name="location"
+              render={({ field }) => (
+                <FormItem className="m-0">
+                  <FormControl>
+                    <Input id="location" placeholder="e.g., Building B, 3rd Floor" {...field} value={field.value || ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          {/* Capacity */}
+          <div className="grid gap-2">
+            <FormLabel htmlFor="capacity">Capacity</FormLabel>
+            <FormField
+              control={form.control}
+              name="capacity"
+              render={({ field }) => (
+                <FormItem className="m-0">
+                  <FormControl>
+                    <Input 
+                      id="capacity"
+                      type="number" 
+                      placeholder="e.g., 100"
+                      min="1"
+                      {...field}
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          {/* Description */}
+          <div className="grid gap-2">
+            <FormLabel htmlFor="description" className="text-right mt-2">Description</FormLabel>
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem className="m-0">
+                  <FormControl>
+                    <Textarea 
+                      id="description"
+                      placeholder="Enter venue description"
+                      className="resize-none min-h-[100px]"
+                      {...field}
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          {/* Equipment & Amenities */}
+          <div className="grid gap-2">
+            <FormLabel>Equipment</FormLabel>
+            <FormField
+              control={form.control}
+              name="equipments"
+              render={({ field }) => (
+                <FormItem className="m-0">
                   <FormControl>
                     <div className="space-y-2">
                       <div className="flex flex-wrap gap-2">
                         {(field.value || []).map((item, index) => (
-                          <Badge key={index} className="bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1">
+                          <Badge key={index} className="bg-blue-50 text-blue-700 hover:bg-blue-50">
+                            <EquipmentIcon name={item} className="h-3 w-3 mr-1" />
                             {item}
-                            <button type="button" className="ml-2 text-blue-700 hover:text-blue-900" onClick={() => {
+                            <button 
+                              type="button" 
+                              className="ml-2 text-blue-700 hover:text-blue-900" 
+                              onClick={() => {
                                 const newValues = [...field.value];
                                 newValues.splice(index, 1);
                                 field.onChange(newValues);
-                              }}>
+                              }}
+                            >
                               ×
                             </button>
                           </Badge>
                         ))}
                       </div>
                       <div className="flex gap-2">
-                        <Input placeholder="Add equipment item" className="flex-1" onKeyDown={(e) => {
-                            if (e.key === 'Enter' && e.target.value) { e.preventDefault(); field.onChange([...(field.value || []), e.target.value]); e.target.value = ''; }
-                          }} />
-                        <Button type="button" variant="outline" size="sm" onClick={(e) => {
+                        <Input 
+                          placeholder="Add equipment item" 
+                          className="flex-1" 
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && e.target.value) { 
+                              e.preventDefault(); 
+                              field.onChange([...(field.value || []), e.target.value]); 
+                              e.target.value = ''; 
+                            }
+                          }} 
+                        />
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={(e) => {
                             const input = e.target.closest('.flex').querySelector('input');
-                            if (input && input.value) { field.onChange([...(field.value || []), input.value]); input.value = ''; }
-                          }}>Add</Button>
+                            if (input && input.value) { 
+                              field.onChange([...(field.value || []), input.value]); 
+                              input.value = ''; 
+                            }
+                          }}
+                        >
+                          Add
+                        </Button>
                       </div>
                     </div>
                   </FormControl>
-                  <FormDescription>Press Enter or click Add. Examples: Projector, Whiteboard</FormDescription>
+                  <FormDescription className="text-xs text-gray-500">Press Enter or click Add. Examples: Projector, Whiteboard</FormDescription>
                   <FormMessage />
                 </FormItem>
-              )} />
+              )}
+            />
           </div>
 
-          {/* Right column - Image upload */}
-          <div className="space-y-4">
-            <FormItem>
-              <FormLabel>Venue Image</FormLabel>
+
+
+          {/* Venue Image */}
+          <div className="grid gap-2">
+            <FormLabel>Image</FormLabel>
+            <FormItem className="m-0">
               <FormControl>
                 <div className="w-full h-40 sm:h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 relative overflow-hidden">
                   {imagePreview ? (
@@ -683,16 +783,16 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
                 </div>
               )}
               {!imagePreview && (
-                 <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full mt-2">
-                    <Upload className="mr-2 h-4 w-4" /> Select Image
-                  </Button>
+                <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full mt-2">
+                  <Upload className="mr-2 h-4 w-4" /> Select Image
+                </Button>
               )}
               <FormMessage />
             </FormItem>
           </div>
         </div>
         
-        <DialogFooter className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6 px-4 sm:px-0">
+        <DialogFooter className="flex justify-end gap-3 mt-4 px-6">
           <Button 
             type="button" 
             variant="outline" 
@@ -732,6 +832,17 @@ export function VenuesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [venueToEdit, setVenueToEdit] = useState(null);
   const [isEditVenueOpen, setIsEditVenueOpen] = useState(false);
+
+
+  const handleEditVenueClick = (venue) => {
+    setVenueToEdit(venue);
+    setIsEditVenueOpen(true);
+  };
+
+  const handleDeleteVenueClick = (venue) => {
+    setVenueToDelete(venue);
+    setIsDeleteDialogOpen(true);
+  };
 
   const fetchVenues = useCallback(async () => {
     try {
@@ -878,31 +989,11 @@ export function VenuesPage() {
 
   return (
     <div className="container mx-auto py-6 px-4">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-4">Venue Management</h1>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          {/* Add Venue Button */}
-          <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-1 mb-3 sm:mb-0 w-full sm:w-auto order-2 sm:order-2">
-                <Plus className="h-4 w-4" />
-                <span>Add Venue</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-lg md:max-w-xl p-0 max-h-[90vh] overflow-hidden">
-              <div className="max-h-[90vh] overflow-y-auto pb-4">
-                <AddVenueForm 
-                  onSuccess={handleVenueFormSuccess} 
-                  onCancel={() => setIsAddVenueOpen(false)} 
-                  assetStatuses={assetStatuses} 
-                  isLoadingAssetStatuses={isLoadingAssetStatuses} 
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
-          
+      <div className="mb-6 flex flex-col sm:flex-row items-center justify-between w-full gap-4">
+        <h1 className="text-2xl font-bold">Venue Management</h1>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
           {/* Search pill - icon only by default, expands to input on click */}
-          <div className="h-10 flex items-center order-1 sm:order-1 w-full sm:w-auto">
+          <div className="h-10 flex items-center"> 
             <div
               className={`flex items-center transition-all duration-300 ease-in-out cursor-pointer overflow-hidden group ${isSearchExpanded ? 'border border-gray-200 shadow-sm bg-white rounded-full w-full sm:w-64 px-4 py-2 justify-start' : 'w-10 h-10 p-0 justify-center border-0 shadow-none bg-none'}`}
               onClick={() => {
@@ -949,6 +1040,26 @@ export function VenuesPage() {
               </button>
             </div>
           </div>
+          
+          {/* Add Venue Button */}
+          <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-1 w-full sm:w-auto">
+                <Plus className="h-4 w-4" />
+                <span>Add Venue</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="w-[95vw] max-w-[400px] p-0 max-h-[90vh] overflow-hidden mx-auto">
+              <div className="max-h-[90vh] overflow-y-auto pb-4">
+                <AddVenueForm 
+                  onSuccess={handleVenueFormSuccess} 
+                  onCancel={() => setIsAddVenueOpen(false)} 
+                  assetStatuses={assetStatuses} 
+                  isLoadingAssetStatuses={isLoadingAssetStatuses} 
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -1006,11 +1117,8 @@ export function VenuesPage() {
                       setIsDeleteDialogOpen(true);
                     }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-red-500 group-hover:text-red-600" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      <line x1="10" y1="11" x2="10" y2="17"></line>
-                      <line x1="14" y1="11" x2="14" y2="17"></line>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </Button>
                 </div>
@@ -1089,60 +1197,56 @@ export function VenuesPage() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="w-[90vw] sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete Venue</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="w-[90vw] sm:max-w-[360px] p-6 mx-auto">
+          <DialogHeader className="space-y-2 text-center pb-2">
+            <DialogTitle className="text-xl font-semibold">Delete Venue</DialogTitle>
+            <DialogDescription className="text-center">
               Are you sure you want to delete the venue "{venueToDelete?.venue_name}"? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center justify-end space-x-2 pt-4">
+          <div className="flex flex-col items-stretch gap-3 pt-2">
             <Button 
               variant="outline" 
               onClick={() => setIsDeleteDialogOpen(false)}
               disabled={isDeleting}
+              className="w-full"
             >
               Cancel
             </Button>
             <Button 
               variant="destructive"
+              className="w-full bg-red-600 hover:bg-red-700"
               onClick={async () => {
                 if (!venueToDelete) return;
                 
                 setIsDeleting(true);
                 try {
-                  await venueService.deleteVenue(venueToDelete.venue_id);
-                  toast.success(`Venue "${venueToDelete.venue_name}" has been deleted`);
+                  const result = await venueService.deleteVenue(venueToDelete.venue_id);
+                  if (result.reservationsCancelled > 0) {
+                    toast.success(
+                      <div className="space-y-1">
+                        <p className="font-medium">Venue "{venueToDelete.venue_name}" has been deleted</p>
+                        <p className="text-sm">
+                          {result.reservationsCancelled} associated {result.reservationsCancelled === 1 ? 'reservation' : 'reservations'} {result.reservationsCancelled === 1 ? 'was' : 'were'} automatically cancelled
+                        </p>
+                      </div>,
+                      { duration: 5000 }
+                    );
+                  } else {
+                    toast.success(`Venue "${venueToDelete.venue_name}" has been deleted`);
+                  }
                   fetchVenues(); // Refresh the venue list immediately
                   setIsDeleteDialogOpen(false);
                   setVenueToDelete(null);
                 } catch (error) {
                   console.error('Error deleting venue:', error);
-                  
-                  // Handle the PostgreSQL foreign key constraint error (code 23503)
-                  if (error.code === '23503' || 
-                      (error.message && error.message.toLowerCase().includes('foreign key constraint')) ||
-                      (error.details && error.details.toLowerCase().includes('referenced'))) {
-                    toast.error(
-                      <div className="space-y-2">
-                        <p className="font-medium">Cannot delete this venue</p>
-                        <p>This venue has existing reservations and cannot be deleted.</p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Try setting its status to "Unavailable" instead or remove its reservations first.
-                        </p>
-                      </div>,
-                      { duration: 5000 } // Show for longer
-                    );
-                  } else {
-                    // Generic error message for other errors
-                    toast.error('Failed to delete venue: ' + (error.message || 'Unknown error'));
-                  }
+                  // Generic error message for other errors
+                  toast.error('Failed to delete venue: ' + (error.message || 'Unknown error'));
                 } finally {
                   setIsDeleting(false);
                 }
               }}
               disabled={isDeleting}
-              className="gap-2"
             >
               {isDeleting && <Loader2 className="h-4 w-4 animate-spin" />}
               {isDeleting ? 'Deleting...' : 'Delete'}
@@ -1178,9 +1282,9 @@ export function VenuesPage() {
       {/* Venue Modal */}
       {selectedVenue && (
         <Dialog open={true} onOpenChange={() => setSelectedVenue(null)}>
-          <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] p-0 overflow-hidden overflow-y-auto">
+          <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] p-0 overflow-hidden overflow-y-auto">
             {/* Header */}
-            <div className="px-4 sm:px-6 pt-6 pb-4 border-b">
+            <div className="px-4 sm:px-6 pt-4 pb-3">
               <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900">{selectedVenue.venue_name}</DialogTitle>
               <div className="flex items-center mt-2">
                 <Badge variant="outline" className={`text-xs ${selectedVenue.asset_status_id === 1 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
@@ -1193,31 +1297,23 @@ export function VenuesPage() {
                   <VenueImageCarousel images={[selectedVenue.image_url].filter(Boolean)} />
                 </div>
               ) : (
-                <div className="relative w-full h-48 sm:h-64 bg-gray-100 flex flex-col items-center justify-center mt-4">
+                <div className="relative w-full h-32 sm:h-40 bg-gray-100 flex flex-col items-center justify-center mt-4">
                   <Camera className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
                   <span className="text-gray-500 mt-2 sm:mt-4">No images available</span>
                 </div>
               )}
               
               {/* Content */}
-              <div className="p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-0 mb-4 sm:mb-6">
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-bold pr-16 sm:pr-0">{selectedVenue.venue_name}</h2>
-                    <p className="text-gray-500">
-                      {selectedVenue.location || 'No location provided'}
-                    </p>
-                  </div>
-                  <Badge className={`mt-1 sm:mt-0 self-start ${selectedVenue.asset_status_id === 1 ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'}`} variant="secondary">
-                    {selectedVenue.asset_status_id === 1 ? 'Available' : 'Not Available'}
-                  </Badge>
-                </div>
+              <div className="p-3 sm:p-4">
+                <p className="text-xs text-gray-500 mb-3 sm:mb-4">
+                  {selectedVenue.location || 'No location provided'}
+                </p>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
                   {/* Left Column */}
                   <div>
-                    <h3 className="font-semibold text-lg mb-2">Description</h3>
-                    <p className="text-gray-700 mb-5">
+                    <h3 className="font-semibold text-lg mb-1">Description</h3>
+                    <p className="text-sm text-gray-700 mb-3">
                       {selectedVenue.description || 'No description provided'}
                     </p>
                     
@@ -1231,13 +1327,13 @@ export function VenuesPage() {
                   
                   {/* Right Column */}
                   <div>
-                    <h3 className="font-semibold text-lg mb-3">Equipment & Amenities</h3>
+                    <h3 className="font-semibold text-lg mb-1">Equipment & Amenities</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {(selectedVenue.equipments || []).length > 0 ? (
                         selectedVenue.equipments.map((item, idx) => (
                           <div key={idx} className="flex items-center">
-                            <EquipmentIcon name={item} className="h-4 w-4 text-indigo-500 mr-2" />
-                            <span className="text-sm text-gray-700">{item}</span>
+                            <EquipmentIcon name={item} className="h-3.5 w-3.5 text-indigo-500 mr-2" />
+                            <span className="text-xs text-gray-700">{item}</span>
                           </div>
                         ))
                       ) : (
@@ -1250,28 +1346,18 @@ export function VenuesPage() {
             </div>
             
             {/* Footer */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-4 sm:px-6 py-4 border-t bg-gray-50">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-4 sm:px-6 py-3 border-t bg-gray-50">
               <div className="text-sm text-gray-500 mb-2 sm:mb-0">
                 Last updated: {new Date().toLocaleDateString()}
               </div>
               <div className="flex flex-col w-full sm:w-auto">
                 <div className="flex flex-col sm:flex-row gap-3 w-full">
-                  <Button 
-                    variant="ghost"
-                    className="h-10 px-4 text-gray-700 hover:bg-gray-100 hover:text-gray-900 w-full sm:w-auto mb-3 sm:mb-0"
-                    onClick={() => setSelectedVenue(null)}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Close
-                  </Button>
+
                   <div className="flex flex-col sm:flex-row gap-3 w-full">
                     <Button 
                       variant="outline" 
                       className="h-10 px-4 flex items-center justify-center sm:justify-start gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50 w-full sm:w-auto"
-                      onClick={() => {
-                        // Handle edit
-                        toast.success('Edit functionality will be implemented soon!');
-                      }}
+                      onClick={() => { handleEditVenueClick(selectedVenue); setSelectedVenue(null); }}
                     >
                       <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600">
                         <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
@@ -1282,18 +1368,7 @@ export function VenuesPage() {
                     <Button 
                       variant="outline" 
                       className="h-10 px-4 flex items-center justify-center sm:justify-start gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300 w-full sm:w-auto mt-3 sm:mt-0"
-                      onClick={async () => {
-                        if (window.confirm(`Are you sure you want to delete "${selectedVenue.venue_name}"? This action cannot be undone.`)) {
-                          try {
-                            // Handle delete
-                            toast.success('Delete functionality will be implemented soon!');
-                            setSelectedVenue(null);
-                          } catch (error) {
-                            toast.error('Failed to delete venue');
-                            console.error('Error deleting venue:', error);
-                          }
-                        }
-                      }}
+                      onClick={() => { handleDeleteVenueClick(selectedVenue); setSelectedVenue(null); }}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
