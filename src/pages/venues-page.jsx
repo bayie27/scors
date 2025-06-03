@@ -850,6 +850,7 @@ export function VenuesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [venueToEdit, setVenueToEdit] = useState(null);
   const [isEditVenueOpen, setIsEditVenueOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false); // For desktop expandable search
 
 
   const handleEditVenueClick = (venue) => {
@@ -1020,79 +1021,75 @@ export function VenuesPage() {
 
   return (
     <div className="container mx-auto py-6 px-4">
-      <div className="mb-6 flex flex-col sm:flex-row items-center justify-between w-full gap-4">
-        <h1 className="text-2xl font-bold">Venue Management</h1>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
-          {/* Search pill - icon only by default, expands to input on click */}
-          <div className="h-10 flex items-center"> 
-            <div
-              className={`flex items-center transition-all duration-300 ease-in-out cursor-pointer overflow-hidden group ${isSearchExpanded ? 'border border-gray-200 shadow-sm bg-white rounded-full w-full sm:w-64 px-4 py-2 justify-start' : 'w-10 h-10 p-0 justify-center border-0 shadow-none bg-none'}`}
-              onClick={() => {
-                if (!isSearchExpanded) {
-                  setIsSearchExpanded(true);
-                  setTimeout(() => searchInputRef.current && searchInputRef.current.focus(), 100);
-                }
-              }}
-              tabIndex={0}
-              onBlur={e => {
-                // Only collapse if clicking outside
-                if (!e.currentTarget.contains(e.relatedTarget)) {
-                  setIsSearchExpanded(false);
-                }
-              }}
-              style={{ transform: 'translateZ(0)' }} /* Force GPU acceleration */
-            >
-              <SearchIcon className={`h-5 w-5 text-gray-500 flex-shrink-0 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'ml-0' : 'mx-auto'} ${!isSearchExpanded ? '!bg-none !shadow-none !rounded-none' : ''}`} />
-              <div className={`relative flex-1 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'}`}>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search"
-                  className={`bg-transparent outline-none border-none text-sm placeholder-gray-400 w-full ml-2 ${isSearchExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-                  style={{ minWidth: 0 }}
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onClick={e => e.stopPropagation()}
-                  onFocus={() => setIsSearchExpanded(true)}
-                />
-              </div>
-              <button
-                tabIndex={0}
-                onClick={e => {
-                  e.stopPropagation();
-                  setSearchQuery('');
-                  searchInputRef.current && searchInputRef.current.focus();
-                }}
-                className={`ml-2 text-gray-400 hover:text-gray-600 focus:outline-none transition-all duration-300 ease-in-out ${isSearchExpanded && searchQuery ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-              >
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
+        {/* Main container: column on mobile, row on sm+ */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-y-3 sm:gap-x-4">
+          <h1 className="text-2xl font-bold text-gray-900 whitespace-nowrap">Venue Management</h1>
           
-          {/* Add Venue Button */}
-          <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-1 w-full sm:w-auto">
-                <Plus className="h-4 w-4" />
-                <span>Add Venue</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-[400px] p-0 max-h-[90vh] overflow-hidden mx-auto">
-              <div className="max-h-[90vh] overflow-y-auto pb-4">
-                <AddVenueForm 
-                  onSuccess={handleVenueFormSuccess} 
-                  onCancel={() => setIsAddVenueOpen(false)} 
-                  assetStatuses={assetStatuses} 
-                  isLoadingAssetStatuses={isLoadingAssetStatuses} 
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
+          {/* Actions Group: column on mobile, row on sm+ */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-3 w-full sm:w-auto">
+            {/* Mobile Search (visible on base, hidden on sm and up) */}
+            <div className="relative flex items-center w-full sm:hidden">
+              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <Input
+                placeholder="Search venues..."
+                className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-full"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+            {/* Desktop Expandable Search (hidden on base, flex on sm and up) */}
+            <div className="relative hidden sm:flex items-center">
+              {isSearchOpen ? (
+                <div className="relative">
+                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <Input
+                    ref={searchInputRef} // Keep ref for potential focus needs
+                    placeholder="Search..."
+                    className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-40 focus:w-56 transition-all duration-300 ease-in-out"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onBlur={() => setTimeout(() => setIsSearchOpen(false), 150)}
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setIsSearchOpen(true);
+                    // Focus the input after it becomes visible
+                    setTimeout(() => searchInputRef.current?.focus(), 0);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 h-10 w-10"
+                  aria-label="Search venues"
+                >
+                  <SearchIcon className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
+            
+            {/* Add Venue Button: full width on mobile, auto width on sm+ */}
+            <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base gap-1">
+                  <Plus className="h-4 w-4" />
+                  <span>Add Venue</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-[95vw] max-w-[400px] p-0 max-h-[90vh] overflow-hidden mx-auto">
+                <div className="max-h-[90vh] overflow-y-auto pb-4">
+                  <AddVenueForm 
+                    onSuccess={handleVenueFormSuccess} 
+                    onCancel={() => setIsAddVenueOpen(false)} 
+                    assetStatuses={assetStatuses} 
+                    isLoadingAssetStatuses={isLoadingAssetStatuses} 
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
-      </div>
 
       {/* Venues Grid */}
       <div className="mt-6">

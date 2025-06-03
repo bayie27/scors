@@ -333,7 +333,7 @@ export function OrganizationDialog({ open, onClose }) {
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="!max-w-6xl w-[95%] mx-auto p-4 sm:p-6">
+        <DialogContent className="!max-w-6xl w-[95%] mx-auto p-6">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl font-bold">Organizations</DialogTitle>
           </DialogHeader>
@@ -370,7 +370,7 @@ export function OrganizationDialog({ open, onClose }) {
               <span className="ml-2 text-gray-600 font-medium">Loading organizations...</span>
             </div>
           ) : (
-            <div className="mx-2 sm:mx-6 mb-6 bg-white rounded-xl shadow border overflow-hidden">
+            <div className="mb-6 bg-white rounded-xl shadow border overflow-hidden">
               <div className="max-h-[calc(100vh-300px)] overflow-auto">
                 {/* Desktop View - Table */}
                 <div className="hidden sm:block">
