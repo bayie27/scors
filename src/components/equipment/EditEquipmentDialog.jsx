@@ -279,7 +279,7 @@ export function EditEquipmentDialog({ open, onOpenChange, equipment, onSubmitSuc
             type="submit"
             form="edit-equipment-form"
             disabled={isSubmitting || !equipmentName || !assetStatusId}
-            className="w-full sm:w-auto gap-2 px-6 h-10"
+            className="w-full sm:w-auto gap-2 px-6 h-10 bg-[#06750F] hover:bg-[#05640d]"
           >
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />

@@ -11,7 +11,8 @@ import {
   SquareStack,
   Projector,
   AudioLines,
-  Wifi
+  Wifi,
+  UploadCloud
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -527,8 +528,19 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error('File is too large. Max 5MB allowed.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+      if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+        toast.error('Invalid file type. Only JPG, PNG, GIF, WEBP allowed.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+      
       setSelectedImage(file);
-      setRemoveCurrentImage(false); 
+      setRemoveCurrentImage(false);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -563,7 +575,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
         venueToEdit.venue_id, 
         updateData, 
         selectedImage || undefined, 
-        venueToEdit.image_url
+        removeCurrentImage ? null : venueToEdit.image_url
       );
       
       toast.success('Venue updated successfully!');
@@ -578,15 +590,15 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="flex items-start px-6 pt-4 pb-3 border-b">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="flex items-start px-8 pt-6 pb-4 border-b">
           <div>
-            <h2 className="text-xl font-semibold">Edit Venue</h2>
-            <p className="text-sm text-gray-500 mt-1">Update the details for this venue.</p>
+            <h2 className="text-2xl font-semibold">Edit Venue</h2>
+            <p className="text-sm text-gray-500 mt-1.5">Update the details for this venue.</p>
           </div>
         </div>
         
-        <div className="p-6 space-y-4">
+        <div className="px-8 py-6 space-y-6 max-h-[65vh] overflow-y-auto">
           {/* Venue Name */}
           <div className="grid gap-2">
             <FormLabel htmlFor="venue_name">Name <span className="text-red-500">*</span></FormLabel>
@@ -596,7 +608,12 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Input id="venue_name" placeholder="e.g., Main Auditorium" {...field} />
+                    <Input 
+                      id="venue_name" 
+                      placeholder="e.g., Main Auditorium" 
+                      className="h-10"
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -618,7 +635,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
                     disabled={isLoadingAssetStatuses || isSubmitting}
                   >
                     <FormControl>
-                      <SelectTrigger id="asset_status">
+                      <SelectTrigger className="h-10">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                     </FormControl>
@@ -650,7 +667,13 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Input id="location" placeholder="e.g., Building B, 3rd Floor" {...field} value={field.value || ''} />
+                    <Input 
+                      id="location" 
+                      placeholder="e.g., Building B, 3rd Floor" 
+                      className="h-10"
+                      {...field} 
+                      value={field.value || ''} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -672,8 +695,10 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
                       type="number" 
                       placeholder="e.g., 100"
                       min="1"
+                      className="h-10"
                       {...field}
                       value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />
@@ -682,19 +707,21 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
             />
           </div>
           
+
+          
           {/* Description */}
           <div className="grid gap-2">
-            <FormLabel htmlFor="description" className="text-right mt-2">Description</FormLabel>
+            <FormLabel htmlFor="description">Description</FormLabel>
             <FormField
               control={form.control}
               name="venue_desc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       id="description"
-                      placeholder="Enter venue description"
-                      className="resize-none min-h-[100px]"
+                      placeholder="Enter a description for the venue..."
+                      className="min-h-[100px] resize-none"
                       {...field}
                       value={field.value || ''}
                     />
@@ -751,13 +778,12 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
                           variant="outline" 
                           size="sm" 
                           onClick={(e) => {
-                            const inputElement = document.activeElement?.parentElement?.querySelector('input[placeholder="Add equipment item"]');
+                            const inputElement = e.target.closest('div').querySelector('input[placeholder="Add equipment item"]');
                             if (inputElement && inputElement.value) {
                               field.onChange([...(field.value || []), inputElement.value]);
                               inputElement.value = '';
                             }
                           }}
-                          disabled={false} // Consider adding logic to disable if input is empty
                         >
                           Add
                         </Button>
@@ -770,65 +796,100 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
               )}
             />
           </div>
-
-
-
-          {/* Venue Image */}
-          <div className="grid gap-2">
-            <FormLabel>Image</FormLabel>
-            <FormItem className="m-0">
-              <FormControl>
-                <div className="w-full h-40 sm:h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 relative overflow-hidden">
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Venue preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="text-center p-4">
-                      <Image className="mx-auto h-10 sm:h-12 w-10 sm:w-12" />
-                      <p className="mt-2 text-xs sm:text-sm">Click to upload or drag & drop</p>
-                    </div>
-                  )}
-                  <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                </div>
-              </FormControl>
-              {imagePreview && (
-                <div className="flex flex-col sm:flex-row justify-end gap-2 mt-2">
-                  <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full sm:w-auto">
-                    <Upload className="mr-2 h-4 w-4" /> Change Image
+          
+          {/* Image Upload - Moved to bottom */}
+          <div className="grid gap-3">
+            <div>
+              <FormLabel>Image</FormLabel>
+              <p className="text-sm text-gray-500 mt-0.5">Upload a clear photo of the venue</p>
+            </div>
+            <Input
+              id="venue-image-upload"
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageSelect}
+              className="hidden"
+              accept="image/png, image/jpeg, image/gif, image/webp"
+              disabled={isSubmitting}
+            />
+            
+            {imagePreview ? (
+              <div className="mt-2">
+                <div className="relative w-full h-48 rounded-md overflow-hidden border">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="w-full h-full object-cover"
+                    crossOrigin="anonymous"
+                    onError={(e) => {
+                      console.error('Failed to load image preview:', e);
+                      e.target.onerror = null;
+                      e.target.src = '/images/fallback-venue.png';
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8 rounded-full opacity-90 hover:opacity-100"
+                    onClick={handleRemoveImage}
+                    disabled={isSubmitting}
+                  >
+                    <X className="h-4 w-4" />
                   </Button>
-                  <Button type="button" variant="destructive" size="sm" onClick={handleRemoveImage} className="w-full sm:w-auto">
-                    <Trash2 className="mr-2 h-4 w-4" /> Remove Image
-                  </Button>
                 </div>
-              )}
-              {!imagePreview && (
-                <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full mt-2">
-                  <Upload className="mr-2 h-4 w-4" /> Select Image
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-2"
+                  onClick={triggerFileInput}
+                  disabled={isSubmitting}
+                >
+                  <UploadCloud className="mr-2 h-4 w-4" />
+                  Change Image
                 </Button>
-              )}
-              <FormMessage />
-            </FormItem>
+              </div>
+            ) : (
+              <div 
+                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-md bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={triggerFileInput}
+              >
+                <UploadCloud className="h-8 w-8 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-500">Click to upload or drag and drop</p>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, GIF, WEBP up to 5MB</p>
+              </div>
+            )}
           </div>
         </div>
         
-        <DialogFooter className="flex justify-end gap-3 mt-4 px-6">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onCancel} 
-            disabled={isSubmitting}
-            className="w-full sm:w-auto mt-2 sm:mt-0"
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            className="gap-2 w-full sm:w-auto" 
-            disabled={isSubmitting}
-          >
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </DialogFooter>
+        <div className="flex items-center justify-between px-8 py-4 border-t bg-gray-50">
+          <div className="text-sm text-gray-500">
+            Last updated: {new Date(venueToEdit?.updated_at || Date.now()).toLocaleDateString()}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="bg-[#06750F] hover:bg-[#05640d]"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
       </form>
     </Form>
   );
