@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { Calendar, Clock, User, Users, Phone, MapPin, Package, Edit2, X } from 'react-feather';
 import { Badge } from "@/components/ui/badge";
+import { STATUS_STYLES } from '../../../../statusStyles';
 
 // Helper function to convert 24h time to 12h format (e.g., '13:30' -> '1:30 PM')
 const formatTime12Hour = (timeString) => {
@@ -20,6 +21,10 @@ const ViewMode = ({
   statusStyles, 
   onClose, 
   onEditView, 
+  onReject, 
+  onApprove, 
+  onCancel,
+  onDelete,
   venues, 
   equipmentList,
   organizations = []
@@ -35,7 +40,12 @@ const ViewMode = ({
     <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl relative overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-800">Reservation Details</h2>
+          <div className="flex items-center space-x-4">
+            <h2 className="text-xl font-semibold text-gray-800">Reservation Details</h2>
+            <div className={`px-3 py-1 rounded-full text-xs font-medium ${statusStyles} shadow-sm text-center`}>
+              {statusName}
+            </div>
+          </div>
           <button 
             onClick={onClose} 
             className="text-gray-400 hover:text-gray-600 transition-colors p-1 -mr-2"
@@ -44,11 +54,15 @@ const ViewMode = ({
             <X size={24} />
           </button>
         </div>
-        <div className="mt-2">
-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${statusStyles} border`}>
-            {statusName}
-          </span>
-        </div>
+        
+        {form.decision_ts && (form.reservation_status_id === 1 || form.reservation_status_id === 2 || form.reservation_status_id === 4) && (
+          <div className="mt-1 text-xs text-gray-500">
+            {form.reservation_status_id === 1 ? 'Approved on ' :
+             form.reservation_status_id === 2 ? 'Rejected on ' :
+             'Cancelled on '}
+            {new Date(form.decision_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'short'})}
+          </div>
+        )}
       </div>
 
       <div className="overflow-y-auto max-h-[70vh] p-6 space-y-6">
@@ -194,13 +208,13 @@ const ViewMode = ({
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Created</label>
               <div className="text-sm text-gray-600">
-                {form.reservation_ts ? new Date(form.reservation_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'medium'}) : 'N/A'}
+                {form.reservation_ts ? new Date(form.reservation_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'short'}) : 'N/A'}
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Last Updated</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Last Edited</label>
               <div className="text-sm text-gray-600">
-                {form.edit_ts ? new Date(form.edit_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'medium'}) : 'N/A'}
+                {form.edit_ts ? new Date(form.edit_ts).toLocaleString('en-US', {dateStyle: 'medium', timeStyle: 'short'}) : 'N/A'}
               </div>
             </div>
           </div>
@@ -209,21 +223,69 @@ const ViewMode = ({
 
       {/* Footer */}
       <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end space-x-3">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          Close
-        </button>
-        <button
-          type="button"
-          onClick={onEditView}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Edit2 size={16} className="mr-2" />
-          Edit
-        </button>
+
+        {form.reservation_status_id === 3 ? (
+          <>
+            <button
+              type="button"
+              onClick={onEditView}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Edit2 size={16} className="mr-2" />
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={onReject}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+              Reject
+            </button>
+            <button
+              type="button"
+              onClick={onApprove}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Approve
+            </button>
+          </>
+        ) : form.reservation_status_id === 1 ? (
+          <>
+            <button
+              type="button"
+              onClick={onEditView}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Edit2 size={16} className="mr-2" />
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+              Cancel Reservation
+            </button>
+          </>
+        ) : form.reservation_status_id !== 2 && form.reservation_status_id !== 4 ? (
+          <button
+            type="button"
+            onClick={onEditView}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <Edit2 size={16} className="mr-2" />
+            Edit
+          </button>
+        ) : (
+          // For cancelled or rejected reservations, only show delete button
+          <button
+            type="button"
+            onClick={onDelete}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Delete
+          </button>
+        )}
       </div>
     </div>
   </div>
@@ -236,6 +298,10 @@ ViewMode.propTypes = {
   statusStyles: PropTypes.string.isRequired,
   onClose: PropTypes.func.isRequired,
   onEditView: PropTypes.func.isRequired,
+  onReject: PropTypes.func.isRequired,
+  onApprove: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  onDelete: PropTypes.func,
   venues: PropTypes.array,
   equipmentList: PropTypes.array,
   organizations: PropTypes.array,

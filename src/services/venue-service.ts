@@ -11,7 +11,7 @@ export const venueService = {
       .order('venue_name');
 
     if (error) {
-      console.error('Error fetching venues:', error);
+      // Error fetching venues
       throw error;
     }
 
@@ -37,7 +37,7 @@ export const venueService = {
       .single();
 
     if (error) {
-      console.error(`Error fetching venue ${id}:`, error);
+      // Error fetching venue
       throw error;
     }
 
@@ -110,7 +110,7 @@ export const venueService = {
       .single();
 
     if (error) {
-      console.error('Error creating venue:', error);
+      // Error creating venue
       throw error;
     }
 
@@ -293,7 +293,7 @@ export const venueService = {
       .eq('venue_id', id);
 
     if (error) {
-      console.error(`Error deleting venue ${id}:`, error);
+      // Error deleting venue
       throw error;
     }
   },

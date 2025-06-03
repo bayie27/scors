@@ -10,7 +10,7 @@ export function useAuth() {
 
   const checkWhitelist = async (email) => {
     try {
-      console.log('[Auth] Checking whitelist for email:', email);
+      // Checking whitelist for email
       
       // Try exact match first with a simple query to see if user exists
       const { data: userExists, error: userExistsError } = await supabase
@@ -20,7 +20,7 @@ export function useAuth() {
         .maybeSingle();
         
       if (userExistsError) {
-        console.error("Error checking if user exists:", userExistsError);
+        // Error checking if user exists
         return false;
       }
       
@@ -33,7 +33,7 @@ export function useAuth() {
           .maybeSingle();
 
         if (error) {
-          console.error(`Error fetching user details for ${email}:`, error);
+          // Error fetching user details
           return false;
         }
 
@@ -43,7 +43,7 @@ export function useAuth() {
       }
       
       // If no exact match, try case-insensitive match
-      console.log('[Auth] No exact match found, trying case-insensitive match');
+      // No exact match found, trying case-insensitive match
       let { data, error } = await supabase
         .from("user")
         .select("whitelisted_email, org_id, organization(org_code, org_name)")
@@ -52,10 +52,10 @@ export function useAuth() {
       // If still no match, try the email domain
       if (!data || data.length === 0) {
         const domain = email.split('@')[1];
-        console.log('[Auth] No case-insensitive match, checking domain:', domain);
+        // No case-insensitive match, checking domain
         if (domain === 'dlsl.edu.ph' || domain === 'gmail.com') {
           // For development, allow any dlsl.edu.ph or gmail.com account
-          console.log('[Auth] Domain is whitelisted, adding temporary access');
+          // Domain is whitelisted, adding temporary access
           
           // Attempt to insert user if they don't exist (with CSAO privileges for now)
           const { data: insertData, error: insertError } = await supabase
@@ -66,9 +66,9 @@ export function useAuth() {
             .select();
             
           if (insertError) {
-            console.error('[Auth] Error adding user to whitelist:', insertError);
+            // Error adding user to whitelist
           } else {
-            console.log('[Auth] Added user to whitelist:', insertData);
+            // Successfully added user to whitelist
             // Return the inserted data or fetch the user record again
             ({ data, error } = await supabase
               .from("user")
@@ -79,15 +79,15 @@ export function useAuth() {
       }
 
       if (error || !data || data.length === 0) {
-        console.warn(`[Auth] Whitelist check failed for email: ${email}`);
+        // Whitelist check failed for email
         return false;
       }
 
       // Log the data for debugging
-      console.log('[Auth] Found user data:', data.length ? data[0] : data);
+      // Found user data
       return data.length ? data[0] : data; // return the full record for later use
     } catch (err) {
-      console.error("[Auth] Unexpected error in checkWhitelist:", err);
+      // Unexpected error in checkWhitelist
       return false;
     }
   };
@@ -102,7 +102,7 @@ export function useAuth() {
     try {
       const user = session?.user;
       if (user) {
-        console.log("User metadata:", user.user_metadata);
+        // Process user metadata
         const whitelistData = await checkWhitelist(user.email);
         
         if (whitelistData) {
@@ -113,10 +113,7 @@ export function useAuth() {
             avatar_url: user.user_metadata?.picture
           });
           
-          console.log('User data after whitelist:', {
-            org_id: whitelistData.org_id,
-            organization: whitelistData.organization
-          });
+          // User is authorized with organization data
           setIsAuthorized(true);
         } else {
           await supabase.auth.signOut();
@@ -128,7 +125,7 @@ export function useAuth() {
         setIsAuthorized(false);
       }
     } catch (error) {
-      console.error("Error handling user session:", error);
+      // Error handling user session
       setUser(null);
       setIsAuthorized(false);
     } finally {
@@ -144,7 +141,7 @@ export function useAuth() {
   // Timeout function to automatically refresh auth after a delay
   const setupAuthTimeout = useCallback(() => {
     const timeoutId = setTimeout(() => {
-      console.log('[Auth] Timeout reached, attempting to reload authentication');
+      // Timeout reached, attempting to reload authentication
       window.location.reload();
     }, 10000); // 10 second timeout
     
@@ -159,14 +156,14 @@ export function useAuth() {
     
     const init = async () => {
       try {
-        console.log('[Auth] Initializing authentication');
+        // Initializing authentication
         authTimeoutId = setupAuthTimeout();
         
         const {
           data: { session },
         } = await supabase.auth.getSession();
         
-        console.log('[Auth] Got session:', session ? 'Yes' : 'No');
+        // Got session
         await handleUserSession(session);
         
         // Clear timeout if successful
@@ -175,7 +172,7 @@ export function useAuth() {
           authTimeoutId = null;
         }
       } catch (error) {
-        console.error("[Auth] Error during authentication initialization:", error);
+        // Error during authentication initialization
         setLoading(false);
         initializedRef.current = true;
       }
@@ -185,7 +182,7 @@ export function useAuth() {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('[Auth] Auth state changed:', event, 'Session:', session ? 'Yes' : 'No');
+        // Auth state changed
         
         if (initializedRef.current) {
           await handleUserSession(session);
