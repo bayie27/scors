@@ -169,7 +169,6 @@ const EditMode = ({
                     onChange={handleChange} 
                     className={`w-full border rounded px-3 py-2 ${errors.venue_equipment ? 'border-red-500' : ''}`}
                   >
-                    <p className={`mt-1 text-xs ${errors.venue_equipment ? 'text-red-600' : 'text-gray-500'}`}>{errors.venue_equipment ? errors.venue_equipment : 'Select a venue or choose equipment below. You must reserve at least one.'}</p>
                     <option value="">None</option>
                     {venues.map((v) => (
                       <option key={v.venue_id} value={v.venue_id}>
@@ -177,7 +176,12 @@ const EditMode = ({
                       </option>
                     ))}
                   </select>
-                  
+                  {errors.venue_equipment && (
+                    <p className="mt-1 text-sm text-red-600">{errors.venue_equipment}</p>
+                  )}
+                  {!errors.venue_equipment && (
+                    <p className="mt-1 text-xs text-gray-500">Select a venue or choose equipment below. You must reserve at least one.</p>
+                  )}
                 </div>
               </div>
               

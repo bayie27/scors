@@ -120,13 +120,11 @@ export function EventCalendar(props) {
         setOrganizations(orgs || []);
       }
 
-      // Build query with filters
+      // Build query with new relationship structure
       let query = supabase
         .from('reservation')
         .select(`
           *,
-          venue:venue_id(*),
-          equipment:equipment_id(*),
           status:reservation_status_id(*),
           organization:org_id(*)
         `);
@@ -137,24 +135,62 @@ export function EventCalendar(props) {
         query = query.in('org_id', orgIds);
       }
       
-      if (venueFilters.length > 0) {
-        const venueIds = venueFilters.map(v => v.venue_id);
-        query = query.in('venue_id', venueIds);
-      }
-      
-      if (equipmentFilters.length > 0) {
-        const equipmentIds = equipmentFilters.map(eq => eq.equipment_id);
-        query = query.in('equipment_id', equipmentIds);
-      }
-      
       if (statusFilters.length > 0) {
         const statusIds = statusFilters.map(st => st.reservation_status_id);
         query = query.in('reservation_status_id', statusIds);
       }
       
       const { data: reservations, error: fetchError } = await query;
-
       if (fetchError) throw fetchError;
+
+      // Apply venue filters if they exist
+      if (venueFilters.length > 0) {
+        const venueIds = venueFilters.map(v => v.venue_id);
+        reservations = reservations.filter(r => venueIds.includes(r.venue_id));
+      }
+      
+      // Fetch equipment relationships for all reservations
+      const reservationIds = reservations.map(r => r.reservation_id);
+      
+      // Only query if there are reservations
+      let equipmentRelationships = [];
+      
+      if (reservationIds.length > 0) {
+        // Fetch equipment relationships
+        const { data: equipmentData, error: equipmentError } = await supabase
+          .from('reservation_equipment')
+          .select(`
+            reservation_id,
+            equipment:equipment_id(*)
+          `)
+          .in('reservation_id', reservationIds);
+        
+        if (equipmentError) throw equipmentError;
+        equipmentRelationships = equipmentData || [];
+        
+        // Apply equipment filters if they exist
+        if (equipmentFilters.length > 0) {
+          const equipmentIds = equipmentFilters.map(eq => eq.equipment_id);
+          equipmentRelationships = equipmentRelationships.filter(er => 
+            equipmentIds.includes(er.equipment.equipment_id)
+          );
+          // If venue filters aren't applied, filter reservations by equipment
+          if (venueFilters.length === 0) {
+            const filteredReservationIds = [...new Set(equipmentRelationships.map(er => er.reservation_id))];
+            reservations = reservations.filter(r => filteredReservationIds.includes(r.reservation_id));
+          }
+        }
+      }
+      
+      // We'll look up venues by their venue_id from the reservations
+      
+      const equipmentByReservation = {};
+      equipmentRelationships.forEach(relation => {
+        if (!equipmentByReservation[relation.reservation_id]) {
+          equipmentByReservation[relation.reservation_id] = [];
+        }
+        equipmentByReservation[relation.reservation_id].push(relation.equipment);
+      });
 
       // Transform reservations to calendar events
       const formattedEvents = (reservations || []).map(reservation => {
@@ -173,13 +209,27 @@ export function EventCalendar(props) {
         const orgCode = org?.org_code || '';
         const orgName = org?.org_name || '';
         
+        // Get venue and associated equipment
+        const venue = venues.find(v => v.venue_id === reservation.venue_id) || null;
+        const equipment = equipmentByReservation[reservation.reservation_id] || [];
+        
+        // Create resource text that shows venue and equipment
+        let resourceText = '';
+        if (venue) {
+          resourceText += `Venue: ${venue.venue_name}`;
+        }
+        if (equipment.length > 0) {
+          if (resourceText) resourceText += ' | ';
+          resourceText += `Equipment: ${equipment.map(e => e.equipment_name).join(', ')}`;
+        }
+        if (!resourceText) resourceText = 'No Location or Equipment';
+        
         return {
           id: reservation.reservation_id,
           title: reservation.purpose || 'Untitled Reservation',
           start: startDateTime,
           end: endDateTime,
-          resource: reservation.venue_id ? `Venue ${reservation.venue_id}` : 
-                  (reservation.equipment_id ? `Equipment ${reservation.equipment_id}` : 'No Location'),
+          resource: resourceText,
           description: `Reserved by: ${reservation.reserved_by || 'Unknown'}\n` +
                      `Contact: ${reservation.contact_no || 'N/A'}\n` +
                      `Org: ${orgName} (${orgCode || 'No Code'})`,
@@ -190,7 +240,10 @@ export function EventCalendar(props) {
             ...reservation,
             org_code: orgCode,
             org_name: orgName,
-            organization: org || null
+            organization: org || null,
+            venue, // Add venue object
+            equipment, // Add equipment array
+            equipment_ids: equipment.map(e => e.equipment_id) // Add equipment IDs for easier access
           }
         };
       });
@@ -886,7 +939,7 @@ export function EventCalendar(props) {
             
             // Define soft, pleasant background colors for each status
             const bgColors = {
-              1: '#edf5ff', // Reserved/Approved - soft blue
+              1: '#edf7ee', // Reserved/Approved - soft green
               2: '#fef1f1', // Rejected - soft red
               3: '#fef9ee', // Pending - soft cream (instead of harsh yellow)
               4: '#f8f8f8', // Cancelled - light gray

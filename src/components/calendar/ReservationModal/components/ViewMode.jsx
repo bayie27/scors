@@ -135,7 +135,11 @@ const ViewMode = ({
               <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 flex items-center">
                 <MapPin className="text-gray-400 mr-2" size={16} />
                 <span className="text-gray-900">
-                  {venues.find(v => v.venue_id == form.venue_id)?.venue_name || 'No venue selected'}
+                  {form.venue_id ? (
+                    venues.find(v => String(v.venue_id) === String(form.venue_id))?.venue_name || `Venue ${form.venue_id}`
+                  ) : (
+                    'No venue selected'
+                  )}
                 </span>
               </div>
             </div>
