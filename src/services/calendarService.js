@@ -194,15 +194,7 @@ export async function saveReservation(formData, selectedReservation, modalEdit) 
 
 export async function deleteReservationService(reservationId) {
   try {
-    // Delete associated venue records
-    const { error: venueError } = await supabase
-      .from('reservation_venue')
-      .delete()
-      .eq('reservation_id', reservationId);
-    
-    if (venueError) throw venueError;
-
-    // Delete associated equipment records
+    // Delete associated equipment records first due to foreign key constraint
     const { error: equipmentError } = await supabase
       .from('reservation_equipment')
       .delete()
