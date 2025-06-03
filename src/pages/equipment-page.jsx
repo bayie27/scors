@@ -93,7 +93,7 @@ export function EquipmentPage() {
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -511,54 +511,47 @@ export function EquipmentPage() {
           <h1 className="text-2xl font-bold">Equipment Management</h1>
           <p className="text-sm text-gray-500 mt-1">View details and management options for this equipment</p>
         </div>
-        <div className="flex items-center gap-4">
-          {/* Search pill - icon only by default, expands to input on click */}
-          <div className="h-10 flex items-center">
-            <div
-              className={`flex items-center transition-all duration-300 ease-in-out cursor-pointer overflow-hidden group ${isSearchExpanded ? 'border border-gray-200 shadow-sm bg-white rounded-full w-64 px-4 py-2 justify-start' : 'w-10 h-10 p-0 justify-center border-0 shadow-none bg-none'}`}
-              onClick={() => {
-                if (!isSearchExpanded) {
-                  setIsSearchExpanded(true);
-                  setTimeout(() => searchInputRef.current && searchInputRef.current.focus(), 100);
-                }
-              }}
-              tabIndex={0}
-              onBlur={e => {
-                // Only collapse if clicking outside
-                if (!e.currentTarget.contains(e.relatedTarget)) {
-                  setIsSearchExpanded(false);
-                }
-              }}
-              style={{ transform: 'translateZ(0)' }} /* Force GPU acceleration */
-            >
-              <SearchIcon className={`h-5 w-5 text-gray-500 flex-shrink-0 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'ml-0' : 'mx-auto'} ${!isSearchExpanded ? '!bg-none !shadow-none !rounded-none' : ''}`} />
-              <div className={`relative flex-1 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'}`}>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search"
-                  className={`bg-transparent outline-none border-none text-sm placeholder-gray-400 w-full ml-2 ${isSearchExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-                  style={{ minWidth: 0 }}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-3 w-full sm:w-auto">
+          {/* Mobile Search (visible on base, hidden on sm and up) */}
+          <div className="relative flex items-center w-full sm:hidden">
+            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <Input
+              placeholder="Search equipment..."
+              className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-full"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+          {/* Desktop Expandable Search (hidden on base, flex on sm and up) */}
+          <div className="relative hidden sm:flex items-center">
+            {isSearchOpen ? (
+              <div className="relative">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Input
+                  ref={searchInputRef} // Keep ref for potential focus needs
+                  placeholder="Search..."
+                  className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-40 focus:w-56 transition-all duration-300 ease-in-out"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  onClick={e => e.stopPropagation()}
-                  onFocus={() => setIsSearchExpanded(true)}
+                  onBlur={() => setTimeout(() => setIsSearchOpen(false), 150)}
+                  autoFocus
                 />
               </div>
-              <button
-                tabIndex={0}
-                onClick={e => {
-                  e.stopPropagation();
-                  setSearchQuery('');
-                  searchInputRef.current && searchInputRef.current.focus();
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setIsSearchOpen(true);
+                  // Focus the input after it becomes visible
+                  setTimeout(() => searchInputRef.current?.focus(), 0);
                 }}
-                className={`ml-2 text-gray-400 hover:text-gray-600 focus:outline-none transition-all duration-300 ease-in-out ${isSearchExpanded && searchQuery ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                className="text-gray-500 hover:text-gray-700 h-10 w-10"
+                aria-label="Search equipment"
               >
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor" className="text-gray-600 mr-2">
-                  <path d="M11.7816 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
-                </svg>
-              </button>
-            </div>
+                <SearchIcon className="h-5 w-5" />
+              </Button>
+            )}
           </div>
           
           {/* Add equipment button */}
