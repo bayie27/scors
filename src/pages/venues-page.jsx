@@ -118,15 +118,21 @@ function EquipmentIcon({ name, ...props }) {
   }
 }
 // Add Venue Form component
-const addVenueFormSchema = z.object({
+const venueFormSchema = z.object({
   venue_name: z.string().min(3, { message: "Venue name must be at least 3 characters." }),
   asset_status_id: z.coerce.number({invalid_type_error: 'Please select a status.'}).positive({ message: "Please select a status." }),
-  description: z.string().max(500, { message: "Description must be 500 characters or less." }).optional().nullable(),
-  location: z.string().max(100, { message: "Location must be 100 characters or less." }).optional().nullable(),
-  capacity: z.coerce.number().positive({ message: "Capacity must be a positive number." }).int().optional().nullable(),
-  equipments: z.array(z.string()).optional(),
-  // image_url and imageFile are handled separately, not part of RHF schema for direct form data
-});
+  venue_desc: z.string().max(500, { message: "Description must be 500 characters or less." }).optional().nullable(),
+  venue_loc: z.string().max(100, { message: "Location must be 100 characters or less." }).optional().nullable(),
+  venue_cap: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.coerce.number({ invalid_type_error: "Capacity must be a number." })
+      .positive({ message: "Capacity must be a positive number if provided." })
+      .int({ message: "Capacity must be a whole number if provided." })
+      .optional()
+      .nullable()
+  ),
+  venue_feat: z.array(z.string()).optional(),
+});  // image_url and imageFile are handled separately, not part of RHF schema for direct form data
 
 function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatuses }) {
   // Form submission state
@@ -142,15 +148,15 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
 
   // Initialize form
   const form = useForm({
-    resolver: zodResolver(addVenueFormSchema),
+    resolver: zodResolver(venueFormSchema),
     defaultValues: {
       venue_name: '',
       asset_status_id: undefined,
-      description: '',
-      location: '',
-      capacity: null,
-      equipments: [],
-    },
+      venue_desc: '',
+      venue_loc: '',
+      venue_cap: null,
+      venue_feat: [],
+    }
   });
   
   // Remove selected image
@@ -181,9 +187,9 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
   const handleAddEquipment = () => {
     if (!equipmentInput.trim()) return;
     
-    const currentEquipments = form.getValues('equipments') || [];
+    const currentEquipments = form.getValues('venue_feat') || [];
     if (!currentEquipments.includes(equipmentInput.trim())) {
-      form.setValue('equipments', [...currentEquipments, equipmentInput.trim()]);
+      form.setValue('venue_feat', [...currentEquipments, equipmentInput.trim()]);
     }
     setEquipmentInput('');
   };
@@ -283,7 +289,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
             <FormLabel htmlFor="location" className="text-right">Location</FormLabel>
             <FormField
               control={form.control}
-              name="location"
+              name="venue_loc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -300,7 +306,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
             <FormLabel htmlFor="capacity" className="text-right">Capacity</FormLabel>
             <FormField
               control={form.control}
-              name="capacity"
+              name="venue_cap"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -324,7 +330,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
             <FormLabel htmlFor="description" className="text-right mt-2">Description</FormLabel>
             <FormField
               control={form.control}
-              name="description"
+              name="venue_desc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -347,7 +353,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
             <FormLabel htmlFor="equipments">Equipment</FormLabel>
             <FormField
               control={form.control}
-              name="equipments"
+              name="venue_feat"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -390,7 +396,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                         >
                           Add
                         </Button>
-                      </div>
+                  ``    </div>
                     </div>
                   </FormControl>
                   <p className="text-xs text-gray-500">Examples: Projector, Whiteboard, Air Conditioning</p>
@@ -466,10 +472,17 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
 const editVenueFormSchema = z.object({
   venue_name: z.string().min(3, { message: "Venue name must be at least 3 characters." }),
   asset_status_id: z.coerce.number({invalid_type_error: 'Please select a status.'}).positive({ message: "Please select a status." }),
-  description: z.string().max(500, { message: "Description must be 500 characters or less." }).optional().nullable(),
-  location: z.string().max(100, { message: "Location must be 100 characters or less." }).optional().nullable(),
-  capacity: z.coerce.number().positive({ message: "Capacity must be a positive number." }).int().optional().nullable(),
-  equipments: z.array(z.string()).optional(),
+  venue_desc: z.string().max(500, { message: "Description must be 500 characters or less." }).optional().nullable(),
+  venue_loc: z.string().max(100, { message: "Location must be 100 characters or less." }).optional().nullable(),
+  venue_cap: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.coerce.number({ invalid_type_error: "Capacity must be a number." })
+      .positive({ message: "Capacity must be a positive number if provided." })
+      .int({ message: "Capacity must be a whole number if provided." })
+      .optional()
+      .nullable()
+  ),
+  venue_feat: z.array(z.string()).optional(),
 });
 
 function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoadingAssetStatuses }) {
@@ -484,10 +497,10 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
     defaultValues: {
       venue_name: venueToEdit?.venue_name || '',
       asset_status_id: venueToEdit?.asset_status_id ?? undefined,
-      description: venueToEdit?.description || '',
-      location: venueToEdit?.location || '',
-      capacity: venueToEdit?.capacity || null,
-      equipments: venueToEdit?.equipments || [],
+      venue_desc: venueToEdit?.venue_desc || '',
+      venue_loc: venueToEdit?.venue_loc || '',
+      venue_cap: venueToEdit?.venue_cap || null,
+      venue_feat: venueToEdit?.venue_feat || [],
     }
   });
 
@@ -496,10 +509,10 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
       form.reset({
         venue_name: venueToEdit.venue_name || '',
         asset_status_id: venueToEdit.asset_status_id ?? undefined,
-        description: venueToEdit.description || '',
-        location: venueToEdit.location || '',
-        capacity: venueToEdit.capacity || null,
-        equipments: venueToEdit.equipments || [],
+        venue_desc: venueToEdit.venue_desc || '',
+        venue_loc: venueToEdit.venue_loc || '',
+        venue_cap: venueToEdit.venue_cap || null,
+        venue_feat: venueToEdit.venue_feat || [],
       });
       if (venueToEdit.image_url) {
         setImagePreview(venueToEdit.image_url);
@@ -543,11 +556,15 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
       
       const updateData = {
         ...data,
-        venue_id: venueToEdit.venue_id,
         image_url: removeCurrentImage ? null : (selectedImage ? undefined : venueToEdit.image_url)
       };
 
-      await venueService.updateVenue(updateData, selectedImage || undefined);
+      await venueService.updateVenue(
+        venueToEdit.venue_id, 
+        updateData, 
+        selectedImage || undefined, 
+        venueToEdit.image_url
+      );
       
       toast.success('Venue updated successfully!');
       if (onSuccess) onSuccess();
@@ -629,7 +646,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
             <FormLabel htmlFor="location">Location</FormLabel>
             <FormField
               control={form.control}
-              name="location"
+              name="venue_loc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -646,7 +663,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
             <FormLabel htmlFor="capacity">Capacity</FormLabel>
             <FormField
               control={form.control}
-              name="capacity"
+              name="venue_cap"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -670,7 +687,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
             <FormLabel htmlFor="description" className="text-right mt-2">Description</FormLabel>
             <FormField
               control={form.control}
-              name="description"
+              name="venue_desc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -693,7 +710,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
             <FormLabel>Equipment</FormLabel>
             <FormField
               control={form.control}
-              name="equipments"
+              name="venue_feat"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -734,12 +751,13 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
                           variant="outline" 
                           size="sm" 
                           onClick={(e) => {
-                            const input = e.target.closest('.flex').querySelector('input');
-                            if (input && input.value) { 
-                              field.onChange([...(field.value || []), input.value]); 
-                              input.value = ''; 
+                            const inputElement = document.activeElement?.parentElement?.querySelector('input[placeholder="Add equipment item"]');
+                            if (inputElement && inputElement.value) {
+                              field.onChange([...(field.value || []), inputElement.value]);
+                              inputElement.value = '';
                             }
                           }}
+                          disabled={false} // Consider adding logic to disable if input is empty
                         >
                           Add
                         </Button>
@@ -832,6 +850,7 @@ export function VenuesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [venueToEdit, setVenueToEdit] = useState(null);
   const [isEditVenueOpen, setIsEditVenueOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false); // For desktop expandable search
 
 
   const handleEditVenueClick = (venue) => {
@@ -863,10 +882,10 @@ export function VenuesPage() {
         venue_id: venue.venue_id,
         venue_name: venue.venue_name,
         asset_status_id: venue.asset_status_id,
-        description: venue.venue_desc,
-        location: venue.venue_loc,
-        capacity: venue.venue_cap,
-        equipments: venue.venue_feat || [],
+        venue_desc: venue.venue_desc,
+        venue_loc: venue.venue_loc,
+        venue_cap: venue.venue_cap,
+        venue_feat: venue.venue_feat || [],
         image_url: venue.image_url
       })) : [];
       
@@ -927,35 +946,48 @@ export function VenuesPage() {
     }
   }, [fetchVenues]);
 
-  // Set up real-time subscription
+  // Set up real-time subscription and initial data fetch
   useEffect(() => {
     let isMounted = true;
+    let G_cleanupFromSubscription = null; // Variable to hold the cleanup function from setupSubscription
 
-    const init = async () => {
+    const initializeAndSubscribe = async () => {
       try {
-        await fetchVenues();
+        // Initial fetch of venues when component mounts
+        await fetchVenues(); 
+        
         if (isMounted) {
-          const cleanup = setupSubscription();
-          return cleanup; // Return cleanup function
+          // Setup the subscription and get the cleanup function
+          const cleanup = await setupSubscription(); 
+          if (isMounted) { // Check isMounted again after await, in case component unmounted during setupSubscription
+              G_cleanupFromSubscription = cleanup;
+          } else {
+              // If component unmounted while setupSubscription was running, call its cleanup immediately
+              if (typeof cleanup === 'function') {
+                  cleanup();
+              }
+          }
         }
       } catch (error) {
-        // Initialization error
-        toast.error('Failed to initialize venues');
+        // Error during initialization or subscription setup
+        console.error('Error initializing venues page:', error);
+        if (isMounted) { // Only show toast if component is still mounted
+          toast.error('Failed to initialize venues page.');
+        }
       }
     };
 
-    const cleanup = init();
-    
-    // Clean up subscription when component unmounts
+    initializeAndSubscribe();
+
+    // Cleanup function for the useEffect
     return () => {
-      isMounted = false;
-      if (cleanup && typeof cleanup.then === 'function') {
-        cleanup.then(fn => fn && fn());
-      } else if (typeof cleanup === 'function') {
-        cleanup();
+      isMounted = false; // Signal that the component is unmounting
+      // If a cleanup function was obtained from setupSubscription, execute it
+      if (G_cleanupFromSubscription && typeof G_cleanupFromSubscription === 'function') {
+        G_cleanupFromSubscription();
       }
     };
-  }, [fetchVenues, setupSubscription]);
+  }, [fetchVenues, setupSubscription]); // Dependencies for the useEffect
 
   useEffect(() => {
     const fetchAssetStatuses = async () => {
@@ -976,8 +1008,8 @@ export function VenuesPage() {
   // Filter venues based on search query
   const filteredVenues = venues.filter(venue => 
     (venue.venue_name && venue.venue_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (venue.description && venue.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (venue.amenities && Array.isArray(venue.amenities) && venue.amenities.some(a => typeof a === 'string' && a.toLowerCase().includes(searchQuery.toLowerCase())))
+    (venue.venue_desc && venue.venue_desc.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (venue.venue_feat && Array.isArray(venue.venue_feat) && venue.venue_feat.some(a => typeof a === 'string' && a.toLowerCase().includes(searchQuery.toLowerCase())))
   );
 
   // Handle venue form success
@@ -989,79 +1021,75 @@ export function VenuesPage() {
 
   return (
     <div className="container mx-auto py-6 px-4">
-      <div className="mb-6 flex flex-col sm:flex-row items-center justify-between w-full gap-4">
-        <h1 className="text-2xl font-bold">Venue Management</h1>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
-          {/* Search pill - icon only by default, expands to input on click */}
-          <div className="h-10 flex items-center"> 
-            <div
-              className={`flex items-center transition-all duration-300 ease-in-out cursor-pointer overflow-hidden group ${isSearchExpanded ? 'border border-gray-200 shadow-sm bg-white rounded-full w-full sm:w-64 px-4 py-2 justify-start' : 'w-10 h-10 p-0 justify-center border-0 shadow-none bg-none'}`}
-              onClick={() => {
-                if (!isSearchExpanded) {
-                  setIsSearchExpanded(true);
-                  setTimeout(() => searchInputRef.current && searchInputRef.current.focus(), 100);
-                }
-              }}
-              tabIndex={0}
-              onBlur={e => {
-                // Only collapse if clicking outside
-                if (!e.currentTarget.contains(e.relatedTarget)) {
-                  setIsSearchExpanded(false);
-                }
-              }}
-              style={{ transform: 'translateZ(0)' }} /* Force GPU acceleration */
-            >
-              <SearchIcon className={`h-5 w-5 text-gray-500 flex-shrink-0 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'ml-0' : 'mx-auto'} ${!isSearchExpanded ? '!bg-none !shadow-none !rounded-none' : ''}`} />
-              <div className={`relative flex-1 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'}`}>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search"
-                  className={`bg-transparent outline-none border-none text-sm placeholder-gray-400 w-full ml-2 ${isSearchExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-                  style={{ minWidth: 0 }}
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onClick={e => e.stopPropagation()}
-                  onFocus={() => setIsSearchExpanded(true)}
-                />
-              </div>
-              <button
-                tabIndex={0}
-                onClick={e => {
-                  e.stopPropagation();
-                  setSearchQuery('');
-                  searchInputRef.current && searchInputRef.current.focus();
-                }}
-                className={`ml-2 text-gray-400 hover:text-gray-600 focus:outline-none transition-all duration-300 ease-in-out ${isSearchExpanded && searchQuery ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-              >
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
+        {/* Main container: column on mobile, row on sm+ */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-y-3 sm:gap-x-4">
+          <h1 className="text-2xl font-bold text-gray-900 whitespace-nowrap">Venue Management</h1>
           
-          {/* Add Venue Button */}
-          <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-1 w-full sm:w-auto">
-                <Plus className="h-4 w-4" />
-                <span>Add Venue</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-[400px] p-0 max-h-[90vh] overflow-hidden mx-auto">
-              <div className="max-h-[90vh] overflow-y-auto pb-4">
-                <AddVenueForm 
-                  onSuccess={handleVenueFormSuccess} 
-                  onCancel={() => setIsAddVenueOpen(false)} 
-                  assetStatuses={assetStatuses} 
-                  isLoadingAssetStatuses={isLoadingAssetStatuses} 
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
+          {/* Actions Group: column on mobile, row on sm+ */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-3 w-full sm:w-auto">
+            {/* Mobile Search (visible on base, hidden on sm and up) */}
+            <div className="relative flex items-center w-full sm:hidden">
+              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <Input
+                placeholder="Search venues..."
+                className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-full"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+            {/* Desktop Expandable Search (hidden on base, flex on sm and up) */}
+            <div className="relative hidden sm:flex items-center">
+              {isSearchOpen ? (
+                <div className="relative">
+                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <Input
+                    ref={searchInputRef} // Keep ref for potential focus needs
+                    placeholder="Search..."
+                    className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-40 focus:w-56 transition-all duration-300 ease-in-out"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onBlur={() => setTimeout(() => setIsSearchOpen(false), 150)}
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setIsSearchOpen(true);
+                    // Focus the input after it becomes visible
+                    setTimeout(() => searchInputRef.current?.focus(), 0);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 h-10 w-10"
+                  aria-label="Search venues"
+                >
+                  <SearchIcon className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
+            
+            {/* Add Venue Button: full width on mobile, auto width on sm+ */}
+            <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base gap-1">
+                  <Plus className="h-4 w-4" />
+                  <span>Add Venue</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-[95vw] max-w-[400px] p-0 max-h-[90vh] overflow-hidden mx-auto">
+                <div className="max-h-[90vh] overflow-y-auto pb-4">
+                  <AddVenueForm 
+                    onSuccess={handleVenueFormSuccess} 
+                    onCancel={() => setIsAddVenueOpen(false)} 
+                    assetStatuses={assetStatuses} 
+                    isLoadingAssetStatuses={isLoadingAssetStatuses} 
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
-      </div>
 
       {/* Venues Grid */}
       <div className="mt-6">
@@ -1143,24 +1171,24 @@ export function VenuesPage() {
                     <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                   </svg>
-                  <span>{venue.capacity}</span>
+                  <span>{venue.venue_cap}</span>
                   <span className="mx-2">•</span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                     <circle cx="12" cy="10" r="3"></circle>
                   </svg>
-                  <span>{venue.location}</span>
+                  <span>{venue.venue_loc}</span>
                 </div>
                 
                 <p className="text-xs sm:text-sm text-gray-700 mb-3 line-clamp-2">
-                  {venue.description}
+                  {venue.venue_desc}
                 </p>
                 
                 {/* Equipment Section - Moved to bottom of card */}
-                {(venue.equipments && venue.equipments.length > 0) && (
+                {(venue.venue_feat && venue.venue_feat.length > 0) && (
                   <div className="mt-2 sm:mt-4 pt-0">
                     <div className="flex flex-wrap gap-1 sm:gap-2">
-                      {venue.equipments.map((item, idx) => (
+                      {venue.venue_feat.map((item, idx) => (
                         <Badge key={idx} className="bg-blue-50 text-blue-700 hover:bg-blue-50" variant="secondary">
                           <EquipmentIcon name={item} className="h-3 w-3 mr-1" />
                           {item}
@@ -1261,6 +1289,7 @@ export function VenuesPage() {
           <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-lg md:max-w-xl p-0 max-h-[90vh] overflow-hidden">
             <div className="max-h-[90vh] overflow-y-auto pb-4">
               <EditVenueForm 
+                key={venueToEdit.venue_id} // Force re-mount on venue change
                 venueToEdit={venueToEdit} 
                 onSuccess={() => {
                   setIsEditVenueOpen(false);
@@ -1306,7 +1335,7 @@ export function VenuesPage() {
               {/* Content */}
               <div className="p-3 sm:p-4">
                 <p className="text-xs text-gray-500 mb-3 sm:mb-4">
-                  {selectedVenue.location || 'No location provided'}
+                  {selectedVenue.venue_loc || 'No location provided'}
                 </p>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
@@ -1314,13 +1343,13 @@ export function VenuesPage() {
                   <div>
                     <h3 className="font-semibold text-lg mb-1">Description</h3>
                     <p className="text-sm text-gray-700 mb-3">
-                      {selectedVenue.description || 'No description provided'}
+                      {selectedVenue.venue_desc || 'No description provided'}
                     </p>
                     
                     <div className="flex items-center text-sm">
                       <div className="flex items-center">
                         <PeopleIcon className="h-4 w-4 flex-shrink-0 text-gray-500 mr-2" />
-                        <span className="text-sm"><strong>Capacity:</strong> {selectedVenue.capacity || 'Not specified'}</span>
+                        <span className="text-sm"><strong>Capacity:</strong> {selectedVenue.venue_cap || 'Not specified'}</span>
                       </div>
                     </div>
                   </div>
@@ -1329,8 +1358,8 @@ export function VenuesPage() {
                   <div>
                     <h3 className="font-semibold text-lg mb-1">Equipment & Amenities</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {(selectedVenue.equipments || []).length > 0 ? (
-                        selectedVenue.equipments.map((item, idx) => (
+                      {(selectedVenue.venue_feat || []).length > 0 ? (
+                        selectedVenue.venue_feat.map((item, idx) => (
                           <div key={idx} className="flex items-center">
                             <EquipmentIcon name={item} className="h-3.5 w-3.5 text-indigo-500 mr-2" />
                             <span className="text-xs text-gray-700">{item}</span>
