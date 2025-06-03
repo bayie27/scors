@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+// Remove createPortal import since we'll use a different approach
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -101,7 +102,77 @@ export function EquipmentPage() {
   const [isEditEquipmentDialogOpen, setIsEditEquipmentDialogOpen] = useState(false);
   const [equipmentToEdit, setEquipmentToEdit] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  // Reference to the full-screen image modal element
+  const fullScreenImageRef = useRef(null);
   const subscriptionRef = useRef(null);
+  
+  // Function to open the full-screen image modal
+  const openFullScreenImage = (imageUrl) => {
+    if (!fullScreenImageRef.current) {
+      // Create the modal container if it doesn't exist
+      const modalContainer = document.createElement('div');
+      modalContainer.id = 'full-screen-image-modal';
+      modalContainer.className = 'fixed inset-0 z-[9999] flex items-center justify-center';
+      modalContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+      modalContainer.style.backdropFilter = 'blur(4px)';
+      
+      // Function to close the modal
+      const closeModal = () => {
+        if (fullScreenImageRef.current) {
+          document.body.removeChild(fullScreenImageRef.current);
+          fullScreenImageRef.current = null;
+          
+          // Remove the ESC key listener when modal is closed
+          document.removeEventListener('keydown', handleEscKey);
+        }
+      };
+      
+      // Create the modal content
+      modalContainer.innerHTML = `
+        <div class="absolute inset-0 cursor-pointer" id="modal-backdrop"></div>
+        <div class="relative z-10 max-w-[90vw] max-h-[90vh]">
+          <button class="absolute -top-12 right-0 bg-transparent text-white hover:bg-white/20 rounded-full p-2 transition-colors" id="close-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+          <img src="${imageUrl}" alt="Full-screen equipment view" class="max-h-[80vh] max-w-[90vw] object-contain rounded shadow-lg" style="background-color: transparent;" />
+          <div class="text-white text-center mt-4 text-sm opacity-70">Click anywhere outside the image to close</div>
+        </div>
+      `;
+      
+      // Add event listeners
+      const handleEscKey = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          closeModal();
+        }
+      };
+      
+      // Append the modal to the body
+      document.body.appendChild(modalContainer);
+      fullScreenImageRef.current = modalContainer;
+      
+      // Add event listeners after the modal is in the DOM
+      document.addEventListener('keydown', handleEscKey, true);
+      
+      // Add click event listeners
+      setTimeout(() => {
+        const backdrop = document.getElementById('modal-backdrop');
+        const closeButton = document.getElementById('close-button');
+        
+        if (backdrop) {
+          backdrop.addEventListener('click', closeModal);
+        }
+        
+        if (closeButton) {
+          closeButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeModal();
+          });
+        }
+      }, 0);
+    }
+  };
 
   const fetchEquipment = useCallback(async () => {
     try {
@@ -249,11 +320,15 @@ export function EquipmentPage() {
       setIsDeleteDialogOpen(false);
       setEquipmentToDelete(null);
       
-      // Perform the actual delete in the background
-      await equipmentService.deleteEquipment(equipmentId);
+      // Perform the actual delete in the background (with reservation cancellation)
+      const result = await equipmentService.deleteEquipmentWithReservations(equipmentId);
       
-      // Update toast to success
-      toast.success(`${equipmentName} deleted successfully`, { id: toastId });
+      // Show appropriate success message based on whether reservations were affected
+      if (result.cancelledReservations > 0) {
+        toast.success(`${equipmentName} deleted successfully. ${result.cancelledReservations} reservation(s) have been cancelled.`, { id: toastId, duration: 5000 });
+      } else {
+        toast.success(`${equipmentName} deleted successfully`, { id: toastId });
+      }
       
       // The real-time subscription will handle any state reconciliation if needed
     } catch (error) {
@@ -267,9 +342,24 @@ export function EquipmentPage() {
     }
   };
   
-  const confirmDeleteEquipment = (equipment) => {
-    setEquipmentToDelete(equipment);
-    setIsDeleteDialogOpen(true);
+  const confirmDeleteEquipment = async (equipment) => {
+    try {
+      // Check if equipment has associated reservations before showing delete dialog
+      const { count, hasReservations } = await equipmentService.checkEquipmentReservations(equipment.equipment_id);
+      
+      // Store the equipment to delete
+      setEquipmentToDelete({
+        ...equipment,
+        hasReservations,
+        reservationCount: count
+      });
+      
+      // Show the delete confirmation dialog
+      setIsDeleteDialogOpen(true);
+    } catch (error) {
+      console.error('Error checking reservations:', error);
+      toast.error('Failed to check associated reservations');
+    }
   };
 
   const handleOpenEditDialog = (equipment) => {
@@ -464,8 +554,8 @@ export function EquipmentPage() {
                 }}
                 className={`ml-2 text-gray-400 hover:text-gray-600 focus:outline-none transition-all duration-300 ease-in-out ${isSearchExpanded && searchQuery ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
               >
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor" className="text-gray-600 mr-2">
+                  <path d="M11.7816 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
                 </svg>
               </button>
             </div>
@@ -526,10 +616,32 @@ export function EquipmentPage() {
       
       {/* Equipment detail modal */}
       {selectedEquipment && (
-        <Dialog open={!!selectedEquipment} onOpenChange={() => setSelectedEquipment(null)}>
+        <Dialog open={!!selectedEquipment} onOpenChange={(newOpenState) => {
+            if (!newOpenState) { // Dialog is trying to close
+              setSelectedEquipment(null); // This will make open={!!selectedEquipment} false
+              // If the main dialog is closing, also close the full-screen image if it's open
+              if (fullScreenImageRef.current) {
+                document.body.removeChild(fullScreenImageRef.current);
+                fullScreenImageRef.current = null;
+              }
+            }
+            // If newOpenState is true, it means something is trying to open it.
+            // The `open={!!selectedEquipment}` prop handles this if selectedEquipment is set.
+          }}>
           <DialogContent 
             className="max-w-3xl max-h-[65vh] overflow-y-auto p-0"
             aria-describedby="equipment-details-description"
+            onPointerDownOutside={(e) => {
+              if (fullScreenImageRef.current) {
+                e.preventDefault();
+              }
+            }}
+            onEscapeKeyDown={(e) => {
+              if (fullScreenImageRef.current) {
+                e.preventDefault();
+                // The direct DOM approach will handle ESC key via its own event listener
+              }
+            }}
           >
             {/* Header */}
             <div className="border-b pb-4 px-6 pt-6">
@@ -547,22 +659,38 @@ export function EquipmentPage() {
             <div className="overflow-y-auto max-h-[65vh]">
               {/* Image */}
               <div className="px-5 py-3">
-                <div className="overflow-hidden rounded-lg border border-gray-200">
+                <div 
+                  className="overflow-hidden rounded-lg border border-gray-200 cursor-pointer relative group"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent event bubbling
+                    if (selectedEquipment.image_url) {
+                      openFullScreenImage(selectedEquipment.image_url);
+                    }
+                  }}
+                >
                   {selectedEquipment.image_url ? (
-                    <img 
-                      src={selectedEquipment.image_url || '/images/fallback-equipment.png'} 
-                      alt={selectedEquipment.equipment_name}
-                      className="w-full h-64 object-cover"
-                      onError={(e) => {
-                        console.log('Modal image failed to load:', e.target.src);
-                        e.target.onerror = null; // Prevent infinite error loops
-                        e.target.src = '/images/fallback-equipment.png';
-                      }}
-                      crossOrigin="anonymous" // Add CORS support for Supabase storage
-                    />
+                    <>
+                      <img 
+                        src={selectedEquipment.image_url || '/images/fallback-equipment.png'} 
+                        alt={selectedEquipment.equipment_name}
+                        className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+                        onError={(e) => {
+                          console.log('Modal image failed to load:', e.target.src);
+                          e.target.onerror = null; // Prevent infinite error loops
+                          e.target.src = '/images/fallback-equipment.png';
+                        }}
+                        crossOrigin="anonymous" // Add CORS support for Supabase storage
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <span className="text-white bg-black bg-opacity-50 rounded-full p-2">
+                          <ImageIcon className="h-6 w-6" />
+                          <span className="sr-only">View Full Size</span>
+                        </span>
+                      </div>
+                    </>
                   ) : (
-                    <div className="w-full h-64 flex items-center justify-center bg-gray-100">
-                      <SquareStack className="h-20 w-20 text-gray-300" />
+                    <div className="w-full h-64 bg-gray-100 flex items-center justify-center">
+                      <p className="text-gray-500">No image available</p>
                     </div>
                   )}
                 </div>
@@ -665,9 +793,33 @@ export function EquipmentPage() {
             </div>
             
             {equipmentToDelete && (
-              <p className="text-gray-700">
-                Are you sure you want to delete <span className="font-semibold">{equipmentToDelete.equipment_name}</span>?
-              </p>
+              <div className="space-y-4">
+                <p className="text-gray-700">
+                  Are you sure you want to delete <span className="font-semibold">{equipmentToDelete.equipment_name}</span>?
+                </p>
+                
+                {equipmentToDelete.hasReservations && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                    <div className="flex items-start">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 text-red-600 mt-0.5 mr-2 flex-shrink-0"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <h4 className="text-sm font-medium text-red-800">Warning: Associated Reservations</h4>
+                        <div className="mt-1 text-sm text-red-700">
+                          <p>This equipment has <strong>{equipmentToDelete.reservationCount}</strong> active reservation{equipmentToDelete.reservationCount !== 1 ? 's' : ''}.</p>
+                          <p className="mt-1">If you delete this equipment, all associated reservations will be automatically marked as <strong>"Cancelled"</strong>.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           
@@ -702,6 +854,8 @@ export function EquipmentPage() {
       </Dialog>
       
       {/* NOTE: EditEquipmentDialog is already rendered above */}
+      
+      {/* We don't need the Portal here anymore - using imperative DOM approach */}
     </div>
   );
 }

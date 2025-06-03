@@ -214,72 +214,104 @@ export const equipmentService = {
     }
   },
 
-  // Delete an equipment (and its image from storage)
-  async deleteEquipment(id: number): Promise<void> {
+  // Check if an equipment has existing reservations
+  async checkEquipmentReservations(id: number): Promise<{ count: number, hasReservations: boolean }> {
+    try {
+      const { data: reservations, error: reservationsError } = await supabase
+        .from('reservation')
+        .select('reservation_id')
+        .eq('equipment_id', id);
+      
+      if (reservationsError) {
+        console.error('Error checking reservations:', reservationsError);
+        throw reservationsError;
+      }
+      
+      const count = reservations?.length || 0;
+      return { 
+        count, 
+        hasReservations: count > 0 
+      };
+    } catch (error) {
+      console.error(`Error checking reservations for equipment ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Delete an equipment and cancel its associated reservations
+  async deleteEquipmentWithReservations(id: number): Promise<{ deletedEquipment: any, cancelledReservations: number }> {
     try {
       // First, get the equipment to find its image_url
       const equipmentToDelete = await this.getEquipmentById(id);
-
-      // Delete the equipment record
-      const { error } = await supabase
+      
+      // Get the 'Cancelled' status ID from reservation_status table
+      const { data: statusData, error: statusError } = await supabase
+        .from('reservation_status')
+        .select('reservation_status_id')
+        .eq('reservation_status', 'Cancelled')
+        .single();
+        
+      if (statusError) {
+        console.error('Error finding "Cancelled" status:', statusError);
+        throw statusError;
+      }
+      
+      const cancelledStatusId = statusData.reservation_status_id;
+      
+      // Find all reservations that reference this equipment
+      const { data: reservations, error: reservationsError } = await supabase
+        .from('reservation')
+        .select('reservation_id')
+        .eq('equipment_id', id);
+      
+      if (reservationsError) {
+        console.error('Error fetching reservations:', reservationsError);
+        throw reservationsError;
+      }
+      
+      const reservationCount = reservations?.length || 0;
+      
+      // Update reservation status to cancelled before deletion
+      if (reservationCount > 0) {
+        console.log(`Updating ${reservationCount} reservations to Cancelled status`);
+        const { error: updateError } = await supabase
+          .from('reservation')
+          .update({ reservation_status_id: cancelledStatusId })
+          .eq('equipment_id', id);
+          
+        if (updateError) {
+          console.error('Error updating reservations:', updateError);
+          throw updateError;
+        }
+      }
+      
+      // Now delete the equipment record
+      const { data, error } = await supabase
         .from('equipment')
         .delete()
-        .eq('equipment_id', id);
+        .eq('equipment_id', id)
+        .select()
+        .single();
 
       if (error) {
         console.error(`Error deleting equipment ${id}:`, error);
         throw error;
       }
-
-      // If equipment had an image, attempt to delete it from storage
-      if (equipmentToDelete?.image_url) {
-        try {
-          // Skip if it's a base64 image
-          if (equipmentToDelete.image_url.startsWith('data:')) {
-            console.log('Skipping deletion of base64 image');
-            return;
-          }
-          
-          // Extract the file path from the URL
-          const imageUrl = new URL(equipmentToDelete.image_url);
-          const pathParts = imageUrl.pathname.split('/');
-          
-          // The path should be in format /storage/v1/object/public/venue_images/equipment/filename
-          // We need to extract the 'equipment/filename' part
-          let filePath = '';
-          
-          // Find the bucket name index
-          const bucketIndex = pathParts.findIndex(part => part === IMAGE_BUCKET);
-          
-          if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
-            // Get all parts after the bucket name
-            filePath = pathParts.slice(bucketIndex + 1).join('/');
-          } else {
-            // Fallback to just the filename with equipment/ prefix
-            filePath = `equipment/${pathParts[pathParts.length - 1]}`;
-          }
-          
-          // Remove any query parameters (cache busters)
-          filePath = filePath.split('?')[0];
-          
-          console.log(`Attempting to delete image: ${filePath} from ${IMAGE_BUCKET} bucket`);
-          
-          // Delete from storage
-          const { error } = await supabase.storage
-            .from(IMAGE_BUCKET)
-            .remove([filePath]);
-            
-          if (error) {
-            console.error('Error deleting image from storage:', error);
-          } else {
-            console.log('Successfully deleted image from storage:', filePath);
-          }
-        } catch (storageError) {
-          console.error('Error deleting image from storage:', storageError);
-          // Don't throw here, as the main record deletion was successful
-        }
-      }
       
+      return {
+        deletedEquipment: data,
+        cancelledReservations: reservationCount
+      };
+    } catch (error) {
+      console.error(`Failed to delete equipment ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  // Keep the original method for backward compatibility but now it first checks reservations
+  async deleteEquipment(id: number): Promise<void> {
+    try {
+      await this.deleteEquipmentWithReservations(id);
       console.log(`Equipment ${id} deleted successfully`);
     } catch (error) {
       console.error(`Failed to delete equipment ${id}:`, error);
