@@ -1076,25 +1076,27 @@ export function VenuesPage() {
               )}
             </div>
             
-            {/* Add Venue Button: full width on mobile, auto width on sm+ */}
-            <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base gap-1">
-                  <Plus className="h-4 w-4" />
-                  <span>Add Venue</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="w-[95vw] max-w-[400px] p-0 max-h-[90vh] overflow-hidden mx-auto">
-                <div className="max-h-[90vh] overflow-y-auto pb-4">
-                  <AddVenueForm 
-                    onSuccess={handleVenueFormSuccess} 
-                    onCancel={() => setIsAddVenueOpen(false)} 
-                    assetStatuses={assetStatuses} 
-                    isLoadingAssetStatuses={isLoadingAssetStatuses} 
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
+            {/* Add Venue Button: full width on mobile, auto width on sm+ - Only visible to admin */}
+            {isAdmin && (
+              <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base gap-1">
+                    <Plus className="h-4 w-4" />
+                    <span>Add Venue</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="w-[95vw] max-w-[400px] p-0 max-h-[90vh] overflow-hidden mx-auto">
+                  <div className="max-h-[90vh] overflow-y-auto pb-4">
+                    <AddVenueForm 
+                      onSuccess={handleVenueFormSuccess} 
+                      onCancel={() => setIsAddVenueOpen(false)} 
+                      assetStatuses={assetStatuses} 
+                      isLoadingAssetStatuses={isLoadingAssetStatuses} 
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
 

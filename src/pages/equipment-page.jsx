@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '@/lib/useAuth';
 import { 
   Plus, 
   Search as SearchIcon, 
@@ -69,6 +70,7 @@ function StatusIcon({ status, ...props }) {
 }
 
 export function EquipmentPage() {
+  const { user } = useAuth();
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,6 +79,9 @@ export function EquipmentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddEquipmentDialogOpen, setIsAddEquipmentDialogOpen] = useState(false);
   const subscriptionRef = useRef(null);
+
+  // Check if user is an admin (CSAO or org_id = 1)
+  const isAdmin = user && user.org_id === 1;
 
   const fetchEquipment = useCallback(async () => {
     try {
@@ -230,14 +235,16 @@ export function EquipmentPage() {
             </div>
           </div>
           
-          {/* Add equipment button */}
-          <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 ease-in-out flex items-center group h-10"
-            onClick={() => setIsAddEquipmentDialogOpen(true)}
-          >
-            <Plus className="h-5 w-5 mr-2 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
-            Add Equipment
-          </Button>
+          {/* Add equipment button - only show for admin */}
+          {isAdmin && (
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 ease-in-out flex items-center group h-10"
+              onClick={() => setIsAddEquipmentDialogOpen(true)}
+            >
+              <Plus className="h-5 w-5 mr-2 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
+              Add Equipment
+            </Button>
+          )}
         </div>
       </div>
       
@@ -254,13 +261,15 @@ export function EquipmentPage() {
           <p className="text-gray-500 mb-6">
             {searchQuery ? 'Try adjusting your search terms' : 'Get started by adding your first equipment item'}
           </p>
-          <Button 
-            className="ml-4 bg-green-600 hover:bg-green-700 w-full sm:w-auto whitespace-nowrap"
-            onClick={() => alert('Add equipment functionality coming soon')}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Equipment
-          </Button>
+          {isAdmin && (
+            <Button 
+              className="ml-4 bg-green-600 hover:bg-green-700 w-full sm:w-auto whitespace-nowrap"
+              onClick={() => alert('Add equipment functionality coming soon')}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Equipment
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -275,14 +284,14 @@ export function EquipmentPage() {
               location={item.location}
               description={item.equipment_desc}
               onView={() => setSelectedEquipment(item)}
-              onEdit={() => {
+              onEdit={isAdmin ? () => {
                 toast.success('Edit functionality will be implemented soon!');
-              }}
-              onDelete={() => {
+              } : null}
+              onDelete={isAdmin ? () => {
                 if (window.confirm(`Are you sure you want to delete "${item.equipment_name}"?`)) {
                   toast.success('Delete functionality will be implemented soon!');
                 }
-              }}
+              } : null}
               className="h-full"
             />
           ))}
@@ -348,41 +357,43 @@ export function EquipmentPage() {
                     <X className="h-4 w-4 mr-2" />
                     Close
                   </Button>
-                  <div className="flex gap-3">
-                    <Button 
-                      variant="outline" 
-                      className="h-10 px-4 flex items-center gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-                      onClick={() => {
-                        toast.success('Edit functionality will be implemented soon!');
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600">
-                        <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
-                      </svg>
-                      Edit Equipment
-                    </Button>
-                    <div className="border-l border-gray-200 h-6 self-center hidden sm:block"></div>
-                    <Button 
-                      variant="outline" 
-                      className="h-10 px-4 flex items-center gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300"
-                      onClick={async () => {
-                        if (window.confirm(`Are you sure you want to delete "${selectedEquipment.equipment_name}"? This action cannot be undone.`)) {
-                          try {
-                            toast.success('Delete functionality will be implemented soon!');
-                            setSelectedEquipment(null);
-                          } catch (error) {
-                            toast.error('Failed to delete equipment');
-                            console.error('Error deleting equipment:', error);
+                  {isAdmin && (
+                    <div className="flex gap-3">
+                      <Button 
+                        variant="outline" 
+                        className="h-10 px-4 flex items-center gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                        onClick={() => {
+                          toast.success('Edit functionality will be implemented soon!');
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600">
+                          <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
+                        </svg>
+                        Edit Equipment
+                      </Button>
+                      <div className="border-l border-gray-200 h-6 self-center hidden sm:block"></div>
+                      <Button 
+                        variant="outline" 
+                        className="h-10 px-4 flex items-center gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300"
+                        onClick={async () => {
+                          if (window.confirm(`Are you sure you want to delete "${selectedEquipment.equipment_name}"? This action cannot be undone.`)) {
+                            try {
+                              toast.success('Delete functionality will be implemented soon!');
+                              setSelectedEquipment(null);
+                            } catch (error) {
+                              toast.error('Failed to delete equipment');
+                              console.error('Error deleting equipment:', error);
+                            }
                           }
-                        }
-                      }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      <span className="whitespace-nowrap">Delete Equipment</span>
-                    </Button>
-                  </div>
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        <span className="whitespace-nowrap">Delete Equipment</span>
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
