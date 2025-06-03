@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../../supabase-client';
+import { updateReservationStatusService } from '../../../services/calendarService';
 import ViewMode from './components/ViewMode';
 import EditMode from './components/EditMode';
 import ConfirmStatusModal from './ConfirmStatusModal';
@@ -492,47 +493,37 @@ const ReservationModal = ({
     setStatusModal({ open: true, action: 'cancel' });
   };
 
-  // Helper to get local time ISO string (Asia/Manila, UTC+8)
-  function getLocalISOString() {
-    // The user's current local time is 2025-06-03T01:25:21+08:00
-    const now = new Date();
-    const tzOffset = now.getTimezoneOffset() * 60000;
-    const localISO = new Date(now - tzOffset).toISOString().slice(0, -1); // remove 'Z'
-    return localISO;
-  }
-
   // Confirm approve/reject/cancel
   const handleConfirmStatus = async () => {
     // 1 = approved/reserved, 2 = rejected, 4 = cancelled
-    const newStatus = statusModal.action === 'approve' ? 1 : (statusModal.action === 'cancel' ? 4 : 2);
-    const now = getLocalISOString();
+    const newStatusId = statusModal.action === 'approve' ? 1 : (statusModal.action === 'cancel' ? 4 : 2);
+    
     try {
-      const { error } = await supabase
-        .from('reservation')
-        .update({ 
-          reservation_status_id: newStatus,
-          decision_ts: now
-        })
-        .eq('reservation_id', form.reservation_id);
-      if (error) throw error;
-      setForm(prev => ({ 
-        ...prev, 
-        reservation_status_id: newStatus,
-        decision_ts: now
-      }));
-      
-      let successMessage = '';
-      if (statusModal.action === 'approve') {
-        successMessage = 'Reservation approved!';
-      } else if (statusModal.action === 'reject') {
-        successMessage = 'Reservation rejected!';
-      } else if (statusModal.action === 'cancel') {
-        successMessage = 'Reservation cancelled!';
+      const result = await updateReservationStatusService(form.reservation_id, newStatusId);
+
+      if (result.success && result.data?.decision_ts) {
+        setForm(prev => ({ 
+          ...prev, 
+          reservation_status_id: newStatusId,
+          decision_ts: result.data.decision_ts
+        }));
+        
+        let successMessage = '';
+        if (statusModal.action === 'approve') {
+          successMessage = 'Reservation approved!';
+        } else if (statusModal.action === 'reject') {
+          successMessage = 'Reservation rejected!';
+        } else if (statusModal.action === 'cancel') {
+          successMessage = 'Reservation cancelled!';
+        }
+        toast.success(successMessage);
+      } else {
+        console.error('[UPDATE STATUS ERROR]', result.error);
+        toast.error(`Failed to update reservation status: ${result.error?.message || 'Unknown error'}`);
       }
-      
-      toast.success(successMessage);
     } catch (err) {
-      toast.error('Failed to update reservation status');
+      console.error('[UNEXPECTED STATUS UPDATE FLOW ERROR]', err);
+      toast.error(`An unexpected error occurred: ${err.message || 'Unknown error'}`);
     } finally {
       setStatusModal({ open: false, action: null });
     }

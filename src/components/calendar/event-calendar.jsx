@@ -7,12 +7,15 @@ import { getStatusStyle } from '../../statusStyles';
 import { supabase } from '../../supabase-client';
 import ReservationModal from './ReservationModal/ReservationModal';
 import { Menu, Search, Filter, X, ChevronDown } from 'lucide-react';
+import CustomToolbar from './CustomToolbar';
 import toast from 'react-hot-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import FilterPopover from './FilterPopover';
+import { saveReservation, deleteReservationService } from '../../services/calendarService'; // Adjusted path
 
 const locales = {
   'en-US': enUS,
@@ -52,7 +55,6 @@ export function EventCalendar(props) {
   const [statusFilters, setStatusFilters] = useState([]);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState([]);
-  const [equipmentSearchTerm, setEquipmentSearchTerm] = useState('');
   
   // Confirmation modal states
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -104,39 +106,6 @@ export function EventCalendar(props) {
   const [organizations, setOrganizations] = useState([]);
 
   // Fetch lookup data for form (now handled in the initial useEffect)
-
-  const commandOrgFilter = (valueString, search) => {
-    if (!search) return 1; // Show all if no search, give a non-zero score
-
-    const searchLower = search.toLowerCase();
-    try {
-      const item = JSON.parse(valueString);
-      const nameLower = (item.name || '').toLowerCase();
-      const codeLower = (item.code || '').toLowerCase();
-
-      let score = 0;
-      if (nameLower.includes(searchLower)) {
-        score += 100; // Base score for name match
-        if (nameLower.startsWith(searchLower)) {
-          score += 50; // Bonus for name starting with search
-        }
-      }
-      // Ensure item.code is treated as a string for .includes and .startsWith
-      if (typeof item.code === 'string' && item.code && codeLower.includes(searchLower)) {
-        score += 20;  // Base score for code match
-        if (codeLower.startsWith(searchLower)) {
-          score += 10; // Bonus for code starting with search
-        }
-      }
-      return score; // cmk sorts by this score, higher is better. 0 means no match.
-    } catch (e) {
-      // Fallback for non-JSON values or other errors
-      if (typeof valueString === 'string') {
-        return valueString.toLowerCase().includes(searchLower) ? 1 : 0;
-      }
-      return 0;
-    }
-  };
 
 
   // Fetch reservations from the database with filters
@@ -560,51 +529,7 @@ export function EventCalendar(props) {
     setActiveFilters(newActiveFilters);
   }, [organizationFilters, venueFilters, equipmentFilters, statusFilters]);
 
-  // CustomToolbar handles only navigation and view controls
-function CustomToolbar({ onView, onNavigate, label }) {
-  return (
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
-      <div className="flex items-center space-x-2">
-        <button
-          onClick={() => onNavigate('TODAY')}
-          className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Today
-        </button>
-        <button
-          onClick={() => onNavigate('PREV')}
-          className="p-1 text-gray-600 hover:text-gray-900"
-        >
-          ❮
-        </button>
-        <button
-          onClick={() => onNavigate('NEXT')}
-          className="p-1 text-gray-600 hover:text-gray-900"
-        >
-          ❯
-        </button>
-        <span className="ml-2 font-medium text-gray-700">{label}</span>
-      </div>
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex space-x-1">
-          {['month', 'week', 'day', 'list'].map((viewType) => (
-            <button
-              key={viewType}
-              className={`px-3 py-1 text-sm rounded ${
-                view === (viewType === 'list' ? 'agenda' : viewType)
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => onView(viewType === 'list' ? 'agenda' : viewType)}
-            >
-              {viewType.charAt(0).toUpperCase() + viewType.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+  
 
   // Handle form submission from the reservation modal
   const handleModalSubmit = useCallback((formData) => {
@@ -655,174 +580,30 @@ function CustomToolbar({ onView, onNavigate, label }) {
   const performReservationAction = async (formData) => {
     try {
       setLoading(true);
-      // Generate timezone-aware timestamp for current time
-      // Helper to get local time ISO string (Asia/Manila, UTC+8)
-      function getLocalISOString() {
-        const now = new Date();
-        const tzOffset = now.getTimezoneOffset() * 60000;
-        const localISO = new Date(now - tzOffset).toISOString().slice(0, -1); // remove 'Z'
-        return localISO;
-      }
-      const now = getLocalISOString();
-      const isMultiDayReservation = Array.isArray(formData);
+      const result = await saveReservation(formData, selectedReservation, modalEdit);
 
-      if (modalEdit && selectedReservation?.reservation_id) {
-        // Update existing reservation - always a single reservation
-        const singleFormData = isMultiDayReservation ? formData[0] : formData;
-        // Make sure we use activity_date as the primary date field for updates
-        let activity_date = singleFormData.start_date;
-        if (!activity_date && singleFormData.activity_date) {
-          activity_date = singleFormData.activity_date;
-        }
-        if (!activity_date) {
-          activity_date = new Date().toISOString().split('T')[0];
-        }
-        // Log the data being sent for debugging
-        console.log('[EDIT RESERVATION] Updating with:', {
-          ...singleFormData,
-          activity_date,
-          reservation_id: selectedReservation.reservation_id
-        });
-        const reservationData = {
-          org_id: singleFormData.org_id,
-          activity_date: activity_date,
-          start_time: singleFormData.start_time,
-          end_time: singleFormData.end_time,
-          purpose: singleFormData.purpose || '',
-          officer_in_charge: singleFormData.officer_in_charge || '',
-          reserved_by: singleFormData.reserved_by || '',
-          contact_no: singleFormData.contact_no || '',
-          venue_id: singleFormData.venue_id || null,
-          equipment_id: singleFormData.equipment_id || null,
-          reservation_status_id: singleFormData.reservation_status_id || 3, // Maintain existing status or default to Pending
-          edit_ts: now
-        };
-        const { error } = await supabase
-          .from('reservation')
-          .update({
-            ...reservationData,
-            edit_ts: now
-          })
-          .eq('reservation_id', selectedReservation.reservation_id);
-        if (error) {
-          console.error('[EDIT RESERVATION] Supabase error:', error);
-          alert('Failed to update reservation: ' + (error.message || error));
-          throw error;
-        }
-      } else if (isMultiDayReservation) {
-        // Create multiple reservations for multi-day booking
-        // Store multi-day information in the purpose field by appending it
-        const reservationsToInsert = formData.map(day => {
-          // Format purpose to include multi-day information
-          const multiDayInfo = day.multiDayTotal > 1 
-            ? ` [Multi-day ${day.multiDayIndex + 1} of ${day.multiDayTotal}]` 
-            : '';
-          
-          // CRITICAL: For multi-day reservations, ALWAYS use the activity_date that was set in the ReservationModal
-          // This ensures each reservation gets its own specific date from the dateArray
-          // DO NOT override or modify this value as it contains the unique date for each day's reservation
-          const activity_date = day.activity_date;
-          
-          // Creating reservation for the selected date and day
-          
-          // Validate that we have a valid activity_date
-          if (!activity_date) {
-            // Missing activity_date for reservation
-          }
-            
-          return {
-            org_id: day.org_id,
-            // Store the specific activity date for this reservation day
-            // This must be preserved for multi-day reservations to work correctly
-            activity_date: activity_date,
-            start_time: day.start_time,
-            end_time: day.end_time,
-            // Store the multi-day info in the purpose field
-            purpose: `${day.purpose || ''}${multiDayInfo}`,
-            officer_in_charge: day.officer_in_charge || '',
-            reserved_by: day.reserved_by || '',
-            contact_no: day.contact_no || '',
-            venue_id: day.venue_id || null,
-            equipment_id: day.equipment_id || null,
-            reservation_status_id: 3, // Always set new reservations to Pending (status_id: 3)
-            reservation_ts: now,
-            edit_ts: now
-          };
-        });
-
-        // Insert all reservations at once
-        const { data, error } = await supabase
-          .from('reservation')
-          .insert(reservationsToInsert)
-          .select(`
-            *,
-            organization:org_id (org_id, org_name, org_code),
-            venue:venue_id (*),
-            equipment:equipment_id (*),
-            status:reservation_status_id (*)
-          `);
+      if (result.success) {
+        toast.success(`Reservation ${modalEdit ? 'updated' : 'created'} successfully!`);
+        // Close all modals and refresh data
+        setUpdateConfirmOpen(false);
+        setDeleteConfirmOpen(false);
+        setModalOpen(false);
+        setPendingFormData(null);
+        setSelectedReservation(null);
         
-        if (error) throw error;
+        // Only clear search if setSearchTerm is available
+        if (typeof setSearchTerm === 'function') {
+          setSearchTerm('');
+        }
+        fetchReservations();
       } else {
-        // Create a single new reservation
-        // Ensure activity_date is set correctly - use start_date as the primary source
-        let activity_date = formData.start_date;
-        if (!activity_date && formData.activity_date) {
-          activity_date = formData.activity_date;
-        }
-        if (!activity_date) {
-          activity_date = new Date().toISOString().split('T')[0];
-        }
-        
-        const reservationData = {
-          org_id: formData.org_id,
-          activity_date: activity_date,
-          start_time: formData.start_time,
-          end_time: formData.end_time,
-          purpose: formData.purpose || '',
-          officer_in_charge: formData.officer_in_charge || '',
-          reserved_by: formData.reserved_by || '',
-          contact_no: formData.contact_no || '',
-          venue_id: formData.venue_id || null,
-          equipment_id: formData.equipment_id || null,
-          reservation_status_id: 3, // Always set new reservations to Pending (status_id: 3)
-          reservation_ts: now,
-          edit_ts: now
-        };
-        
-        const { data, error } = await supabase
-          .from('reservation')
-          .insert([reservationData])
-          .select(`
-            *,
-            organization:org_id (org_id, org_name, org_code),
-            venue:venue_id (*),
-            equipment:equipment_id (*),
-            status:reservation_status_id (*)
-          `)
-          .single();
-        
-        if (error) throw error;
+        console.error('[RESERVATION ACTION ERROR]', result.error);
+        toast.error(`Failed to ${modalEdit ? 'update' : 'create'} reservation: ${result.error?.message || 'Unknown error'}`);
       }
-      
-      // Close all modals and refresh data
-      setUpdateConfirmOpen(false);
-      setDeleteConfirmOpen(false);
-      setModalOpen(false);
-      setPendingFormData(null);
-      setSelectedReservation(null);
-      
-      // Only clear search if setSearchTerm is available
-      if (typeof setSearchTerm === 'function') {
-        setSearchTerm('');
-      }
-      
-      fetchReservations();
-      
     } catch (err) {
-      // Error performing reservation action
-      console.error('[RESERVATION ACTION ERROR]', err);
-      alert(`Failed to ${modalEdit ? 'update' : 'create'} reservation: ${err.message || err}`);
+      // Catch any unexpected errors from the flow itself, not from Supabase via service
+      console.error('[UNEXPECTED RESERVATION FLOW ERROR]', err);
+      toast.error(`An unexpected error occurred: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -836,25 +617,29 @@ function CustomToolbar({ onView, onNavigate, label }) {
   
   // Perform actual deletion after confirmation
   const performDelete = async () => {
+    if (!selectedReservation?.reservation_id) {
+      toast.error('No reservation selected for deletion.');
+      return;
+    }
     try {
       setLoading(true);
-      if (selectedReservation?.reservation_id) {
-        const { error } = await supabase
-          .from('reservation')
-          .delete()
-          .eq('reservation_id', selectedReservation.reservation_id);
-        
-        if (error) throw error;
+      const result = await deleteReservationService(selectedReservation.reservation_id);
+
+      if (result.success) {
+        toast.success('Reservation deleted successfully!');
+        // Close modals and refresh data
+        setDeleteConfirmOpen(false);
+        setModalOpen(false);
+        setSelectedReservation(null);
+        fetchReservations();
+      } else {
+        console.error('[DELETE RESERVATION ERROR]', result.error);
+        toast.error(`Failed to delete reservation: ${result.error?.message || 'Unknown error'}`);
       }
-      
-      // Close modals and refresh data
-      setDeleteConfirmOpen(false);
-      setModalOpen(false);
-      setSelectedReservation(null);
-      fetchReservations();
     } catch (err) {
-      // Error deleting reservation
-      alert(`Failed to delete reservation: ${err.message}`);
+      // Catch any unexpected errors from the flow itself
+      console.error('[UNEXPECTED DELETE FLOW ERROR]', err);
+      toast.error(`An unexpected error occurred during deletion: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -932,171 +717,23 @@ function CustomToolbar({ onView, onNavigate, label }) {
             
             {/* Filter Dropdown/Popover */}
             <div className="flex items-center gap-2">
-              <Popover open={filterDropdownOpen} onOpenChange={setFilterDropdownOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2 text-sm">
-                    <Filter className="h-4 w-4" />
-                    <span>Filter</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-[42rem] max-w-[42rem] min-h-[32rem] max-h-[46rem] p-8 right-0 mr-8 z-50" style={{overflowX: 'visible'}}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    {/* Organization Filter */}
-                    <div>
-                      <div className="font-semibold text-sm mb-1">Organization</div>
-                      <Command className="border rounded-md" filter={commandOrgFilter}>
-                        <CommandInput placeholder="Search organization..." />
-                        <CommandEmpty>No organization found</CommandEmpty>
-                        <CommandGroup className="max-h-56 overflow-auto">
-                          {organizations.map((org) => {
-                            const checked = organizationFilters.some(o => o.org_id === org.org_id);
-                            return (
-                              <CommandItem
-                                key={org.org_id}
-                                value={JSON.stringify({ name: org.org_name, code: org.org_code || '' })}
-                                onSelect={() => {
-                                  if (checked) {
-                                    setOrganizationFilters(prev => prev.filter(o => o.org_id !== org.org_id));
-                                  } else {
-                                    setOrganizationFilters(prev => [...prev, org]);
-                                  }
-                                }}
-                                className="flex items-center"
-                              >
-                                <div className="flex items-center gap-2 w-full">
-                                  <Checkbox 
-                                    checked={checked}
-                                    id={`org-${org.org_id}`}
-                                  />
-                                  <span>{org.org_name}</span>
-                                  {org.org_code && (
-                                    <span className="text-xs text-muted-foreground ml-auto">{org.org_code}</span>
-                                  )}
-                                </div>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </Command>
-                    </div>
-                    {/* Venue Filter */}
-                    <div>
-                      <div className="font-semibold text-sm mb-1">Venue</div>
-                      <Command className="border rounded-md">
-                        <CommandInput placeholder="Search venue..." />
-                        <CommandEmpty>No venue found</CommandEmpty>
-                        <CommandGroup className="max-h-56 overflow-auto">
-                          {venues.map((venue) => {
-                            const checked = venueFilters.some(v => v.venue_id === venue.venue_id);
-                            return (
-                              <CommandItem
-                                key={venue.venue_id}
-                                value={venue.venue_name}
-                                onSelect={() => {
-                                  if (checked) {
-                                    setVenueFilters(prev => prev.filter(v => v.venue_id !== venue.venue_id));
-                                  } else {
-                                    setVenueFilters(prev => [...prev, venue]);
-                                  }
-                                }}
-                                className="flex items-center"
-                              >
-                                <div className="flex items-center gap-2 w-full">
-                                  <Checkbox 
-                                    checked={checked}
-                                    id={`venue-${venue.venue_id}`}
-                                  />
-                                  <span>{venue.venue_name}</span>
-                                </div>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </Command>
-                    </div>
-                    {/* Equipment Filter */}
-                    <div>
-                      <div className="font-semibold text-sm mb-1">Equipment</div>
-                      <Command className="border rounded-md">
-                        <CommandInput
-                          placeholder="Search equipment..."
-                          value={equipmentSearchTerm}
-                          onValueChange={setEquipmentSearchTerm}
-                        />
-                        <CommandGroup className="max-h-56 overflow-y-scroll p-2">
-                          {equipmentList
-                            .filter(eq =>
-                              !equipmentSearchTerm ||
-                              eq.equipment_name.toLowerCase().includes(equipmentSearchTerm.toLowerCase())
-                            )
-                            .map((equipment) => (
-                              <div key={equipment.equipment_id} className="flex items-center space-x-2 mb-2">
-                                <Checkbox 
-                                  id={`equipment-${equipment.equipment_id}`}
-                                  checked={equipmentFilters.some(eqf => eqf.equipment_id === equipment.equipment_id)}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) {
-                                      setEquipmentFilters(prev => [...prev, equipment]);
-                                    } else {
-                                      setEquipmentFilters(prev => 
-                                        prev.filter(eqf => eqf.equipment_id !== equipment.equipment_id)
-                                      );
-                                    }
-                                  }}
-                                />
-                                <label 
-                                  htmlFor={`equipment-${equipment.equipment_id}`}
-                                  className="text-sm cursor-pointer"
-                                >
-                                  {equipment.equipment_name}
-                                </label>
-                              </div>
-                            ))}
-                        </CommandGroup>
-                      </Command>
-                    </div>
-                    {/* Status Filter */}
-                    <div>
-                      <div className="font-semibold text-sm mb-2">Status</div>
-                      <div className="grid grid-cols-1 gap-3 max-h-56 overflow-auto border rounded-md p-3">
-                        {statuses.map((status) => (
-                          <div key={status.reservation_status_id} className="flex items-center space-x-2">
-                            <Checkbox 
-                              id={`status-${status.reservation_status_id}`}
-                              checked={statusFilters.some(st => st.reservation_status_id === status.reservation_status_id)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setStatusFilters(prev => [...prev, status]);
-                                } else {
-                                  setStatusFilters(prev => 
-                                    prev.filter(st => st.reservation_status_id !== status.reservation_status_id)
-                                  );
-                                }
-                              }}
-                            />
-                            <label 
-                              htmlFor={`status-${status.reservation_status_id}`}
-                              className="text-sm cursor-pointer w-full text-gray-900"
-                            >
-                              {statusLabelMap[status.reservation_status_id] || status.name || `Status ${status.reservation_status_id}`}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  {/* Clear All Button below the grid */}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full mt-10" 
-                    onClick={clearAllFilters}
-                  >
-                    Clear All Filters
-                  </Button>
-                </PopoverContent>
-              </Popover>
+              <FilterPopover 
+                open={filterDropdownOpen}
+                onOpenChange={setFilterDropdownOpen}
+                organizations={organizations}
+                venues={venues}
+                equipmentList={equipmentList}
+                statuses={statuses}
+                organizationFilters={organizationFilters}
+                setOrganizationFilters={setOrganizationFilters}
+                venueFilters={venueFilters}
+                setVenueFilters={setVenueFilters}
+                equipmentFilters={equipmentFilters}
+                setEquipmentFilters={setEquipmentFilters}
+                statusFilters={statusFilters}
+                setStatusFilters={setStatusFilters}
+                statusLabelMap={statusLabelMap}
+              />
             </div>
           </div>
         </div>
@@ -1237,12 +874,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
           onNavigate={onNavigate}
           components={{
             event: EventComponent,
-            toolbar: (toolbarProps) => (
-              <CustomToolbar
-                {...toolbarProps}
-                view={view}
-              />
-            ),
+            toolbar: (props) => <CustomToolbar {...props} view={view} />
           }}
           eventPropGetter={(event) => {
             // Get status ID from event data
