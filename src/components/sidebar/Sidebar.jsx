@@ -225,13 +225,23 @@ export function Sidebar({
                 <Button
                   variant={activeView === item.view ? "secondary" : "ghost"}
                   className={cn(
-                    "w-full justify-start",
-                    collapsed && !isMobile ? "px-2" : "px-3"
+                    "w-full",
+                    collapsed && !isMobile ? "px-0 justify-center" : "px-3 justify-start"
                   )}
                   onClick={() => handleMenuItemClick(item.view)}
                 >
-                  <span className={cn("mr-3", activeView === item.view ? "text-blue-600" : "")}>{item.icon}</span>
-                  {(!collapsed || isMobile) && <span>{item.title}</span>}
+                  {collapsed && !isMobile ? (
+                    <span className={activeView === item.view ? "text-blue-600" : ""}>
+                      {item.icon}
+                    </span>
+                  ) : (
+                    <>
+                      <span className={cn("mr-3", activeView === item.view ? "text-blue-600" : "")}>
+                        {item.icon}
+                      </span>
+                      <span>{item.title}</span>
+                    </>
+                  )}
                 </Button>
               </li>
             ))}

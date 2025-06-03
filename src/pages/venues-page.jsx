@@ -1225,14 +1225,6 @@ export function VenuesPage() {
           <p className="mt-1 text-sm text-gray-500">
             {searchQuery ? 'Try adjusting your search or filter criteria' : 'Get started by creating a new venue'}
           </p>
-          <div className="mt-6">
-            <Button
-              onClick={() => alert('Add Venue functionality will be implemented soon')}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Venue
-            </Button>
-          </div>
         </div>
       )}
 

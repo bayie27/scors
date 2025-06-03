@@ -255,7 +255,7 @@ export default function UserManual() {
                               <p className="text-sm text-gray-600">Focus on activities within a single day</p>
                             </div>
                             <div className="p-3 border rounded-lg">
-                              <h5 className="font-medium">Agenda View</h5>
+                              <h5 className="font-medium">List View</h5>
                               <p className="text-sm text-gray-600">Upcoming reservations in list format</p>
                             </div>
                           </div>
@@ -298,7 +298,7 @@ export default function UserManual() {
                                 • <strong>Click on an Event:</strong> Displays detailed reservation information
                               </li>
                               <li>
-                                • <strong>Click on Your Own Event:</strong> Allows cancellation if not yet approved
+                                • <strong>Click on Your Own Event:</strong> Allows cancellation
                               </li>
                             </ul>
                           </div>
@@ -398,6 +398,7 @@ export default function UserManual() {
                             <li>• Name</li>
                             <li>• Description</li>
                             <li>• Location</li>
+                            <li>• Equipment</li>
                           </ul>
                         </div>
                       </div>
@@ -417,10 +418,13 @@ export default function UserManual() {
                           Venues are presented in a card-based layout, each featuring a preview image.
                         </p>
                         <div className="bg-gray-50 p-4 rounded-lg">
-                          <h5 className="font-medium mb-2">Clicking on venue image opens modal with:</h5>
+                          <h5 className="font-medium mb-2">Clicking on a venue opens a modal with:</h5>
                           <ul className="text-sm text-gray-600 space-y-1">
-                            <li>• Full venue description</li>
-                            <li>• Capacity information</li>
+                            <li>• Venue name </li>
+                            <li>• Venue status </li>
+                            <li>• Venue image </li>
+                            <li>• Venue description </li>
+                            <li>• Venue Capacity </li>
                             <li>• Available equipment and amenities</li>
                           </ul>
                         </div>
@@ -437,7 +441,7 @@ export default function UserManual() {
                     </AccordionTrigger>
                     <AccordionContent>
                       <p className="text-sm text-gray-600">
-                        Venue data is updated in real-time via Supabase integration. All additions, updates, and
+                        Venue data is updated in real-time. All additions, updates, and
                         removals are automatically reflected on the user interface.
                       </p>
                     </AccordionContent>
@@ -473,7 +477,6 @@ export default function UserManual() {
                           <ul className="text-sm text-gray-600 space-y-1">
                             <li>• Name</li>
                             <li>• Description</li>
-                            <li>• Location</li>
                           </ul>
                         </div>
                       </div>
@@ -484,7 +487,7 @@ export default function UserManual() {
                     <AccordionTrigger>
                       <div className="flex items-center gap-2">
                         <Eye className="w-4 h-4" style={{ color: "#006241" }} />
-                        Viewing Equipment Information
+                        Viewing Equipment Details
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
@@ -510,6 +513,21 @@ export default function UserManual() {
                           </ul>
                         </div>
                       </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="equipment-sync">
+                    <AccordionTrigger>
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" style={{ color: "#006241" }} />
+                        Real-Time Data Synchronization
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-sm text-gray-600">
+                        Equipment data is updated in real-time. All additions, updates, and
+                        removals are automatically reflected on the user interface.
+                      </p>
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
@@ -551,7 +569,7 @@ export default function UserManual() {
                       {statusIcons.rejected}
                       <div>
                         <h4 className="font-semibold text-red-800">Rejected</h4>
-                        <p className="text-sm text-red-700">Declined by administrator (may include remarks)</p>
+                        <p className="text-sm text-red-700">Declined by administrator</p>
                       </div>
                     </div>
 
@@ -562,14 +580,6 @@ export default function UserManual() {
                         <p className="text-sm text-gray-700">Withdrawn by user prior to approval</p>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h5 className="font-semibold text-blue-800 mb-2">Cancellation Policy</h5>
-                    <p className="text-sm text-blue-700">
-                      Users may cancel their reservations if the status is still set to "Pending." To cancel, click the
-                      event within the calendar and confirm the cancellation.
-                    </p>
                   </div>
                 </div>
               </CardContent>

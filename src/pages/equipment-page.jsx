@@ -261,15 +261,6 @@ export function EquipmentPage() {
           <p className="text-gray-500 mb-6">
             {searchQuery ? 'Try adjusting your search terms' : 'Get started by adding your first equipment item'}
           </p>
-          {isAdmin && (
-            <Button 
-              className="ml-4 bg-green-600 hover:bg-green-700 w-full sm:w-auto whitespace-nowrap"
-              onClick={() => alert('Add equipment functionality coming soon')}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Equipment
-            </Button>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
