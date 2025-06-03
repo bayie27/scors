@@ -224,25 +224,30 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
   
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="flex items-start px-6 pt-4 pb-3 border-b">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="flex items-start px-8 pt-6 pb-4 border-b">
           <div>
-            <h2 className="text-xl font-semibold">Add New Venue</h2>
-            <p className="text-sm text-gray-500 mt-1">Fill in the details below to add a new venue to the inventory.</p>
+            <h2 className="text-2xl font-semibold">Add New Venue</h2>
+            <p className="text-sm text-gray-500 mt-1.5">Fill in the details below to add a new venue to the inventory.</p>
           </div>
         </div>
-
-        <div className="p-6 space-y-4">
+        
+        <div className="px-8 py-6 space-y-6 max-h-[65vh] overflow-y-auto">
           {/* Venue Name */}
-          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
-            <FormLabel htmlFor="venue_name" className="text-right">Name <span className="text-red-500">*</span></FormLabel>
+          <div className="grid gap-2">
+            <FormLabel htmlFor="venue_name">Name <span className="text-red-500">*</span></FormLabel>
             <FormField
               control={form.control}
               name="venue_name"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Input id="venue_name" placeholder="e.g., Main Auditorium" {...field} />
+                    <Input 
+                      id="venue_name" 
+                      placeholder="e.g., Main Auditorium" 
+                      className="h-10"
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -251,8 +256,8 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
           </div>
           
           {/* Asset Status */}
-          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
-            <FormLabel htmlFor="asset_status" className="text-right">Status <span className="text-red-500">*</span></FormLabel>
+          <div className="grid gap-2">
+            <FormLabel htmlFor="asset_status">Status <span className="text-red-500">*</span></FormLabel>
             <FormField
               control={form.control}
               name="asset_status_id"
@@ -264,7 +269,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                     disabled={isLoadingAssetStatuses || isSubmitting}
                   >
                     <FormControl>
-                      <SelectTrigger id="asset_status">
+                      <SelectTrigger className="h-10">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                     </FormControl>
@@ -288,15 +293,21 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
           </div>
 
           {/* Location */}
-          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
-            <FormLabel htmlFor="location" className="text-right">Location</FormLabel>
+          <div className="grid gap-2">
+            <FormLabel htmlFor="location">Location</FormLabel>
             <FormField
               control={form.control}
               name="venue_loc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Input id="location" placeholder="e.g., Building B, 3rd Floor" {...field} value={field.value || ''} />
+                    <Input 
+                      id="location" 
+                      placeholder="e.g., Building B, 3rd Floor" 
+                      className="h-10"
+                      {...field} 
+                      value={field.value || ''} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -305,8 +316,8 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
           </div>
           
           {/* Capacity */}
-          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
-            <FormLabel htmlFor="capacity" className="text-right">Capacity</FormLabel>
+          <div className="grid gap-2">
+            <FormLabel htmlFor="capacity">Capacity</FormLabel>
             <FormField
               control={form.control}
               name="venue_cap"
@@ -318,8 +329,10 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                       type="number" 
                       placeholder="e.g., 100"
                       min="1"
+                      className="h-10"
                       {...field}
                       value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />
@@ -330,18 +343,18 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
           
           {/* Description */}
           <div className="grid gap-2">
-            <FormLabel htmlFor="description" className="text-right mt-2">Description</FormLabel>
+            <FormLabel htmlFor="description">Description</FormLabel>
             <FormField
               control={form.control}
               name="venue_desc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       id="description"
-                      placeholder="Enter a brief description of the venue..."
-                      className="resize-none min-h-[100px]"
-                      {...field} 
+                      placeholder="Enter a description for the venue..."
+                      className="min-h-[100px] resize-none"
+                      {...field}
                       value={field.value || ''}
                     />
                   </FormControl>
@@ -353,7 +366,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
           
           {/* Equipment & Amenities */}
           <div className="grid gap-2">
-            <FormLabel htmlFor="equipments">Equipment</FormLabel>
+            <FormLabel>Equipment</FormLabel>
             <FormField
               control={form.control}
               name="venue_feat"
@@ -361,13 +374,14 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                 <FormItem className="m-0">
                   <FormControl>
                     <div className="space-y-2">
-                      <div className="flex flex-wrap gap-1.5">
-                        {field.value.map((item, index) => (
-                          <Badge key={index} className="bg-blue-50 text-blue-700 hover:bg-blue-100 px-2 py-1">
+                      <div className="flex flex-wrap gap-2">
+                        {(field.value || []).map((item, index) => (
+                          <Badge key={index} className="bg-blue-50 text-blue-700 hover:bg-blue-50">
+                            <EquipmentIcon name={item} className="h-3 w-3 mr-1" />
                             {item}
                             <button 
-                              type="button"
-                              className="ml-1.5 text-blue-700 hover:text-blue-900"
+                              type="button" 
+                              className="ml-2 text-blue-700 hover:text-blue-900" 
                               onClick={() => {
                                 const newValues = [...field.value];
                                 newValues.splice(index, 1);
@@ -379,91 +393,134 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                           </Badge>
                         ))}
                       </div>
-                      <div className="flex space-x-2 w-full">
+                      <div className="flex gap-2">
                         <Input 
                           placeholder="Add equipment item" 
-                          value={equipmentInput} 
+                          className="flex-1" 
+                          value={equipmentInput}
                           onChange={e => setEquipmentInput(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && e.target.value) { 
+                              e.preventDefault(); 
                               handleAddEquipment();
                             }
                           }}
-                          className="flex-1"
                         />
                         <Button 
                           type="button" 
+                          variant="outline" 
+                          size="sm" 
                           onClick={handleAddEquipment}
                           disabled={!equipmentInput.trim()}
                         >
                           Add
                         </Button>
-                  ``    </div>
+                      </div>
                     </div>
                   </FormControl>
-                  <p className="text-xs text-gray-500">Examples: Projector, Whiteboard, Air Conditioning</p>
+                  <FormDescription className="text-xs text-gray-500">Press Enter or click Add. Examples: Projector, Whiteboard</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
           
-          {/* Venue Image */}
-          <div className="grid gap-2">
-            <FormLabel>Image</FormLabel>
-            <FormItem className="m-0">
-              <FormControl>
-                <div className="w-full h-40 sm:h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 relative overflow-hidden">
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Venue preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="text-center p-4">
-                      <Image className="mx-auto h-10 sm:h-12 w-10 sm:w-12" />
-                      <p className="mt-2 text-xs sm:text-sm">Click to upload or drag & drop</p>
-                    </div>
-                  )}
-                  <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                </div>
-              </FormControl>
-              {imagePreview && (
-                <div className="flex flex-col sm:flex-row justify-end gap-2 mt-2">
-                  <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full sm:w-auto">
-                    <Upload className="mr-2 h-4 w-4" /> Change Image
+          {/* Image Upload */}
+          <div className="grid gap-3">
+            <div>
+              <FormLabel>Image</FormLabel>
+              <p className="text-sm text-gray-500 mt-0.5">Upload a clear photo of the venue</p>
+            </div>
+            <Input
+              id="venue-image-upload"
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageSelect}
+              className="hidden"
+              accept="image/png, image/jpeg, image/gif, image/webp"
+              disabled={isSubmitting}
+            />
+            
+            {imagePreview ? (
+              <div className="mt-2">
+                <div className="relative w-full h-48 rounded-md overflow-hidden border">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="w-full h-full object-cover"
+                    crossOrigin="anonymous"
+                    onError={(e) => {
+                      console.error('Failed to load image preview:', e);
+                      e.target.onerror = null;
+                      e.target.src = '/images/fallback-venue.png';
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8 rounded-full opacity-90 hover:opacity-100"
+                    onClick={handleRemoveImage}
+                    disabled={isSubmitting}
+                  >
+                    <X className="h-4 w-4" />
                   </Button>
-                  <Button type="button" variant="destructive" size="sm" onClick={handleRemoveImage} className="w-full sm:w-auto">
-                    <Trash2 className="mr-2 h-4 w-4" /> Remove Image
-                  </Button>
                 </div>
-              )}
-              {!imagePreview && (
-                <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full mt-2">
-                  <Upload className="mr-2 h-4 w-4" /> Select Image
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-2"
+                  onClick={triggerFileInput}
+                  disabled={isSubmitting}
+                >
+                  <UploadCloud className="mr-2 h-4 w-4" />
+                  Change Image
                 </Button>
-              )}
-              <FormMessage />
-            </FormItem>
+              </div>
+            ) : (
+              <div 
+                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-md bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={triggerFileInput}
+              >
+                <UploadCloud className="h-8 w-8 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-500">Click to upload or drag and drop</p>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, GIF, WEBP up to 5MB</p>
+              </div>
+            )}
           </div>
         </div>
         
-        <div className="border-t p-4 flex flex-col-reverse sm:flex-row justify-end gap-3">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onCancel}
-            disabled={isSubmitting}
-            className="w-full sm:w-auto"
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            className="gap-2 w-full sm:w-auto"
-            disabled={isSubmitting}
-          >
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Creating...' : 'Add Venue'}
-          </Button>
+        <div className="flex items-center justify-between px-8 py-4 border-t bg-gray-50">
+          <div className="text-sm text-gray-500"></div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting}
+              className="border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-medium"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="bg-[#06750F] hover:bg-[#05640d] flex items-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Creating...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  <span>Add Venue</span>
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </form>
     </Form>
@@ -880,14 +937,21 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
             <Button 
               type="submit" 
               disabled={isSubmitting}
-              className="bg-[#06750F] hover:bg-[#05640d]"
+              className="bg-[#06750F] hover:bg-[#05640d] flex items-center gap-2"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
                 </>
-              ) : 'Save Changes'}
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4">
+                    <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
+                  </svg>
+                  <span>Save Changes</span>
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -913,6 +977,7 @@ export function VenuesPage() {
   const [venueToEdit, setVenueToEdit] = useState(null);
   const [isEditVenueOpen, setIsEditVenueOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false); // For desktop expandable search
+  const [fullScreenImage, setFullScreenImage] = useState(null); // For full screen image view
 
 
   const handleEditVenueClick = (venue) => {
@@ -1415,7 +1480,7 @@ export function VenuesPage() {
                   onClick={(e) => {
                     e.stopPropagation();
                     if (selectedVenue.image_url) {
-                      // Implement full screen image view if needed
+                      setFullScreenImage(selectedVenue.image_url);
                     }
                   }}
                 >
@@ -1543,6 +1608,43 @@ export function VenuesPage() {
         </Dialog>
       )}
       </div>
+      
+      {/* Full Screen Image Dialog */}
+      <Dialog open={!!fullScreenImage} onOpenChange={(open) => !open && setFullScreenImage(null)}>
+        <DialogContent 
+          className="p-0 border-0 shadow-none bg-white max-w-none w-full h-full max-h-none"
+          hideCloseButton
+        >
+          <div 
+            className="fixed inset-0 flex flex-col items-center justify-center bg-white cursor-pointer"
+            onClick={() => setFullScreenImage(null)}
+          >
+            {fullScreenImage && (
+              <div className="relative">
+                <div className="relative">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFullScreenImage(null);
+                    }}
+                    className="absolute -right-2 -top-2 bg-black/70 hover:bg-black/90 text-white rounded-full p-1.5 z-10 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <img 
+                    src={fullScreenImage} 
+                    alt="Full screen view" 
+                    className="max-h-[85vh] max-w-[90vw] object-contain"
+                  />
+                </div>
+                <div className="text-center mt-4 text-white/80 text-sm bg-black/50 px-3 py-1 rounded-full">
+                  Click anywhere to close
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -5,20 +5,11 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogFooter,
   DialogTitle,
-  DialogClose,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { Loader2, ChevronDown } from "lucide-react";
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
 import { supabase } from "../../supabase-client";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 // Form for adding/editing a user
 export function UserDialog({ isOpen, onClose, user = null, onSave }) {
@@ -49,6 +40,9 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
     }
   }, [user, isOpen]);
 
+  // Selected organization for display
+  const [selectedOrg, setSelectedOrg] = useState(null);
+
   // Fetch organizations on mount
   useEffect(() => {
     if (isOpen) {
@@ -56,6 +50,15 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
     }
   }, [isOpen]);
 
+  // Set selected org when form data changes (for edit mode)
+  useEffect(() => {
+    if (formData.org_id && organizations.length > 0) {
+      const org = organizations.find(org => org.org_id === formData.org_id);
+      if (org) {
+        setSelectedOrg(org);
+      }
+    }
+  }, [formData.org_id, organizations]);
 
   const fetchOrganizations = async () => {
     try {
@@ -71,7 +74,7 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
       setOrganizations(data || []);
     } catch (err) {
       // Error fetching organizations
-      setError(err.message || "Failed to load organizations");
+      setError("Failed to load organizations");
     } finally {
       setFetchingOrgs(false);
     }
@@ -91,6 +94,13 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
       ...prev,
       org_id: orgId
     }));
+
+    if (orgId) {
+      const org = organizations.find(org => org.org_id === orgId);
+      setSelectedOrg(org);
+    } else {
+      setSelectedOrg(null);
+    }
   };
 
   const validateEmail = (email) => {
@@ -161,17 +171,21 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95%] max-w-md mx-auto p-4 sm:p-6">
-        <DialogHeader className="border-b pb-4">
-          <DialogTitle className="text-xl font-semibold">
-            {user?.user_id ? "Edit User" : "Add New User"}
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground mt-1">
-            {user?.user_id ? "Update the user's details below." : "Fill in the details below to add a new user."}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="w-[95%] max-w-md mx-auto p-0">
+        <div className="flex items-start px-6 pt-4 pb-3 border-b">
+          <div>
+            <h2 className="text-xl font-semibold">
+              {user?.user_id ? "Edit User" : "Add New User"}
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {user?.user_id 
+                ? "Update the user's details below." 
+                : "Fill in the details below to add a new user."}
+            </p>
+          </div>
+        </div>
         
-        <form onSubmit={handleSubmit} className="mt-4 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
               {error}
@@ -187,22 +201,22 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
               Organization *
             </label>
             
-            <Select
+            <select
+              id="org_id"
+              name="org_id"
               value={formData.org_id}
-              onValueChange={(value) => handleOrgChange({ target: { value } })}
+              onChange={handleOrgChange}
               disabled={fetchingOrgs}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+              required
             >
-              <SelectTrigger className="w-full text-sm sm:text-base h-10">
-                <SelectValue placeholder="Select an organization" />
-              </SelectTrigger>
-              <SelectContent className="max-h-60 overflow-y-auto" position="item-aligned">
-                {organizations.map((org) => (
-                  <SelectItem key={org.org_id} value={org.org_id}>
-                    {org.org_code} - {org.org_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="">Select an organization</option>
+              {organizations.map((org) => (
+                <option key={org.org_id} value={org.org_id}>
+                  {org.org_code} - {org.org_name}
+                </option>
+              ))}
+            </select>
             
             {fetchingOrgs && (
               <div className="text-xs sm:text-sm text-gray-500 flex items-center mt-1">

@@ -125,162 +125,155 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px]" aria-describedby="add-equipment-description">
-        <DialogHeader className="border-b pb-4">
-          <DialogTitle className="text-xl font-semibold">Add New Equipment</DialogTitle>
-          <DialogDescription className="text-muted-foreground mt-1">
-            Fill in the details below to add new equipment to your inventory.
-          </DialogDescription>
-        </DialogHeader>
-        <form id="add-equipment-form" onSubmit={handleSubmit} className="space-y-6 py-6">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="equipment-name" className="text-right font-medium">
-              Name <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="equipment-name"
-              name="equipment-name"
-              value={equipmentName}
-              onChange={(e) => setEquipmentName(e.target.value)}
-              className="col-span-3 h-10"
-              required
-              disabled={isSubmitting}
-              placeholder="Enter equipment name"
-            />
+      <DialogContent className="w-[95vw] max-w-[520px] p-0 max-h-[90vh] overflow-hidden">
+        <div className="flex items-start px-8 pt-6 pb-4 border-b">
+          <div>
+            <h2 className="text-2xl font-semibold">Add New Equipment</h2>
+            <p className="text-sm text-gray-500 mt-1.5">Fill in the details below to add new equipment to your inventory.</p>
           </div>
+        </div>
+        <div className="px-8 py-6 space-y-6">
+          <form id="add-equipment-form" onSubmit={handleSubmit} className="space-y-6">
+            {/* Equipment Name */}
+            <div className="grid gap-2">
+              <Label htmlFor="equipment-name">Name <span className="text-red-500">*</span></Label>
+              <Input
+                id="equipment-name"
+                name="equipment-name"
+                value={equipmentName}
+                onChange={(e) => setEquipmentName(e.target.value)}
+                className="h-10"
+                placeholder="Enter equipment name"
+                required
+                disabled={isSubmitting}
+              />
+            </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="asset-status" className="text-right font-medium">
-              Status <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              value={assetStatusId}
-              onValueChange={setAssetStatusId}
-              disabled={isSubmitting}
-              required
-            >
-              <SelectTrigger className="col-span-3 h-10" id="asset-status-trigger">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                {assetStatuses.map((status) => (
-                  <SelectItem key={status.id} value={String(status.id)}>
-                    {status.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            {/* Asset Status */}
+            <div className="grid gap-2">
+              <Label htmlFor="asset-status">Status <span className="text-red-500">*</span></Label>
+              <Select
+                value={assetStatusId}
+                onValueChange={setAssetStatusId}
+                disabled={isSubmitting}
+                required
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assetStatuses.map((status) => (
+                    <SelectItem key={status.id} value={String(status.id)}>
+                      {status.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="equipment-description" className="text-right col-span-1 pt-2 font-medium">
-              Description
-            </Label>
-            <Textarea
-              id="equipment-description"
-              name="equipment-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="col-span-3 min-h-[100px] resize-none"
-              placeholder="Enter a brief description of the equipment..."
-              disabled={isSubmitting}
-            />
-          </div>
+            {/* Description */}
+            <div className="grid gap-2">
+              <Label htmlFor="equipment-description">Description</Label>
+              <Textarea
+                id="equipment-description"
+                name="equipment-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="min-h-[100px] resize-none"
+                placeholder="Enter a brief description of the equipment..."
+                disabled={isSubmitting}
+              />
+            </div>
 
-
-
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="equipment-image-upload" className="text-right col-span-1 pt-2 font-medium">
-              Image
-            </Label>
-            <div className="col-span-3">
+            {/* Image Upload */}
+            <div className="grid gap-3">
+              <div>
+                <Label>Image</Label>
+                <p className="text-sm text-gray-500 mt-0.5">Upload a clear photo of the equipment</p>
+              </div>
               <Input
                 id="equipment-image-upload"
-                name="equipment-image-upload"
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                className="hidden" // Hidden, triggered by styled label/button
+                className="hidden"
                 accept="image/png, image/jpeg, image/gif, image/webp"
                 disabled={isSubmitting}
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isSubmitting}
-                className="w-full flex items-center justify-center gap-2 border-dashed hover:border-primary hover:text-primary h-10"
-                aria-label="Upload equipment image"
-                id="upload-image-button"
-              >
-                <UploadCloud className="h-4 w-4" />
-                {imageFile ? 'Change image' : 'Upload an image'}
-              </Button>
-              {imagePreview && (
-                <div className="mt-3 relative w-full h-40 border rounded-md overflow-hidden group">
-                  <img 
-                    src={imagePreview} 
-                    alt="Preview" 
-                    className="w-full h-full object-cover"
-                    crossOrigin="anonymous" // Add CORS support for Supabase storage
-                    onError={(e) => {
-                      console.error('Failed to load image preview:', e);
-                      e.target.onerror = null;
-                      e.target.src = '/images/fallback-equipment.png';
-                    }}
-                  />
-                  <div className="mt-2 flex flex-col items-center justify-center gap-1">
+              
+              {imagePreview ? (
+                <div className="mt-2">
+                  <div className="relative w-full h-48 rounded-md overflow-hidden border">
+                    <img 
+                      src={imagePreview} 
+                      alt="Preview" 
+                      className="w-full h-full object-cover"
+                      crossOrigin="anonymous"
+                      onError={(e) => {
+                        console.error('Failed to load image preview:', e);
+                        e.target.onerror = null;
+                        e.target.src = '/images/fallback-equipment.png';
+                      }}
+                    />
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-800 hover:bg-red-100"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8 rounded-full opacity-90 hover:opacity-100"
                       onClick={handleRemoveImage}
                       disabled={isSubmitting}
-                      id="remove-image-button"
-                      aria-label="Remove uploaded image"
                     >
-                      <X className="mr-1 h-4 w-4" /> Remove image
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSubmitting}
+                  >
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Change Image
+                  </Button>
+                </div>
+              ) : (
+                <div 
+                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-md bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <UploadCloud className="h-8 w-8 text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-500">Click to upload or drag and drop</p>
+                  <p className="text-xs text-gray-400 mt-1">PNG, JPG, GIF, WEBP up to 5MB</p>
                 </div>
               )}
-              {!imagePreview && (
-                <div className="mt-3 flex items-center justify-center w-full h-40 border border-dashed rounded-md bg-gray-50 text-gray-400">
-                  <ImageIcon className="h-10 w-10" />
-                </div>
-              )}
-              <p className="text-xs text-gray-500 mt-1">Max file size: 5MB. Allowed types: JPG, PNG, GIF, WEBP.</p>
             </div>
-          </div>
-        </form>
-        <DialogFooter className="border-t pt-4 mt-2">
-          <DialogClose asChild>
-            <Button 
-              variant="outline" 
-              disabled={isSubmitting}
-              className="h-10"
-            >
-              Cancel
-            </Button>
-          </DialogClose>
+          </form>
+        </div>
+        
+        <DialogFooter className="flex justify-end gap-3 px-8 py-4 border-t bg-gray-50">
           <Button 
-            type="submit" 
-            form="add-equipment-form" 
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+            className="w-full sm:w-auto px-6 h-10"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="add-equipment-form"
             disabled={isSubmitting || !equipmentName || !assetStatusId}
-            className="bg-blue-600 hover:bg-blue-700 h-10 px-5 gap-2 flex items-center"
+            className="w-full sm:w-auto gap-2 px-6 h-10 bg-[#06750F] hover:bg-[#05640d]"
           >
             {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Adding...</span>
-              </>
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <>
-                <Plus className="h-4 w-4" />
-                <span>Add Equipment</span>
-              </>
+              <Plus className="h-4 w-4" />
             )}
+            {isSubmitting ? 'Adding...' : 'Add Equipment'}
           </Button>
         </DialogFooter>
       </DialogContent>
