@@ -105,6 +105,40 @@ export function EventCalendar(props) {
 
   // Fetch lookup data for form (now handled in the initial useEffect)
 
+  const commandOrgFilter = (valueString, search) => {
+    if (!search) return 1; // Show all if no search, give a non-zero score
+
+    const searchLower = search.toLowerCase();
+    try {
+      const item = JSON.parse(valueString);
+      const nameLower = (item.name || '').toLowerCase();
+      const codeLower = (item.code || '').toLowerCase();
+
+      let score = 0;
+      if (nameLower.includes(searchLower)) {
+        score += 100; // Base score for name match
+        if (nameLower.startsWith(searchLower)) {
+          score += 50; // Bonus for name starting with search
+        }
+      }
+      // Ensure item.code is treated as a string for .includes and .startsWith
+      if (typeof item.code === 'string' && item.code && codeLower.includes(searchLower)) {
+        score += 20;  // Base score for code match
+        if (codeLower.startsWith(searchLower)) {
+          score += 10; // Bonus for code starting with search
+        }
+      }
+      return score; // cmk sorts by this score, higher is better. 0 means no match.
+    } catch (e) {
+      // Fallback for non-JSON values or other errors
+      if (typeof valueString === 'string') {
+        return valueString.toLowerCase().includes(searchLower) ? 1 : 0;
+      }
+      return 0;
+    }
+  };
+
+
   // Fetch reservations from the database with filters
   const fetchReservations = useCallback(async () => {
     try {
@@ -911,7 +945,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
                     {/* Organization Filter */}
                     <div>
                       <div className="font-semibold text-sm mb-1">Organization</div>
-                      <Command className="border rounded-md">
+                      <Command className="border rounded-md" filter={commandOrgFilter}>
                         <CommandInput placeholder="Search organization..." />
                         <CommandEmpty>No organization found</CommandEmpty>
                         <CommandGroup className="max-h-56 overflow-auto">
@@ -920,7 +954,7 @@ function CustomToolbar({ onView, onNavigate, label }) {
                             return (
                               <CommandItem
                                 key={org.org_id}
-                                value={org.org_name}
+                                value={JSON.stringify({ name: org.org_name, code: org.org_code || '' })}
                                 onSelect={() => {
                                   if (checked) {
                                     setOrganizationFilters(prev => prev.filter(o => o.org_id !== org.org_id));
