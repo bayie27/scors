@@ -94,11 +94,27 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
         asset_status_id: parseInt(assetStatusId, 10),
         equipment_desc: description || null,
       };
-      // The actual submission (including image upload) will be handled by equipmentService
-      // This component will call a prop function that uses the service
+      
+      console.log('Submitting equipment with data:', equipmentData);
+      console.log('Image file:', imageFile ? imageFile.name : 'No image file');
+      
+      // Call the parent component's submission handler with data and image
       await onSubmitSuccess(equipmentData, imageFile);
+      
       toast.success('Equipment added successfully!');
-      onOpenChange(false); // Close dialog on success
+      
+      // Reset form state - wait a moment before closing to ensure smooth transition
+      setTimeout(() => {
+        setEquipmentName('');
+        setAssetStatusId('');
+        setDescription('');
+        setImageFile(null);
+        setImagePreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }, 100);
+      
+      // Close dialog on success
+      onOpenChange(false);
     } catch (error) {
       console.error('Failed to add equipment:', error);
       toast.error(error.message || 'Failed to add equipment. Please try again.');
@@ -109,40 +125,46 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto"
+        aria-describedby="add-equipment-description"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <PlusCircle className="mr-2 h-5 w-5" /> Add New Equipment
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="add-equipment-description">
             Fill in the details below to add a new piece of equipment to the inventory.
           </DialogDescription>
         </DialogHeader>
-        <form id="add-equipment-form" onSubmit={handleSubmit} className="grid gap-6 py-4">
+        <form id="add-equipment-form" onSubmit={handleSubmit} className="grid gap-5 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="equipmentName" className="text-right col-span-1">
+            <Label htmlFor="equipment-name" className="text-right col-span-1">
               Name <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="equipmentName"
+              id="equipment-name"
+              name="equipment-name"
               value={equipmentName}
               onChange={(e) => setEquipmentName(e.target.value)}
               className="col-span-3"
-              placeholder="e.g., Laptop Pro X1"
+              placeholder="Enter equipment name..."
               disabled={isSubmitting}
             />
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="assetStatusId" className="text-right col-span-1">
+            <Label htmlFor="asset-status-id" className="text-right col-span-1">
               Status <span className="text-red-500">*</span>
             </Label>
             <Select
+              id="asset-status-id"
+              name="asset-status-id"
               value={assetStatusId}
               onValueChange={setAssetStatusId}
               disabled={isSubmitting}
             >
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger className="col-span-3" id="asset-status-trigger">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
@@ -156,11 +178,12 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
           </div>
 
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="description" className="text-right col-span-1 pt-2">
+            <Label htmlFor="equipment-description" className="text-right col-span-1 pt-2">
               Description
             </Label>
             <Textarea
-              id="description"
+              id="equipment-description"
+              name="equipment-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="col-span-3 min-h-[80px]"
@@ -169,13 +192,16 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
             />
           </div>
 
+
+
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="imageFile" className="text-right col-span-1 pt-2">
+            <Label htmlFor="equipment-image-upload" className="text-right col-span-1 pt-2">
               Image
             </Label>
             <div className="col-span-3">
               <Input
-                id="imageFile"
+                id="equipment-image-upload"
+                name="equipment-image-upload"
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
@@ -189,6 +215,8 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isSubmitting}
                 className="w-full flex items-center justify-center gap-2 border-dashed hover:border-primary hover:text-primary"
+                aria-label="Upload equipment image"
+                id="upload-image-button"
               >
                 <UploadCloud className="h-4 w-4" />
                 {imageFile ? 'Change image' : 'Upload an image'}
@@ -196,16 +224,20 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
               {imagePreview && (
                 <div className="mt-3 relative w-full h-40 border rounded-md overflow-hidden group">
                   <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={handleRemoveImage}
-                    disabled={isSubmitting}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <div className="mt-2 flex flex-col items-center justify-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-800 hover:bg-red-100"
+                      onClick={handleRemoveImage}
+                      disabled={isSubmitting}
+                      id="remove-image-button"
+                      aria-label="Remove uploaded image"
+                    >
+                      <X className="mr-1 h-4 w-4" /> Remove image
+                    </Button>
+                  </div>
                 </div>
               )}
               {!imagePreview && (

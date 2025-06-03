@@ -2,6 +2,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 export function AssetCard({
   title,
@@ -20,6 +21,20 @@ export function AssetCard({
   className,
   ...props
 }) {
+  // Simplified image handling with error tracking
+  const [imageError, setImageError] = useState(false);
+  
+  // Reset error when image prop changes
+  useEffect(() => {
+    setImageError(false);
+  }, [image]);
+  
+  // Handle image loading error
+  const handleImageError = (e) => {
+    console.error("Failed to load image:", e.target.src);
+    setImageError(true);
+  };
+  
   return (
     <Card 
       className={cn("overflow-hidden h-full flex flex-col hover:shadow-md transition-shadow", className)}
@@ -30,12 +45,40 @@ export function AssetCard({
         className="relative h-48 overflow-hidden group cursor-pointer" 
         onClick={onView}
       >
-        <img 
-          src={image} 
-          alt={title} 
-          className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
-        />
-        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        {(image && !imageError) ? (
+          <>
+            <img 
+              src={image} 
+              alt={title} 
+              className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+              onError={handleImageError}
+              crossOrigin="anonymous" // Add CORS support for Supabase storage
+            />
+            <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          </>
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100">
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="48" 
+              height="48" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="1" 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              className="text-gray-300"
+            >
+              <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+              <path d="M3 15h18" />
+              <path d="M3 9h18" />
+              <path d="M9 9v12" />
+              <path d="M15 9v12" />
+            </svg>
+            <p className="text-gray-500 mt-2 text-sm">No image available</p>
+          </div>
+        )}
         
         {/* Action Buttons */}
         <div className="absolute top-2 right-2 flex space-x-1 z-10">

@@ -84,24 +84,28 @@ export function EquipmentPage() {
       
       // Get equipment list from service
       const data = await equipmentService.getEquipment();
+      console.log('Raw equipment data:', data);
       
-      // Process images if they are in URL format (comma-separated)
-      const processedEquipment = data.map(item => {
-        let images = [];
-        if (item.image_url) {
-          // If image_url is a comma-separated list, split it
-          if (item.image_url.includes(',')) {
-            images = item.image_url.split(',').map(url => url.trim());
-          } else {
-            images = [item.image_url];
-          }
+      // Process the equipment data to ensure image URLs are properly formatted
+      const processedData = data.map(item => {
+        // Skip processing for items without an image_url
+        if (!item.image_url) return { ...item, image_url: null };
+        
+        // Process base64 images directly
+        if (typeof item.image_url === 'string' && item.image_url.startsWith('data:')) {
+          return { ...item };
         }
-        return { ...item, images };
+        
+        // Get a proper public URL for the image using our helper function
+        const imageUrl = equipmentService.getFullImageUrl(item.image_url);
+        console.log(`Processing image for ${item.equipment_name}:`, { original: item.image_url, processed: imageUrl });
+        
+        return { ...item, image_url: imageUrl };
       });
       
-      setEquipment(processedEquipment);
+      setEquipment(processedData);
     } catch (error) {
-      console.error('Error fetching equipment:', error);
+      console.error('Failed to fetch equipment:', error);
       toast.error('Failed to load equipment');
     } finally {
       setIsLoading(false);
@@ -109,16 +113,43 @@ export function EquipmentPage() {
   }, []);
 
   const handleAddEquipmentSubmit = async (equipmentFormData, imageFile) => {
+    console.log('Starting equipment submission with data:', equipmentFormData);
+    console.log('Image file to upload:', imageFile ? imageFile.name : 'No image');
+    
     try {
-      await equipmentService.createEquipment(equipmentFormData, imageFile);
-      toast.success('Equipment added successfully!');
-      fetchEquipment(); // Refresh the list
-      setIsAddEquipmentDialogOpen(false); // Close the dialog
-      return Promise.resolve(); // Explicitly return a resolved promise for the dialog
+      // Only attempt to create with direct service call if no image is present
+      if (!imageFile) {
+        console.log('No image to upload, creating equipment directly');
+        const createdEquipment = await equipmentService.createEquipment(equipmentFormData);
+        console.log('Equipment created successfully:', createdEquipment);
+        
+        toast.success('Equipment added successfully!');
+        fetchEquipment(); // Refresh the list
+        setIsAddEquipmentDialogOpen(false); // Close the dialog
+        return Promise.resolve(createdEquipment);
+      }
+      
+      // If we have an image, handle the upload and creation together
+      console.log('Image present, handling upload and creation together');
+      // First upload the image
+      try {
+        // Use the direct service method that handles both image upload and equipment creation
+        const createdEquipment = await equipmentService.createEquipment(equipmentFormData, imageFile);
+        console.log('Equipment created with image:', createdEquipment);
+        
+        toast.success('Equipment added successfully with image!');
+        fetchEquipment(); // Refresh the list
+        setIsAddEquipmentDialogOpen(false); // Close the dialog
+        return Promise.resolve(createdEquipment);
+      } catch (error) {
+        console.error('Failed to upload image or create equipment:', error);
+        toast.error('Failed to add equipment with image. Please try again.');
+        return Promise.reject(error);
+      }
     } catch (error) {
       console.error('Failed to add equipment:', error);
       toast.error(error.message || 'Failed to add equipment. Please try again.');
-      return Promise.reject(error); // Explicitly return a rejected promise for the dialog
+      return Promise.reject(error);
     }
   };
 
@@ -271,7 +302,7 @@ export function EquipmentPage() {
               statusId={item.asset_status_id}
               statusText={getStatusText(item.asset_status_id)}
               statusColor={getStatusColor(item.asset_status_id)}
-              image={item.images?.[0]}
+              image={item.image_url || null}
               location={item.location}
               description={item.equipment_desc}
               onView={() => setSelectedEquipment(item)}
@@ -291,11 +322,17 @@ export function EquipmentPage() {
       
       {/* Equipment detail modal */}
       {selectedEquipment && (
-        <Dialog open={!!selectedEquipment} onOpenChange={(open) => !open && setSelectedEquipment(null)}>
-          <DialogContent className="max-w-2xl w-full p-0 overflow-hidden bg-white rounded-lg shadow-xl">
+        <Dialog open={!!selectedEquipment} onOpenChange={() => setSelectedEquipment(null)}>
+          <DialogContent 
+            className="max-w-3xl max-h-[65vh] overflow-y-auto p-0"
+            aria-describedby="equipment-details-description"
+          >
             {/* Header */}
-            <div className="px-6 pt-6 pb-2 border-b">
+            <div className="border-b pb-4 px-6 pt-6">
               <DialogTitle className="text-2xl font-bold text-gray-900">{selectedEquipment.equipment_name}</DialogTitle>
+              <DialogDescription id="equipment-details-description" className="mt-1 text-sm text-gray-500">
+                View details and management options for this equipment
+              </DialogDescription>
               <div className="mt-1">
                 <Badge variant="outline" className={`text-xs ${getStatusColor(selectedEquipment.asset_status_id)}`}>
                   {getStatusText(selectedEquipment.asset_status_id)}
@@ -307,11 +344,17 @@ export function EquipmentPage() {
               {/* Image */}
               <div className="px-5 py-3">
                 <div className="overflow-hidden rounded-lg border border-gray-200">
-                  {selectedEquipment.images && selectedEquipment.images.length > 0 ? (
+                  {selectedEquipment.image_url ? (
                     <img 
-                      src={selectedEquipment.images[0]} 
+                      src={selectedEquipment.image_url || '/images/fallback-equipment.png'} 
                       alt={selectedEquipment.equipment_name}
                       className="w-full h-64 object-cover"
+                      onError={(e) => {
+                        console.log('Modal image failed to load:', e.target.src);
+                        e.target.onerror = null; // Prevent infinite error loops
+                        e.target.src = '/images/fallback-equipment.png';
+                      }}
+                      crossOrigin="anonymous" // Add CORS support for Supabase storage
                     />
                   ) : (
                     <div className="w-full h-64 flex items-center justify-center bg-gray-100">
