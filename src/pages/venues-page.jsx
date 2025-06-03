@@ -1021,12 +1021,12 @@ export function VenuesPage() {
 
   return (
     <div className="container mx-auto py-6 px-4">
-        {/* Main container: column on mobile, row on sm+ */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-y-3 sm:gap-x-4">
-          <h1 className="text-2xl font-bold text-gray-900 whitespace-nowrap">Venue Management</h1>
-          
-          {/* Actions Group: column on mobile, row on sm+ */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-3 w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Venue Management</h1>
+          <p className="text-sm text-gray-500 mt-1">View details and management options for venues</p>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-3 w-full sm:w-auto">
             {/* Mobile Search (visible on base, hidden on sm and up) */}
             <div className="relative flex items-center w-full sm:hidden">
               <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -1064,7 +1064,7 @@ export function VenuesPage() {
                   className="text-gray-500 hover:text-gray-700 h-10 w-10"
                   aria-label="Search venues"
                 >
-                  <SearchIcon className="h-5 w-5" />
+                  <SearchIcon className="h-6 w-6" />
                 </Button>
               )}
             </div>
@@ -1072,8 +1072,8 @@ export function VenuesPage() {
             {/* Add Venue Button: full width on mobile, auto width on sm+ */}
             <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base gap-1">
-                  <Plus className="h-4 w-4" />
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group">
+                  <Plus className="h-4 w-4 mr-1.5 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
                   <span>Add Venue</span>
                 </Button>
               </DialogTrigger>

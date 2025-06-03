@@ -549,18 +549,18 @@ export function EquipmentPage() {
                 className="text-gray-500 hover:text-gray-700 h-10 w-10"
                 aria-label="Search equipment"
               >
-                <SearchIcon className="h-5 w-5" />
+                <SearchIcon className="h-10 w-10" />
               </Button>
             )}
           </div>
           
           {/* Add equipment button */}
           <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 ease-in-out flex items-center group h-10"
+            className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group"
             onClick={() => setIsAddEquipmentDialogOpen(true)}
           >
-            <Plus className="h-5 w-5 mr-2 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
-            Add Equipment
+            <Plus className="h-4 w-4 mr-1.5 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
+            <span>Add Equipment</span>
           </Button>
         </div>
       </div>
