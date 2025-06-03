@@ -118,15 +118,21 @@ function EquipmentIcon({ name, ...props }) {
   }
 }
 // Add Venue Form component
-const addVenueFormSchema = z.object({
+const venueFormSchema = z.object({
   venue_name: z.string().min(3, { message: "Venue name must be at least 3 characters." }),
   asset_status_id: z.coerce.number({invalid_type_error: 'Please select a status.'}).positive({ message: "Please select a status." }),
-  description: z.string().max(500, { message: "Description must be 500 characters or less." }).optional().nullable(),
-  location: z.string().max(100, { message: "Location must be 100 characters or less." }).optional().nullable(),
-  capacity: z.coerce.number().positive({ message: "Capacity must be a positive number." }).int().optional().nullable(),
-  equipments: z.array(z.string()).optional(),
-  // image_url and imageFile are handled separately, not part of RHF schema for direct form data
-});
+  venue_desc: z.string().max(500, { message: "Description must be 500 characters or less." }).optional().nullable(),
+  venue_loc: z.string().max(100, { message: "Location must be 100 characters or less." }).optional().nullable(),
+  venue_cap: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.coerce.number({ invalid_type_error: "Capacity must be a number." })
+      .positive({ message: "Capacity must be a positive number if provided." })
+      .int({ message: "Capacity must be a whole number if provided." })
+      .optional()
+      .nullable()
+  ),
+  venue_feat: z.array(z.string()).optional(),
+});  // image_url and imageFile are handled separately, not part of RHF schema for direct form data
 
 function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatuses }) {
   // Form submission state
@@ -142,15 +148,15 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
 
   // Initialize form
   const form = useForm({
-    resolver: zodResolver(addVenueFormSchema),
+    resolver: zodResolver(venueFormSchema),
     defaultValues: {
       venue_name: '',
       asset_status_id: undefined,
-      description: '',
-      location: '',
-      capacity: null,
-      equipments: [],
-    },
+      venue_desc: '',
+      venue_loc: '',
+      venue_cap: null,
+      venue_feat: [],
+    }
   });
   
   // Remove selected image
@@ -181,9 +187,9 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
   const handleAddEquipment = () => {
     if (!equipmentInput.trim()) return;
     
-    const currentEquipments = form.getValues('equipments') || [];
+    const currentEquipments = form.getValues('venue_feat') || [];
     if (!currentEquipments.includes(equipmentInput.trim())) {
-      form.setValue('equipments', [...currentEquipments, equipmentInput.trim()]);
+      form.setValue('venue_feat', [...currentEquipments, equipmentInput.trim()]);
     }
     setEquipmentInput('');
   };
@@ -283,7 +289,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
             <FormLabel htmlFor="location" className="text-right">Location</FormLabel>
             <FormField
               control={form.control}
-              name="location"
+              name="venue_loc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -300,7 +306,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
             <FormLabel htmlFor="capacity" className="text-right">Capacity</FormLabel>
             <FormField
               control={form.control}
-              name="capacity"
+              name="venue_cap"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -324,7 +330,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
             <FormLabel htmlFor="description" className="text-right mt-2">Description</FormLabel>
             <FormField
               control={form.control}
-              name="description"
+              name="venue_desc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -347,7 +353,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
             <FormLabel htmlFor="equipments">Equipment</FormLabel>
             <FormField
               control={form.control}
-              name="equipments"
+              name="venue_feat"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -390,7 +396,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                         >
                           Add
                         </Button>
-                      </div>
+                  ``    </div>
                     </div>
                   </FormControl>
                   <p className="text-xs text-gray-500">Examples: Projector, Whiteboard, Air Conditioning</p>
@@ -466,10 +472,17 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
 const editVenueFormSchema = z.object({
   venue_name: z.string().min(3, { message: "Venue name must be at least 3 characters." }),
   asset_status_id: z.coerce.number({invalid_type_error: 'Please select a status.'}).positive({ message: "Please select a status." }),
-  description: z.string().max(500, { message: "Description must be 500 characters or less." }).optional().nullable(),
-  location: z.string().max(100, { message: "Location must be 100 characters or less." }).optional().nullable(),
-  capacity: z.coerce.number().positive({ message: "Capacity must be a positive number." }).int().optional().nullable(),
-  equipments: z.array(z.string()).optional(),
+  venue_desc: z.string().max(500, { message: "Description must be 500 characters or less." }).optional().nullable(),
+  venue_loc: z.string().max(100, { message: "Location must be 100 characters or less." }).optional().nullable(),
+  venue_cap: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.coerce.number({ invalid_type_error: "Capacity must be a number." })
+      .positive({ message: "Capacity must be a positive number if provided." })
+      .int({ message: "Capacity must be a whole number if provided." })
+      .optional()
+      .nullable()
+  ),
+  venue_feat: z.array(z.string()).optional(),
 });
 
 function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoadingAssetStatuses }) {
@@ -484,10 +497,10 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
     defaultValues: {
       venue_name: venueToEdit?.venue_name || '',
       asset_status_id: venueToEdit?.asset_status_id ?? undefined,
-      description: venueToEdit?.description || '',
-      location: venueToEdit?.location || '',
-      capacity: venueToEdit?.capacity || null,
-      equipments: venueToEdit?.equipments || [],
+      venue_desc: venueToEdit?.venue_desc || '',
+      venue_loc: venueToEdit?.venue_loc || '',
+      venue_cap: venueToEdit?.venue_cap || null,
+      venue_feat: venueToEdit?.venue_feat || [],
     }
   });
 
@@ -496,10 +509,10 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
       form.reset({
         venue_name: venueToEdit.venue_name || '',
         asset_status_id: venueToEdit.asset_status_id ?? undefined,
-        description: venueToEdit.description || '',
-        location: venueToEdit.location || '',
-        capacity: venueToEdit.capacity || null,
-        equipments: venueToEdit.equipments || [],
+        venue_desc: venueToEdit.venue_desc || '',
+        venue_loc: venueToEdit.venue_loc || '',
+        venue_cap: venueToEdit.venue_cap || null,
+        venue_feat: venueToEdit.venue_feat || [],
       });
       if (venueToEdit.image_url) {
         setImagePreview(venueToEdit.image_url);
@@ -543,11 +556,15 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
       
       const updateData = {
         ...data,
-        venue_id: venueToEdit.venue_id,
         image_url: removeCurrentImage ? null : (selectedImage ? undefined : venueToEdit.image_url)
       };
 
-      await venueService.updateVenue(updateData, selectedImage || undefined);
+      await venueService.updateVenue(
+        venueToEdit.venue_id, 
+        updateData, 
+        selectedImage || undefined, 
+        venueToEdit.image_url
+      );
       
       toast.success('Venue updated successfully!');
       if (onSuccess) onSuccess();
@@ -629,7 +646,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
             <FormLabel htmlFor="location">Location</FormLabel>
             <FormField
               control={form.control}
-              name="location"
+              name="venue_loc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -646,7 +663,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
             <FormLabel htmlFor="capacity">Capacity</FormLabel>
             <FormField
               control={form.control}
-              name="capacity"
+              name="venue_cap"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -670,7 +687,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
             <FormLabel htmlFor="description" className="text-right mt-2">Description</FormLabel>
             <FormField
               control={form.control}
-              name="description"
+              name="venue_desc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -693,7 +710,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
             <FormLabel>Equipment</FormLabel>
             <FormField
               control={form.control}
-              name="equipments"
+              name="venue_feat"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
@@ -734,12 +751,13 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
                           variant="outline" 
                           size="sm" 
                           onClick={(e) => {
-                            const input = e.target.closest('.flex').querySelector('input');
-                            if (input && input.value) { 
-                              field.onChange([...(field.value || []), input.value]); 
-                              input.value = ''; 
+                            const inputElement = document.activeElement?.parentElement?.querySelector('input[placeholder="Add equipment item"]');
+                            if (inputElement && inputElement.value) {
+                              field.onChange([...(field.value || []), inputElement.value]);
+                              inputElement.value = '';
                             }
                           }}
+                          disabled={false} // Consider adding logic to disable if input is empty
                         >
                           Add
                         </Button>
@@ -863,10 +881,10 @@ export function VenuesPage() {
         venue_id: venue.venue_id,
         venue_name: venue.venue_name,
         asset_status_id: venue.asset_status_id,
-        description: venue.venue_desc,
-        location: venue.venue_loc,
-        capacity: venue.venue_cap,
-        equipments: venue.venue_feat || [],
+        venue_desc: venue.venue_desc,
+        venue_loc: venue.venue_loc,
+        venue_cap: venue.venue_cap,
+        venue_feat: venue.venue_feat || [],
         image_url: venue.image_url
       })) : [];
       
@@ -927,35 +945,48 @@ export function VenuesPage() {
     }
   }, [fetchVenues]);
 
-  // Set up real-time subscription
+  // Set up real-time subscription and initial data fetch
   useEffect(() => {
     let isMounted = true;
+    let G_cleanupFromSubscription = null; // Variable to hold the cleanup function from setupSubscription
 
-    const init = async () => {
+    const initializeAndSubscribe = async () => {
       try {
-        await fetchVenues();
+        // Initial fetch of venues when component mounts
+        await fetchVenues(); 
+        
         if (isMounted) {
-          const cleanup = setupSubscription();
-          return cleanup; // Return cleanup function
+          // Setup the subscription and get the cleanup function
+          const cleanup = await setupSubscription(); 
+          if (isMounted) { // Check isMounted again after await, in case component unmounted during setupSubscription
+              G_cleanupFromSubscription = cleanup;
+          } else {
+              // If component unmounted while setupSubscription was running, call its cleanup immediately
+              if (typeof cleanup === 'function') {
+                  cleanup();
+              }
+          }
         }
       } catch (error) {
-        // Initialization error
-        toast.error('Failed to initialize venues');
+        // Error during initialization or subscription setup
+        console.error('Error initializing venues page:', error);
+        if (isMounted) { // Only show toast if component is still mounted
+          toast.error('Failed to initialize venues page.');
+        }
       }
     };
 
-    const cleanup = init();
-    
-    // Clean up subscription when component unmounts
+    initializeAndSubscribe();
+
+    // Cleanup function for the useEffect
     return () => {
-      isMounted = false;
-      if (cleanup && typeof cleanup.then === 'function') {
-        cleanup.then(fn => fn && fn());
-      } else if (typeof cleanup === 'function') {
-        cleanup();
+      isMounted = false; // Signal that the component is unmounting
+      // If a cleanup function was obtained from setupSubscription, execute it
+      if (G_cleanupFromSubscription && typeof G_cleanupFromSubscription === 'function') {
+        G_cleanupFromSubscription();
       }
     };
-  }, [fetchVenues, setupSubscription]);
+  }, [fetchVenues, setupSubscription]); // Dependencies for the useEffect
 
   useEffect(() => {
     const fetchAssetStatuses = async () => {
@@ -976,8 +1007,8 @@ export function VenuesPage() {
   // Filter venues based on search query
   const filteredVenues = venues.filter(venue => 
     (venue.venue_name && venue.venue_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (venue.description && venue.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (venue.amenities && Array.isArray(venue.amenities) && venue.amenities.some(a => typeof a === 'string' && a.toLowerCase().includes(searchQuery.toLowerCase())))
+    (venue.venue_desc && venue.venue_desc.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (venue.venue_feat && Array.isArray(venue.venue_feat) && venue.venue_feat.some(a => typeof a === 'string' && a.toLowerCase().includes(searchQuery.toLowerCase())))
   );
 
   // Handle venue form success
@@ -1143,24 +1174,24 @@ export function VenuesPage() {
                     <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                   </svg>
-                  <span>{venue.capacity}</span>
+                  <span>{venue.venue_cap}</span>
                   <span className="mx-2">•</span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                     <circle cx="12" cy="10" r="3"></circle>
                   </svg>
-                  <span>{venue.location}</span>
+                  <span>{venue.venue_loc}</span>
                 </div>
                 
                 <p className="text-xs sm:text-sm text-gray-700 mb-3 line-clamp-2">
-                  {venue.description}
+                  {venue.venue_desc}
                 </p>
                 
                 {/* Equipment Section - Moved to bottom of card */}
-                {(venue.equipments && venue.equipments.length > 0) && (
+                {(venue.venue_feat && venue.venue_feat.length > 0) && (
                   <div className="mt-2 sm:mt-4 pt-0">
                     <div className="flex flex-wrap gap-1 sm:gap-2">
-                      {venue.equipments.map((item, idx) => (
+                      {venue.venue_feat.map((item, idx) => (
                         <Badge key={idx} className="bg-blue-50 text-blue-700 hover:bg-blue-50" variant="secondary">
                           <EquipmentIcon name={item} className="h-3 w-3 mr-1" />
                           {item}
@@ -1261,6 +1292,7 @@ export function VenuesPage() {
           <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-lg md:max-w-xl p-0 max-h-[90vh] overflow-hidden">
             <div className="max-h-[90vh] overflow-y-auto pb-4">
               <EditVenueForm 
+                key={venueToEdit.venue_id} // Force re-mount on venue change
                 venueToEdit={venueToEdit} 
                 onSuccess={() => {
                   setIsEditVenueOpen(false);
@@ -1306,7 +1338,7 @@ export function VenuesPage() {
               {/* Content */}
               <div className="p-3 sm:p-4">
                 <p className="text-xs text-gray-500 mb-3 sm:mb-4">
-                  {selectedVenue.location || 'No location provided'}
+                  {selectedVenue.venue_loc || 'No location provided'}
                 </p>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
@@ -1314,13 +1346,13 @@ export function VenuesPage() {
                   <div>
                     <h3 className="font-semibold text-lg mb-1">Description</h3>
                     <p className="text-sm text-gray-700 mb-3">
-                      {selectedVenue.description || 'No description provided'}
+                      {selectedVenue.venue_desc || 'No description provided'}
                     </p>
                     
                     <div className="flex items-center text-sm">
                       <div className="flex items-center">
                         <PeopleIcon className="h-4 w-4 flex-shrink-0 text-gray-500 mr-2" />
-                        <span className="text-sm"><strong>Capacity:</strong> {selectedVenue.capacity || 'Not specified'}</span>
+                        <span className="text-sm"><strong>Capacity:</strong> {selectedVenue.venue_cap || 'Not specified'}</span>
                       </div>
                     </div>
                   </div>
@@ -1329,8 +1361,8 @@ export function VenuesPage() {
                   <div>
                     <h3 className="font-semibold text-lg mb-1">Equipment & Amenities</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {(selectedVenue.equipments || []).length > 0 ? (
-                        selectedVenue.equipments.map((item, idx) => (
+                      {(selectedVenue.venue_feat || []).length > 0 ? (
+                        selectedVenue.venue_feat.map((item, idx) => (
                           <div key={idx} className="flex items-center">
                             <EquipmentIcon name={item} className="h-3.5 w-3.5 text-indigo-500 mr-2" />
                             <span className="text-xs text-gray-700">{item}</span>
