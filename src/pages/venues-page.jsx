@@ -1120,33 +1120,37 @@ export function VenuesPage() {
                 )}
                 <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="absolute top-2 right-2 flex space-x-1 z-10">
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-gray-100 transition-all duration-200"
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-gray-700 bg-gray-100 hover:text-blue-600 hover:bg-blue-100 active:bg-blue-200 rounded-md shadow-md transition-colors duration-150 h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
                       setVenueToEdit(venue);
                       setIsEditVenueOpen(true);
                     }}
+                    aria-label="Edit venue"
+                    title="Edit venue"
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 20h9"></path>
                       <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                     </svg>
                   </Button>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-red-50 group transition-all duration-200"
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-red-500 bg-gray-100 hover:text-red-600 hover:bg-red-100 active:bg-red-200 rounded-md shadow-md transition-colors duration-150 h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
                       setVenueToDelete(venue);
                       setIsDeleteDialogOpen(true);
                     }}
+                    aria-label="Delete venue"
+                    title="Delete venue"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </Button>
                 </div>
