@@ -79,7 +79,7 @@ const OrganizationForm = ({ organization, onClose, onSave }) => {
       // Success - notify the parent component to refresh the list
       onSave();
     } catch (err) {
-      console.error("Error saving organization:", err);
+      // Error saving organization
       setError(err.message);
     } finally {
       setLoading(false);
@@ -245,7 +245,7 @@ export function OrganizationDialog({ open, onClose }) {
       setOrganizations(data || []);
       setFilteredOrganizations(data || []);
     } catch (err) {
-      console.error("Error fetching organizations:", err);
+      // Error fetching organizations
       setError("Failed to load organizations");
     } finally {
       setLoading(false);
@@ -292,7 +292,7 @@ export function OrganizationDialog({ open, onClose }) {
       setOrganizationToDelete(null);
       fetchOrganizations();
     } catch (err) {
-      console.error("Error deleting organization:", err);
+      // Error deleting organization
       setError(`Failed to delete organization: ${err.message}`);
     } finally {
       setLoading(false);

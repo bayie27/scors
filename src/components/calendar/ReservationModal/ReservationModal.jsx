@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { supabase } from '../../../supabase-client';
+import { updateReservationStatusService } from '../../../services/calendarService';
 import ViewMode from './components/ViewMode';
 import EditMode from './components/EditMode';
+import ConfirmStatusModal from './ConfirmStatusModal';
 import { toast } from 'react-hot-toast';
+import { getStatusLabel, getStatusStyle } from '../../../statusStyles';
 
 const ReservationModal = ({
   open,
@@ -19,6 +22,45 @@ const ReservationModal = ({
   isView = false,
   onEditView = () => {},
 }) => {
+  // Confirmation modal state for create
+  const [showCreateConfirm, setShowCreateConfirm] = useState(false);
+  const [pendingReservations, setPendingReservations] = useState(null);
+
+  // Confirmation modal for create reservation
+  const CreateConfirmationModal = ({ isOpen, onClose, onConfirm, reservations }) => {
+    if (!isOpen) return null;
+    // Summarize reservation info for user confirmation
+    const count = Array.isArray(reservations) ? reservations.length : 1;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md relative overflow-hidden p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirm Reservation</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            {count > 1
+              ? `Are you sure you want to create ${count} reservations for the selected date range and resources?`
+              : 'Are you sure you want to create this reservation?'}
+          </p>
+          <div className="flex justify-end gap-3 mt-5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              className="px-4 py-2 text-sm font-medium text-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const [form, setForm] = useState({
     purpose: '',
     start_date: '',
@@ -62,6 +104,7 @@ const ReservationModal = ({
           (initialData.equipment_id ? [initialData.equipment_id] : []);
           
         setForm({
+          reservation_id: initialData.reservation_id || '',
           purpose: initialData.purpose || '',
           // For backward compatibility with existing reservations
           start_date: initialData.start_date ? initialData.start_date.slice(0, 10) : 
@@ -79,6 +122,7 @@ const ReservationModal = ({
           contact_no: initialData.contact_no || '',
           reservation_ts: initialData.reservation_ts || '',
           edit_ts: initialData.edit_ts || '',
+          decision_ts: initialData.decision_ts || '',
         });
       }
     }
@@ -210,120 +254,6 @@ const ReservationModal = ({
     return dateArray;
   };
 
-  // Function to check for booking conflicts
-  const checkBookingConflicts = async () => {
-    setIsCheckingConflicts(true);
-    const conflicts = [];
-    
-    try {
-      // Get date range for the reservation
-      const startDate = form.start_date;
-      const endDate = form.end_date || form.start_date;
-      
-      // Format times for comparison
-      const startTime = form.start_time;
-      const endTime = form.end_time;
-      
-      // Check venue conflicts if a venue is selected
-      if (form.venue_id) {
-        const { data: venueConflicts, error: venueError } = await supabase
-          .from('reservation')
-          .select('reservation_id, purpose, activity_date, start_time, end_time')
-          .eq('venue_id', form.venue_id)
-          .gte('activity_date', startDate)
-          .lte('activity_date', endDate)
-          .neq('reservation_status_id', 3) // Exclude rejected reservations
-          .order('activity_date', { ascending: true });
-        
-        if (venueError) {
-          console.error('Error checking venue conflicts:', venueError);
-          setIsCheckingConflicts(false);
-          return { hasConflicts: true, message: 'Error checking venue availability' };
-        }
-        
-        // Check for time overlaps on each day
-        const venueOverlaps = venueConflicts.filter(conflict => {
-          // Skip the current reservation if editing
-          if (isEdit && conflict.reservation_id === initialData.reservation_id) {
-            return false;
-          }
-          
-          // Check if times overlap
-          return (
-            (conflict.start_time <= endTime && conflict.end_time >= startTime)
-          );
-        });
-        
-        if (venueOverlaps.length > 0) {
-          const venue = venues.find(v => v.venue_id === form.venue_id);
-          const venueName = venue ? venue.venue_name : `Venue ${form.venue_id}`;
-          
-          conflicts.push({
-            type: 'venue',
-            name: venueName,
-            conflicts: venueOverlaps
-          });
-        }
-      }
-      
-      // Check equipment conflicts for each selected equipment
-      if (form.equipment_ids && form.equipment_ids.length > 0) {
-        for (const equipmentId of form.equipment_ids) {
-          const { data: equipmentConflicts, error: equipmentError } = await supabase
-            .from('reservation')
-            .select('reservation_id, purpose, activity_date, start_time, end_time')
-            .eq('equipment_id', equipmentId)
-            .gte('activity_date', startDate)
-            .lte('activity_date', endDate)
-            .neq('reservation_status_id', 3) // Exclude rejected reservations
-            .order('activity_date', { ascending: true });
-          
-          if (equipmentError) {
-            console.error('Error checking equipment conflicts:', equipmentError);
-            setIsCheckingConflicts(false);
-            return { hasConflicts: true, message: 'Error checking equipment availability' };
-          }
-          
-          // Check for time overlaps on each day
-          const equipmentOverlaps = equipmentConflicts.filter(conflict => {
-            // Skip the current reservation if editing
-            if (isEdit && conflict.reservation_id === initialData.reservation_id) {
-              return false;
-            }
-            
-            // Check if times overlap
-            return (
-              (conflict.start_time <= endTime && conflict.end_time >= startTime)
-            );
-          });
-          
-          if (equipmentOverlaps.length > 0) {
-            const equipment = equipmentList.find(e => String(e.equipment_id) === String(equipmentId));
-            const equipmentName = equipment ? equipment.equipment_name : `Equipment ${equipmentId}`;
-            
-            conflicts.push({
-              type: 'equipment',
-              name: equipmentName,
-              conflicts: equipmentOverlaps
-            });
-          }
-        }
-      }
-      
-      setIsCheckingConflicts(false);
-      
-      if (conflicts.length > 0) {
-        return { hasConflicts: true, conflicts };
-      }
-      
-      return { hasConflicts: false };
-    } catch (error) {
-      console.error('Error checking conflicts:', error);
-      setIsCheckingConflicts(false);
-      return { hasConflicts: true, message: 'Error checking availability' };
-    }
-  };
-
   const validateForm = async () => {
     const newErrors = {};
 
@@ -335,6 +265,16 @@ const ReservationModal = ({
     // Check if start date is empty
     if (!form.start_date) {
       newErrors.start_date = 'Start date is required';
+    } else {
+      // Enforce 2 days in advance policy
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const minDate = new Date(today);
+      minDate.setDate(minDate.getDate() + 2); // 2 days in advance
+      const startDateObj = new Date(form.start_date);
+      if (startDateObj < minDate) {
+        newErrors.start_date = 'Reservations should be made at least 2 days in advance (today and tomorrow are not allowed).';
+      }
     }
 
     // Check if end date is before start date
@@ -389,47 +329,22 @@ const ReservationModal = ({
     }
 
     // Check if contact number is empty or not valid (basic validation)
-    if (!form.contact_no || !form.contact_no.trim()) {
+    if (!(form.contact_no && String(form.contact_no).trim())) {
       newErrors.contact_no = 'Contact number is required';
-    } else if (!/^\+?[0-9]{10,15}$/.test(form.contact_no.replace(/[\s-]/g, ''))) {
+    } else if (!/^\+?[0-9]{10,15}$/.test(String(form.contact_no).replace(/[\s-]/g, ''))) {
       newErrors.contact_no = 'Please enter a valid contact number';
     }
     
-    // If there are basic validation errors, don't proceed to check conflicts
+    // If there are basic validation errors, don't proceed
     if (Object.keys(newErrors).length > 0) {
       console.log('Form validation failed with errors:', newErrors);
       setErrors(newErrors);
       return false;
     }
-    
-    console.log('Basic validation passed, checking for booking conflicts...');
-    
-    // Check for booking conflicts
-    const conflictResult = await checkBookingConflicts();
-    
-    if (conflictResult.hasConflicts) {
-      if (conflictResult.message) {
-        newErrors.booking = conflictResult.message;
-        console.log('Conflict detected with message:', conflictResult.message);
-      } else if (conflictResult.conflicts) {
-        const conflictMessages = [];
-        
-        conflictResult.conflicts.forEach(conflict => {
-          if (conflict.type === 'venue') {
-            conflictMessages.push(`${conflict.name} is already booked during the selected time`);
-          } else if (conflict.type === 'equipment') {
-            conflictMessages.push(`${conflict.name} is already booked during the selected time`);
-          }
-        });
-        
-        newErrors.booking = conflictMessages.join('. ');
-        console.log('Conflicts detected:', conflictMessages);
-      }
-    }
 
     // Set the errors state and return validation result
     setErrors({...newErrors});
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -439,58 +354,28 @@ const ReservationModal = ({
     
     // Clear any existing errors before validation
     setErrors({});
-    
+    let formValidation = false;
     try {
-      // Validate the form - this now includes conflict checking
-      const formValidation = await validateForm();
+      // Validate the form
+      formValidation = await validateForm();
       
       // Get updated errors directly from the validation result
       const currentErrors = {...errors};
       
-      // If validation failed, show toast notification for booking conflicts
-      if (!formValidation && currentErrors.booking) {
-        toast.error(currentErrors.booking, {
-          duration: 4000,
-          position: 'top-center',
-          style: {
-            border: '1px solid #F8BD5A',
-            padding: '16px',
-            color: '#713200',
-          },
-          iconTheme: {
-            primary: '#F8BD5A',
-            secondary: '#FFFAEE',
-          },
-        });
-        
-        console.log('ReservationModal - Validation failed with booking conflicts:', currentErrors.booking);
-        return; // Stop if validation fails
-      }
-      
+      // If validation failed, do not submit
       if (!formValidation) {
         console.log('ReservationModal - Validation failed, not submitting');
         return; // Stop if validation fails
       }
     } catch (error) {
-      console.error('Error during form validation:', error);
-      toast.error('An error occurred while validating the form');
+      // Validation or other error
+      console.error('ReservationModal - Error during validation or submit:', error);
+      alert('Validation failed: ' + (error.message || error));
       return;
     }
-    
-    console.log('ReservationModal - Validation passed, proceeding with submission');
-    
-    // Get all dates in the selected range (excluding weekends)
-    const dateArray = getDatesInRange(form.start_date, form.end_date);
-    
-    if (dateArray.length === 0) {
-      console.log('ReservationModal - No valid dates in range');
-      setErrors({ start_date: 'No valid dates in range (all dates may be weekends)' });
-      return;
-    }
-    
-    console.log('ReservationModal - Multiple dates in range:', dateArray);
-    
-    // Normalize phone number
+
+    // Prepare data for submission
+    const dateArray = getDatesInRange(form.start_date, form.end_date || form.start_date);
     const normalizedPhone = form.contact_no ? normalizePhoneNumber(form.contact_no) : '';
     
     // Prepare base form data with proper type conversion
@@ -561,29 +446,13 @@ const ReservationModal = ({
       });
       
       console.log('ReservationModal - Calling onSubmit with array of', allReservations.length, 'reservations');
-      onSubmit(allReservations);
+      // Instead of submitting directly, show confirmation modal
+      setPendingReservations(allReservations);
+      setShowCreateConfirm(true);
     }
   };
 
-  // Map status IDs to labels and styles based on reservation_status table
-  const STATUS_LABELS = {
-    1: 'Reserved',
-    2: 'Rejected',
-    3: 'Pending',
-    4: 'Cancelled',
-    5: 'Ongoing',
-    6: 'Completed',
-  };
 
-  const STATUS_STYLES = {
-    1: 'bg-blue-100 text-blue-800 border-blue-200',      // Reserved
-    2: 'bg-red-100 text-red-800 border-red-200',         // Rejected
-    3: 'bg-yellow-100 text-yellow-800 border-yellow-200',// Pending
-    4: 'bg-gray-200 text-gray-700 border-gray-300',      // Cancelled
-    5: 'bg-green-100 text-green-800 border-green-200',   // Ongoing
-    6: 'bg-purple-100 text-purple-800 border-purple-200',// Completed
-  };
-  
   // Helper function to format date range for display
   const getDateRangeText = () => {
     if (!form.start_date) return '';
@@ -594,39 +463,121 @@ const ReservationModal = ({
   };
 
   const statusId = Number(form.reservation_status_id);
-  const statusName = STATUS_LABELS[statusId] || 'Unknown';
-  const statusStyles = STATUS_STYLES[statusId] || 'bg-gray-100 text-gray-800 border-gray-200';
+  const statusName = getStatusLabel(statusId);
+  const statusStyles = getStatusStyle(statusId);
+
+  // State for status confirmation modal
+  const [statusModal, setStatusModal] = useState({ open: false, action: null });
+
+  // Handler for reservation creation confirmation
+  const handleCreateConfirm = () => {
+    setShowCreateConfirm(false);
+    if (pendingReservations) {
+      onSubmit(pendingReservations);
+      setPendingReservations(null);
+    }
+  };
+
+  // Handler for Reject
+  const handleReject = () => {
+    setStatusModal({ open: true, action: 'reject' });
+  };
+
+  // Handler for Approve
+  const handleApprove = () => {
+    setStatusModal({ open: true, action: 'approve' });
+  };
+  
+  // Handler for Cancel
+  const handleCancel = () => {
+    setStatusModal({ open: true, action: 'cancel' });
+  };
+
+  // Confirm approve/reject/cancel
+  const handleConfirmStatus = async () => {
+    // 1 = approved/reserved, 2 = rejected, 4 = cancelled
+    const newStatusId = statusModal.action === 'approve' ? 1 : (statusModal.action === 'cancel' ? 4 : 2);
+    
+    try {
+      const result = await updateReservationStatusService(form.reservation_id, newStatusId);
+
+      if (result.success && result.data?.decision_ts) {
+        setForm(prev => ({ 
+          ...prev, 
+          reservation_status_id: newStatusId,
+          decision_ts: result.data.decision_ts
+        }));
+        
+        let successMessage = '';
+        if (statusModal.action === 'approve') {
+          successMessage = 'Reservation approved!';
+        } else if (statusModal.action === 'reject') {
+          successMessage = 'Reservation rejected!';
+        } else if (statusModal.action === 'cancel') {
+          successMessage = 'Reservation cancelled!';
+        }
+        toast.success(successMessage);
+      } else {
+        console.error('[UPDATE STATUS ERROR]', result.error);
+        toast.error(`Failed to update reservation status: ${result.error?.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('[UNEXPECTED STATUS UPDATE FLOW ERROR]', err);
+      toast.error(`An unexpected error occurred: ${err.message || 'Unknown error'}`);
+    } finally {
+      setStatusModal({ open: false, action: null });
+    }
+  };
 
   if (!open) return null;
 
-
-
-  return isView ? (
-    <ViewMode 
-      form={form} 
-      statusName={statusName}
-      statusStyles={statusStyles}
-      onClose={onClose}
-      onEditView={onEditView}
-      venues={venues}
-      equipmentList={equipmentList}
-      organizations={organizations}
-    />
-  ) : (
-    <EditMode 
-      form={form}
-      onClose={onClose}
-      onSubmit={handleSubmit}
-      onDelete={onDelete}
-      isEdit={isEdit}
-      venues={venues}
-      equipmentList={equipmentList}
-      organizations={organizations}
-      handleChange={handleChange}
-      errors={errors}
-    />
+  return (
+    <>
+      {isView ? (
+        <ViewMode 
+          form={form} 
+          statusName={statusName}
+          statusStyles={statusStyles}
+          onClose={onClose}
+          onEditView={onEditView}
+          venues={venues}
+          equipmentList={equipmentList}
+          organizations={organizations}
+          onReject={handleReject}
+          onApprove={handleApprove}
+          onCancel={handleCancel}
+          onDelete={onDelete}
+        />
+      ) : (
+        <EditMode 
+          form={form}
+          onClose={onClose}
+          onSubmit={handleSubmit}
+          isEdit={isEdit}
+          venues={venues}
+          equipmentList={equipmentList}
+          organizations={organizations}
+          handleChange={handleChange}
+          errors={errors}
+        />
+      )}
+      {/* Confirmation modal for create reservation */}
+      <CreateConfirmationModal 
+        isOpen={showCreateConfirm} 
+        onClose={() => setShowCreateConfirm(false)} 
+        onConfirm={handleCreateConfirm} 
+        reservations={pendingReservations} 
+      />
+      {/* Confirmation modal for approve/reject status change */}
+      <ConfirmStatusModal 
+        isOpen={statusModal.open} 
+        onClose={() => setStatusModal({ open: false, action: null })} 
+        onConfirm={handleConfirmStatus} 
+        action={statusModal.action} 
+      />
+    </>
   );
-};
+}
 
 ReservationModal.propTypes = {
   open: PropTypes.bool.isRequired,
