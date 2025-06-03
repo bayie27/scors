@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '@/lib/useAuth';
 import { 
   Plus, 
   Search as SearchIcon, 
@@ -554,15 +555,17 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
     try {
       setIsSubmitting(true);
       
-      const updateData = {
+      // Ensure empty capacity is properly set to null
+      const cleanedData = {
         ...data,
+        venue_cap: data.venue_cap === '' || data.venue_cap === undefined ? null : data.venue_cap,
         image_url: removeCurrentImage ? null : (selectedImage ? undefined : venueToEdit.image_url)
       };
 
       await venueService.updateVenue(
-        venueToEdit.venue_id, 
-        updateData, 
-        selectedImage || undefined, 
+        venueToEdit.venue_id,
+        cleanedData,
+        selectedImage || undefined,
         venueToEdit.image_url
       );
       
@@ -835,6 +838,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
 }
 
 export function VenuesPage() {
+  const { user } = useAuth();
   const [venues, setVenues] = useState([]);
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -851,6 +855,9 @@ export function VenuesPage() {
   const [venueToEdit, setVenueToEdit] = useState(null);
   const [isEditVenueOpen, setIsEditVenueOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false); // For desktop expandable search
+  
+  // Check if user is an admin (CSAO or org_id = 1)
+  const isAdmin = user && user.org_id === 1;
 
 
   const handleEditVenueClick = (venue) => {
@@ -1120,35 +1127,39 @@ export function VenuesPage() {
                 )}
                 <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="absolute top-2 right-2 flex space-x-1 z-10">
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-gray-100 transition-all duration-200"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setVenueToEdit(venue);
-                      setIsEditVenueOpen(true);
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 20h9"></path>
-                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                    </svg>
-                  </Button>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-red-50 group transition-all duration-200"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setVenueToDelete(venue);
-                      setIsDeleteDialogOpen(true);
-                    }}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </Button>
+                  {isAdmin && (
+                    <>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-gray-100 transition-all duration-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setVenueToEdit(venue);
+                          setIsEditVenueOpen(true);
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20h9"></path>
+                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                      </Button>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-red-50 group transition-all duration-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setVenueToDelete(venue);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
               
@@ -1383,27 +1394,31 @@ export function VenuesPage() {
                 <div className="flex flex-col sm:flex-row gap-3 w-full">
 
                   <div className="flex flex-col sm:flex-row gap-3 w-full">
-                    <Button 
-                      variant="outline" 
-                      className="h-10 px-4 flex items-center justify-center sm:justify-start gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50 w-full sm:w-auto"
-                      onClick={() => { handleEditVenueClick(selectedVenue); setSelectedVenue(null); }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600">
-                        <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
-                      </svg>
-                      Edit Venue
-                    </Button>
-                    <div className="border-l border-gray-200 h-6 self-center hidden sm:block"></div>
-                    <Button 
-                      variant="outline" 
-                      className="h-10 px-4 flex items-center justify-center sm:justify-start gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300 w-full sm:w-auto mt-3 sm:mt-0"
-                      onClick={() => { handleDeleteVenueClick(selectedVenue); setSelectedVenue(null); }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      <span className="whitespace-nowrap">Delete Venue</span>
-                    </Button>
+                    {isAdmin && (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          className="h-10 px-4 flex items-center justify-center sm:justify-start gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50 w-full sm:w-auto"
+                          onClick={() => { handleEditVenueClick(selectedVenue); setSelectedVenue(null); }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600">
+                            <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
+                          </svg>
+                          Edit Venue
+                        </Button>
+                        <div className="border-l border-gray-200 h-6 self-center hidden sm:block"></div>
+                        <Button 
+                          variant="outline" 
+                          className="h-10 px-4 flex items-center justify-center sm:justify-start gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300 w-full sm:w-auto mt-3 sm:mt-0"
+                          onClick={() => { handleDeleteVenueClick(selectedVenue); setSelectedVenue(null); }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          <span className="whitespace-nowrap">Delete Venue</span>
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
