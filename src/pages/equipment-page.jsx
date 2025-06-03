@@ -106,73 +106,30 @@ export function EquipmentPage() {
   const fullScreenImageRef = useRef(null);
   const subscriptionRef = useRef(null);
   
+  // State for full screen image
+  const [fullScreenImage, setFullScreenImage] = useState(null);
+
   // Function to open the full-screen image modal
   const openFullScreenImage = (imageUrl) => {
-    if (!fullScreenImageRef.current) {
-      // Create the modal container if it doesn't exist
-      const modalContainer = document.createElement('div');
-      modalContainer.id = 'full-screen-image-modal';
-      modalContainer.className = 'fixed inset-0 z-[9999] flex items-center justify-center';
-      modalContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
-      modalContainer.style.backdropFilter = 'blur(4px)';
-      
-      // Function to close the modal
-      const closeModal = () => {
-        if (fullScreenImageRef.current) {
-          document.body.removeChild(fullScreenImageRef.current);
-          fullScreenImageRef.current = null;
-          
-          // Remove the ESC key listener when modal is closed
-          document.removeEventListener('keydown', handleEscKey);
-        }
-      };
-      
-      // Create the modal content
-      modalContainer.innerHTML = `
-        <div class="absolute inset-0 cursor-pointer" id="modal-backdrop"></div>
-        <div class="relative z-10 max-w-[90vw] max-h-[90vh]">
-          <button class="absolute -top-12 right-0 bg-transparent text-white hover:bg-white/20 rounded-full p-2 transition-colors" id="close-button">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-          </button>
-          <img src="${imageUrl}" alt="Full-screen equipment view" class="max-h-[80vh] max-w-[90vw] object-contain rounded shadow-lg" style="background-color: transparent;" />
-          <div class="text-white text-center mt-4 text-sm opacity-70">Click anywhere outside the image to close</div>
-        </div>
-      `;
-      
-      // Add event listeners
-      const handleEscKey = (e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          closeModal();
-        }
-      };
-      
-      // Append the modal to the body
-      document.body.appendChild(modalContainer);
-      fullScreenImageRef.current = modalContainer;
-      
-      // Add event listeners after the modal is in the DOM
-      document.addEventListener('keydown', handleEscKey, true);
-      
-      // Add click event listeners
-      setTimeout(() => {
-        const backdrop = document.getElementById('modal-backdrop');
-        const closeButton = document.getElementById('close-button');
-        
-        if (backdrop) {
-          backdrop.addEventListener('click', closeModal);
-        }
-        
-        if (closeButton) {
-          closeButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeModal();
-          });
-        }
-      }, 0);
-    }
+    setFullScreenImage(imageUrl);
   };
+
+  // Close full screen image
+  const closeFullScreenImage = () => {
+    setFullScreenImage(null);
+  };
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && fullScreenImage) {
+        closeFullScreenImage();
+      }
+    };
+    
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [fullScreenImage]);
 
   const fetchEquipment = useCallback(async () => {
     try {
@@ -607,6 +564,43 @@ export function EquipmentPage() {
         </div>
       )}
       
+      {/* Full Screen Image Dialog */}
+      <Dialog open={!!fullScreenImage} onOpenChange={(open) => !open && closeFullScreenImage()}>
+        <DialogContent 
+          className="p-0 border-0 shadow-none bg-transparent/0 max-w-none w-full h-full max-h-none"
+          hideCloseButton
+        >
+          <div 
+            className="fixed inset-0 flex flex-col items-center justify-center bg-transparent cursor-pointer"
+            onClick={closeFullScreenImage}
+          >
+            {fullScreenImage && (
+              <div className="relative">
+                <div className="relative">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeFullScreenImage();
+                    }}
+                    className="absolute -right-2 -top-2 bg-black/70 hover:bg-black/90 text-white rounded-full p-1.5 z-10 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <img 
+                    src={fullScreenImage} 
+                    alt="Full screen view" 
+                    className="max-h-[85vh] max-w-[90vw] object-contain"
+                  />
+                </div>
+                <div className="text-center mt-4 text-white/80 text-sm bg-black/50 px-3 py-1 rounded-full">
+                  Click anywhere to close
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Equipment detail modal */}
       {selectedEquipment && (
         <Dialog open={!!selectedEquipment} onOpenChange={(newOpenState) => {
@@ -674,7 +668,7 @@ export function EquipmentPage() {
                         }}
                         crossOrigin="anonymous" // Add CORS support for Supabase storage
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-40">
                         <span className="text-white bg-black bg-opacity-50 rounded-full p-2">
                           <ImageIcon className="h-6 w-6" />
                           <span className="sr-only">View Full Size</span>
