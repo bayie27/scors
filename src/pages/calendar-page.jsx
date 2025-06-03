@@ -7,7 +7,7 @@ import { VenuesPage } from "./venues-page";
 import { PendingApprovalsPage } from "./PendingApprovalsPage";
 import { Search, Plus } from 'lucide-react';
 import { EquipmentPage } from "./equipment-page";
-import { HelpPage } from "./help-page";
+import HelpPage from "./HelpPage";
 import { Users, Building2, Boxes, ClipboardCheck, LogOut, ChevronLeft, ChevronRight, Calendar, HelpCircle, Menu } from "lucide-react";
 import scorsLogo from "@/assets/scors-logo.png";
 import { format } from 'date-fns';
