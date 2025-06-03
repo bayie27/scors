@@ -126,7 +126,8 @@ export function EventCalendar(props) {
         .select(`
           *,
           status:reservation_status_id(*),
-          organization:org_id(*)
+          organization:org_id(*),
+          venue:venue_id(*)
         `);
       
       // Apply filters if they exist
@@ -209,8 +210,10 @@ export function EventCalendar(props) {
         const orgCode = org?.org_code || '';
         const orgName = org?.org_name || '';
         
-        // Get venue and associated equipment
-        const venue = venues.find(v => v.venue_id === reservation.venue_id) || null;
+        // Get venue from the joined data or fall back to local venues
+        const venue = reservation.venue || 
+                     venues.find(v => v.venue_id === reservation.venue_id) || 
+                     null;
         const equipment = equipmentByReservation[reservation.reservation_id] || [];
         
         // Create resource text that shows venue and equipment
@@ -246,7 +249,7 @@ export function EventCalendar(props) {
             org_code: orgCode,
             org_name: orgName,
             organization: org || null,
-            venue, // Add venue object
+            venue: venue, // Ensure venue is properly passed
             equipment, // Add equipment array
             equipment_ids: equipment.map(e => e.equipment_id) // Add equipment IDs for easier access
           }
@@ -449,8 +452,8 @@ export function EventCalendar(props) {
               </div>
             )}
             
-            {/* Venue on its own line - not shown in month view */}
-            {view !== 'month' && raw.venue && (
+            {/* Venue on its own line */}
+            {raw.venue && (
               <div className="text-xs text-gray-700 font-medium">
                 {raw.venue.venue_name || `Venue ${raw.venue_id}`}
               </div>
@@ -1001,13 +1004,8 @@ export function EventCalendar(props) {
                event.status === 'Pending' ? 3 :
                event.status === 'Cancelled' ? 4 : 3);
             
-            // Define soft, pleasant background colors for each status
-            const bgColors = {
-              1: '#edf7ee', // Reserved/Approved - soft green
-              2: '#fef1f1', // Rejected - soft red
-              3: '#fef9ee', // Pending - soft cream (instead of harsh yellow)
-              4: '#f8f8f8', // Cancelled - light gray
-            };
+            // Single background color for all events
+            const backgroundColor = '#f8fafc';
             
             // Get border color from statusStyles
             let borderClass = getStatusStyle(statusId);
@@ -1029,17 +1027,17 @@ export function EventCalendar(props) {
             }
 
             
+            // Add custom class to the event's parent cell
             return {
               style: {
-                backgroundColor: bgColors[statusId] || '#ffffff',
-                borderLeft: `4px solid ${borderColor}`,
-                borderRadius: '4px',
-                color: '#1a1a1a',
+                backgroundColor: backgroundColor,
                 border: 'none',
+                borderRadius: '4px',
                 padding: '2px 8px',
                 fontSize: '0.875rem',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
               },
+              className: `status-${statusId}`,
             };
           }}
         />

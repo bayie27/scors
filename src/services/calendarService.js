@@ -36,7 +36,6 @@ export async function saveReservation(formData, selectedReservation, modalEdit) 
         contact_no: singleFormData.contact_no || '',
         // Use single venue ID
         venue_id: singleFormData.venue_id ? Number(singleFormData.venue_id) : null,
-        equipment_id: null,
         reservation_status_id: singleFormData.reservation_status_id || 3,
         edit_ts: now
       };
@@ -102,7 +101,6 @@ export async function saveReservation(formData, selectedReservation, modalEdit) 
           reserved_by: day.reserved_by || '',
           contact_no: day.contact_no || '',
           venue_id: day.venue_id ? Number(day.venue_id) : null,
-          equipment_id: null,
           reservation_status_id: 3, // Always set new reservations to Pending
           reservation_ts: now,
           edit_ts: now
@@ -157,7 +155,6 @@ export async function saveReservation(formData, selectedReservation, modalEdit) 
         reserved_by: formData.reserved_by || '',
         contact_no: formData.contact_no || '',
         venue_id: formData.venue_id ? Number(formData.venue_id) : null,
-        equipment_id: null,
         reservation_status_id: 3, // Always set new reservations to Pending
         reservation_ts: now,
         edit_ts: now

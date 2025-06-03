@@ -316,6 +316,9 @@ const ReservationModal = ({
     // Check if either venue or equipment is selected
     if (!form.venue_id && (!form.equipment_ids || form.equipment_ids.length === 0)) {
       newErrors.venue_equipment = 'Either venue or at least one equipment must be selected';
+    } else if (form.equipment_ids && !Array.isArray(form.equipment_ids)) {
+      // Ensure equipment_ids is an array
+      newErrors.equipment_ids = 'Invalid equipment selection';
     }
 
     // Check if organization is selected
@@ -384,10 +387,12 @@ const ReservationModal = ({
     const normalizedPhone = form.contact_no ? normalizePhoneNumber(form.contact_no) : '';
     
     // Prepare base form data with proper type conversion
-    const prepareFormData = (formData, specificEquipmentId = null) => ({
+    const prepareFormData = (formData) => ({
       ...formData,
       venue_id: formData.venue_id ? Number(formData.venue_id) : null,
-      equipment_id: specificEquipmentId ? Number(specificEquipmentId) : null,
+      equipment_ids: Array.isArray(formData.equipment_ids) 
+        ? formData.equipment_ids.map(id => Number(id)) 
+        : [],
       org_id: Number(formData.org_id),
       reserved_by: formData.reserved_by, // Keep as string, don't convert to number
       officer_in_charge: formData.officer_in_charge, // Keep as string, don't convert to number
@@ -398,15 +403,12 @@ const ReservationModal = ({
     if (isEdit) {
       console.log('ReservationModal - Handling EDIT mode submission');
       // For edit mode, prepare consolidated reservation data
-      const formToSubmit = {
+      const formToSubmit = prepareFormData({
         ...form,
         activity_date: form.start_date,
-        // Keep the venue_id but set equipment_id to null for the main reservation
-        venue_id: form.venue_id ? Number(form.venue_id) : null,
-        equipment_id: null,
-        // Include the array for equipment
-        equipment_ids: form.equipment_ids
-      };
+        venue_id: form.venue_id,
+        equipment_ids: form.equipment_ids || []
+      });
       
       console.log('ReservationModal - Calling onSubmit with edit data:', formToSubmit);
       onSubmit(formToSubmit);
@@ -418,23 +420,20 @@ const ReservationModal = ({
       // Create one consolidated reservation for each day in the date range
       dateArray.forEach((date, dateIndex) => {
         // Create a single reservation with venue_id and equipment_ids array
-        allReservations.push({
-          ...form,
-          activity_date: date,
-          start_date: form.start_date,
-          end_date: form.end_date,
-          venue_id: form.venue_id ? Number(form.venue_id) : null, // Keep the single venue_id
-          equipment_id: null, // Set to null for new schema
-          org_id: Number(form.org_id),
-          reserved_by: form.reserved_by,
-          officer_in_charge: form.officer_in_charge,
-          contact_no: normalizedPhone,
-          reservation_status_id: form.reservation_status_id ? Number(form.reservation_status_id) : 3, // Default to 'Pending' status
-          isFirstDay: dateIndex === 0,
-          isMultiDay: dateArray.length > 1,
-          multiDayIndex: dateIndex,
-          multiDayTotal: dateArray.length
-        });
+        allReservations.push(
+          prepareFormData({
+            ...form,
+            activity_date: date,
+            start_date: form.start_date,
+            end_date: form.end_date,
+            venue_id: form.venue_id,
+            equipment_ids: form.equipment_ids || [],
+            isFirstDay: dateIndex === 0,
+            isMultiDay: dateArray.length > 1,
+            multiDayIndex: dateIndex,
+            multiDayTotal: dateArray.length
+          })
+        );
       });
       
       console.log('ReservationModal - Calling onSubmit with array of', allReservations.length, 'consolidated reservations');
