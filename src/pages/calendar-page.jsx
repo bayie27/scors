@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { EventCalendar } from "@/components/calendar/event-calendar";
 import { Sidebar } from "@/components/sidebar/Sidebar";
@@ -13,13 +14,17 @@ import scorsLogo from "@/assets/scors-logo.png";
 import { format } from 'date-fns';
 import { useRoleAccess } from "@/lib/useRoleAccess.jsx";
 
-export function CalendarPage({ user, onSignOut }) {
+export function CalendarPage({ user, onSignOut, view = 'calendar' }) {
   const { isAdmin, canManageUsers } = useRoleAccess();
   const [collapsed, setCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeView, setActiveView] = useState('calendar');
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  
+  // Get the view from the URL path if not provided as a prop
+  const currentView = view || location.pathname.split('/')[1] || 'calendar';
 
   const handleSearch = useCallback((term) => {
     setSearchTerm(term);
@@ -39,23 +44,17 @@ export function CalendarPage({ user, onSignOut }) {
     setCollapsed(!collapsed);
   };
 
-  const handleMenuItemClick = (view) => {
-    // If user is trying to access Users page or Approvals but doesn't have permission, redirect to Calendar
-    if ((view === 'users' || view === 'approvals') && !canManageUsers()) {
-      // User doesn't have permission to view this page
-      setActiveView('calendar');
-    } else {
-      setActiveView(view);
-    }
-    setSearchTerm(''); // Reset search term when changing views
-  };
+  // Reset search term when changing views
+  useEffect(() => {
+    setSearchTerm('');
+  }, [location.pathname]);
   
   // Ensure user is redirected from restricted pages on component mount
   useEffect(() => {
-    if ((activeView === 'users' || activeView === 'approvals') && !canManageUsers()) {
-      setActiveView('calendar');
+    if ((currentView === 'users' || currentView === 'approvals') && !canManageUsers) {
+      navigate('/');
     }
-  }, [canManageUsers, activeView]);
+  }, [canManageUsers, currentView, navigate]);
   
   // Function to handle event creation from the calendar's quick add button
   const handleQuickAddEvent = () => {
@@ -72,9 +71,9 @@ export function CalendarPage({ user, onSignOut }) {
     }
   };
 
-  // Render the appropriate component based on activeView
+  // Render the appropriate component based on the current view
   const renderContent = () => {
-    switch (activeView) {
+    switch (currentView) {
       case 'calendar':
         return (
           <EventCalendar 
@@ -156,8 +155,6 @@ export function CalendarPage({ user, onSignOut }) {
           onSignOut={onSignOut} 
           onReserve={handleReserveClick}
           collapsed={collapsed}
-          onMenuItemClick={handleMenuItemClick}
-          activeView={activeView}
         />
 
         {/* Main Content Area */}

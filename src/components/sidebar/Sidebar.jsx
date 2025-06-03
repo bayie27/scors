@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRoleAccess } from "@/lib/useRoleAccess.jsx";
+import { NavLink, useLocation } from "react-router-dom";
 
 
 /**
@@ -31,14 +32,13 @@ export function Sidebar({
   onSignOut = () => {}, 
   onReserve = () => {}, 
   className = '', 
-  collapsed = false, 
-  onMenuItemClick, 
-  activeView = 'calendar' 
+  collapsed = false
 }) { 
   const { isAdmin, canManageUsers } = useRoleAccess();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const location = useLocation();
   
   // Check if screen is mobile-sized
   useEffect(() => {
@@ -61,7 +61,7 @@ export function Sidebar({
     if (isMobile) {
       setIsMobileMenuOpen(false);
     }
-  }, [activeView, isMobile]);
+  }, [location.pathname, isMobile]);
   
   const handleSignOut = async () => {
     try {
@@ -95,36 +95,42 @@ export function Sidebar({
     {
       title: "Calendar",
       icon: <Calendar size={20} />,
+      path: "/",
       view: "calendar",
       requiredPermission: true, // Always visible
     },
     {
       title: "Users",
       icon: <Users size={20} />,
+      path: "/users",
       view: "users",
       requiredPermission: canManageUsers(), // Only visible for admin users
     },
     {
       title: "Venues",
       icon: <Building2 size={20} />,
+      path: "/venues",
       view: "venues",
       requiredPermission: true, // Always visible
     },
     {
       title: "Equipment",
       icon: <Boxes size={20} />,
+      path: "/equipment",
       view: "equipment",
       requiredPermission: true, // Always visible
     },
     {
       title: "Pending Approvals",
       icon: <ClipboardCheck size={20} />,
+      path: "/approvals",
       view: "approvals",
       requiredPermission: canManageUsers(), // Only visible for admin users
     },
     {
       title: "Help",
       icon: <HelpCircle size={20} />,
+      path: "/help",
       view: "help",
       requiredPermission: true, // Always visible
     },
@@ -139,10 +145,7 @@ export function Sidebar({
   };
 
   // Handle menu item click (close mobile menu after clicking)
-  const handleMenuItemClick = (view) => {
-    if (onMenuItemClick) {
-      onMenuItemClick(view);
-    }
+  const handleMenuItemClick = () => {
     if (isMobile) {
       setIsMobileMenuOpen(false);
     }
@@ -222,27 +225,35 @@ export function Sidebar({
           <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.title}>
-                <Button
-                  variant={activeView === item.view ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full",
-                    collapsed && !isMobile ? "px-0 justify-center" : "px-3 justify-start"
-                  )}
-                  onClick={() => handleMenuItemClick(item.view)}
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) => 
+                    cn(
+                      "flex w-full items-center rounded-md",
+                      isActive 
+                        ? "bg-gray-100 text-blue-600" 
+                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+                      collapsed && !isMobile ? "px-0 py-2 justify-center" : "px-3 py-2 justify-start"
+                    )
+                  }
                 >
-                  {collapsed && !isMobile ? (
-                    <span className={activeView === item.view ? "text-blue-600" : ""}>
-                      {item.icon}
-                    </span>
-                  ) : (
+                  {({ isActive }) => (
                     <>
-                      <span className={cn("mr-3", activeView === item.view ? "text-blue-600" : "")}>
-                        {item.icon}
-                      </span>
-                      <span>{item.title}</span>
+                      {collapsed && !isMobile ? (
+                        <span className={isActive ? "text-blue-600" : ""}>
+                          {item.icon}
+                        </span>
+                      ) : (
+                        <>
+                          <span className={cn("mr-3", isActive ? "text-blue-600" : "")}>
+                            {item.icon}
+                          </span>
+                          <span>{item.title}</span>
+                        </>
+                      )}
                     </>
                   )}
-                </Button>
+                </NavLink>
               </li>
             ))}
           </ul>
@@ -324,7 +335,7 @@ export function Sidebar({
     </div>
 
       {/* Floating Action Button for Mobile - Only on Calendar View */}
-      {isMobile && activeView === 'calendar' && (
+      {isMobile && location.pathname === '/' && (
         <Button
           variant="default"
           size="icon"
