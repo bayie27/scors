@@ -213,41 +213,45 @@ export function PendingApprovalsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Pending Approvals</h1>
-      </div>
-
-      {/* Filter buttons */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <Button 
-          variant={filter === 'all' ? 'default' : 'outline'} 
-          size="sm" 
-          onClick={() => setFilter('all')}
-        >
-          All
-        </Button>
-        <Button 
-          variant={filter === 'today' ? 'default' : 'outline'} 
-          size="sm" 
-          onClick={() => setFilter('today')}
-        >
-          Today
-        </Button>
-        <Button 
-          variant={filter === 'tomorrow' ? 'default' : 'outline'} 
-          size="sm" 
-          onClick={() => setFilter('tomorrow')}
-        >
-          Tomorrow
-        </Button>
-        <Button 
-          variant={filter === 'thisWeek' ? 'default' : 'outline'} 
-          size="sm" 
-          onClick={() => setFilter('thisWeek')}
-        >
-          This Week
-        </Button>
+    <div className="container mx-auto py-6 px-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Pending Approvals</h1>
+          <p className="text-sm text-gray-500 mt-1">Review and manage pending reservation requests</p>
+        </div>
+        <div className="w-full sm:w-auto">
+          {/* Filter buttons */}
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              variant={filter === 'all' ? 'default' : 'outline'} 
+              size="sm" 
+              onClick={() => setFilter('all')}
+            >
+              All
+            </Button>
+            <Button 
+              variant={filter === 'today' ? 'default' : 'outline'} 
+              size="sm" 
+              onClick={() => setFilter('today')}
+            >
+              Today
+            </Button>
+            <Button 
+              variant={filter === 'tomorrow' ? 'default' : 'outline'} 
+              size="sm" 
+              onClick={() => setFilter('tomorrow')}
+            >
+              Tomorrow
+            </Button>
+            <Button 
+              variant={filter === 'thisWeek' ? 'default' : 'outline'} 
+              size="sm" 
+              onClick={() => setFilter('thisWeek')}
+            >
+              This Week
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Main content */}
