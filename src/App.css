@@ -25,3 +25,7 @@
   border-left-width: 6px;
   margin-left: -2px; /* Compensate for the increased border width */
 }
+
+.rbc-event-label {
+  color: black;
+}

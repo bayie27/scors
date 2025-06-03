@@ -56,6 +56,29 @@ export function CalendarPage({ user, onSignOut }) {
     }
   }, [canManageUsers, activeView]);
   
+  // Reset reserve modal state when component unmounts or when view changes
+  useEffect(() => {
+    // Cleanup function to reset modal state
+    const resetModalState = () => {
+      if (isReserveModalOpen) {
+        setIsReserveModalOpen(false);
+      }
+      if (selectedSlot) {
+        setSelectedSlot(null);
+      }
+    };
+    
+    // Reset modal state when view changes to something other than calendar
+    if (activeView !== 'calendar') {
+      resetModalState();
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      resetModalState();
+    };
+  }, [activeView, isReserveModalOpen, selectedSlot]);
+  
   // Function to handle event creation from the calendar's quick add button
   const handleQuickAddEvent = () => {
     const title = prompt('Quick Add Event (Today)');
@@ -82,6 +105,7 @@ export function CalendarPage({ user, onSignOut }) {
             selectedSlot={selectedSlot}
             onSlotSelected={() => setIsReserveModalOpen(false)}
             onQuickAddEvent={handleQuickAddEvent}
+            onReserve={handleReserveClick}
           />
         );
       case 'users':

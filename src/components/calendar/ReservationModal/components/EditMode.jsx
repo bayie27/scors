@@ -26,9 +26,10 @@ const EditMode = ({
 }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl relative overflow-hidden">
-        <div className="p-6 space-y-4">
-          <div className="flex justify-between items-center pb-4 border-b">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl relative flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="px-6 py-4 border-b">
+          <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-800">
               {isEdit ? 'Edit Reservation' : 'New Reservation'}
             </h2>
@@ -40,9 +41,11 @@ const EditMode = ({
               <X size={24} />
             </button>
           </div>
+        </div>
 
-          <div className="max-h-[70vh] overflow-y-auto py-4 space-y-6">
-            <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <form id="reservation-form" onSubmit={onSubmit} className="space-y-4" noValidate>
 
               
               <div>
@@ -327,28 +330,28 @@ const EditMode = ({
                   <p className={`mt-1 text-xs ${errors.contact_no ? 'text-red-600' : 'text-gray-500'}`}>{errors.contact_no ? errors.contact_no : 'Enter a valid mobile number. Format: 09XXXXXXXXX or +639XXXXXXXXX.'}</p>
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  onClick={(e) => {
-                    // This is just logging, the actual submission happens through the form's onSubmit
-                    console.log('EditMode - Submit button clicked, isEdit:', isEdit);
-                  }}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  {isEdit ? 'Update' : 'Create'} Reservation
-                </button>
-              </div>
+              {/* Form fields remain here */}
             </form>
           </div>
-        </div>
+          
+          {/* Sticky Footer with Buttons */}
+          <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              form="reservation-form"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              {isEdit ? 'Update' : 'Create'} Reservation
+            </button>
+          </div>
+
       </div>
     </div>
   );

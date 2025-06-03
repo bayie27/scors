@@ -1,9 +1,19 @@
 import React from 'react';
+import { Plus } from 'lucide-react';
 
-function CustomToolbar({ onView, onNavigate, label, view }) {
+function CustomToolbar({ onView, onNavigate, label, view, onReserve }) {
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4">
       <div className="flex items-center space-x-2">
+        {onReserve && (
+          <button
+            onClick={onReserve}
+            className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded flex items-center gap-1.5"
+          >
+            <Plus size={16} />
+            <span>Reserve</span>
+          </button>
+        )}
         <button
           onClick={() => onNavigate('TODAY')}
           className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"

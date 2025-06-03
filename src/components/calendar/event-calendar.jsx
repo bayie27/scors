@@ -99,6 +99,7 @@ export function EventCalendar(props) {
   const { 
     searchTerm = "", 
     onSearchChange,
+    onReserve,
     selectedSlot,
     onSlotSelected
   } = props || {};
@@ -435,7 +436,9 @@ export function EventCalendar(props) {
       <div className="p-0.5 h-full">
         <div 
           className={`rounded-md border-l-4 p-2 h-full flex flex-col overflow-hidden shadow-sm ${statusClass} hover:shadow-md transition-all duration-150`}
-          style={{ background: 'inherit' }}
+          style={{
+            backgroundColor: statusColors[statusId] ? statusColors[statusId].split(' ')[1] : 'inherit',
+          }}
         >
           {/* Event title */}
           <div className="mb-1">
@@ -525,10 +528,21 @@ export function EventCalendar(props) {
           return true;
         }
         
-        // Check equipment name
-        if (event.rawData?.equipment?.equipment_name && 
-            event.rawData.equipment.equipment_name.toLowerCase().includes(searchLower)) {
-          return true;
+        // Check equipment names (handle both single equipment and array of equipment)
+        const equipmentItems = event.rawData?.equipment;
+        if (equipmentItems) {
+          // Handle case where equipment is an array
+          if (Array.isArray(equipmentItems)) {
+            if (equipmentItems.some(eq => 
+              eq?.equipment_name?.toLowerCase().includes(searchLower)
+            )) {
+              return true;
+            }
+          } 
+          // Handle case where equipment is a single object
+          else if (equipmentItems.equipment_name?.toLowerCase().includes(searchLower)) {
+            return true;
+          }
         }
         
         return false;
@@ -994,7 +1008,13 @@ export function EventCalendar(props) {
           onNavigate={onNavigate}
           components={{
             event: EventComponent,
-            toolbar: (props) => <CustomToolbar {...props} view={view} />
+            toolbar: (toolbarProps) => (
+              <CustomToolbar 
+                {...toolbarProps} 
+                view={view} 
+                onReserve={onReserve} 
+              />
+            )
           }}
           eventPropGetter={(event) => {
             // Get status ID from event data
