@@ -171,14 +171,14 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[95%] max-w-md mx-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>
-            {user?.user_id ? "Edit User" : "Add User"}
+          <DialogTitle className="text-lg sm:text-xl">
+            {user?.user_id ? "Edit User" : "Add New User"}
           </DialogTitle>
         </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        
+        <form onSubmit={handleSubmit} className="mt-4 space-y-6">
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
               {error}
@@ -200,7 +200,7 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
               value={formData.org_id}
               onChange={handleOrgChange}
               disabled={fetchingOrgs}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
               required
             >
               <option value="">Select an organization</option>
@@ -212,7 +212,7 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
             </select>
             
             {fetchingOrgs && (
-              <div className="text-sm text-gray-500 flex items-center mt-1">
+              <div className="text-xs sm:text-sm text-gray-500 flex items-center mt-1">
                 <Loader2 className="animate-spin h-3 w-3 mr-1" />
                 Loading organizations...
               </div>
@@ -237,23 +237,24 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
               onChange={handleChange}
               placeholder="org@dlsl.edu.ph"
               required
-              className="focus:border-blue-500 focus:ring-blue-500"
+              className="focus:border-blue-500 focus:ring-blue-500 text-sm sm:text-base"
             />
           </div>
 
-          <DialogFooter className="mt-6">
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={loading}
+              className="w-full sm:w-auto order-2 sm:order-1"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
             >
               {loading ? (
                 <>
@@ -277,9 +278,9 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
 export function DeleteUserDialog({ isOpen, onClose, onConfirm, isLoading, userName }) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[95%] max-w-md mx-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle>Confirm Deletion</DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">Confirm Deletion</DialogTitle>
         </DialogHeader>
         
         <div className="py-4">
@@ -288,12 +289,13 @@ export function DeleteUserDialog({ isOpen, onClose, onConfirm, isLoading, userNa
           </p>
         </div>
         
-        <DialogFooter className="flex justify-end gap-3">
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full">
           <Button
             type="button"
             onClick={onClose}
             variant="outline"
             disabled={isLoading}
+            className="w-full sm:w-auto order-2 sm:order-1"
           >
             Cancel
           </Button>
@@ -301,7 +303,7 @@ export function DeleteUserDialog({ isOpen, onClose, onConfirm, isLoading, userNa
             type="button" 
             onClick={onConfirm}
             disabled={isLoading}
-            className="bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white"
+            className="bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white w-full sm:w-auto order-1 sm:order-2"
           >
             {isLoading ? (
               <>
