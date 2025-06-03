@@ -822,7 +822,7 @@ export function EventCalendar(props) {
     <div className="relative bg-white p-4 rounded-lg shadow h-[calc(100vh-4rem)] flex flex-col">
       <div className="flex flex-col gap-4 mb-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Calendar</h1>
           <div className="flex gap-2">
             <form onSubmit={e => e.preventDefault()} className="w-64">
               <div className="relative">

@@ -69,7 +69,7 @@ export function CalendarPage({ user, onSignOut, view = 'calendar' }) {
     };
     
     // Reset modal state when view changes to something other than calendar
-    if (activeView !== 'calendar') {
+    if (view !== 'calendar') {
       resetModalState();
     }
     
@@ -77,7 +77,7 @@ export function CalendarPage({ user, onSignOut, view = 'calendar' }) {
     return () => {
       resetModalState();
     };
-  }, [activeView, isReserveModalOpen, selectedSlot]);
+  }, [view, isReserveModalOpen, selectedSlot]);
   
   // Function to handle event creation from the calendar's quick add button
   const handleQuickAddEvent = () => {
