@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Trash2, Search, Loader2, Building2 } from "lucide-react";
+import { Edit, Trash2, Search, Loader2, Building2, Plus } from "lucide-react";
 import { supabase } from '../supabase-client';
 import { OrganizationDialog } from "@/components/organizations/organization-dialog";
 import { UserDialog, DeleteUserDialog } from "@/components/users/user-dialog";
@@ -20,6 +20,7 @@ export function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [orgDialogOpen, setOrgDialogOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   
   // User dialog states
   const [userDialogOpen, setUserDialogOpen] = useState(false);
@@ -32,24 +33,57 @@ export function UsersPage() {
   
   // Track subscription to prevent memory leaks
   const subscriptionRef = useRef(null);
-
-  // Set up real-time subscription
-  useEffect(() => {
-    // Initial fetch
-    fetchUsers();
-    
-    // Set up real-time subscription
-    setupSubscription();
-    
-    // Clean up subscription when component unmounts
-    return () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
+  
+  // Memoize the fetchUsers function to prevent unnecessary re-renders
+  const fetchUsers = useCallback(async () => {
+    try {
+      console.log('Fetching users data...');
+      // Only show loading indicator on initial load, not on refreshes
+      if (users.length === 0) {
+        setLoading(true);
       }
-    };
-  }, []);
-
-  const setupSubscription = async () => {
+      
+      // Fetch users with their associated organizations
+      const { data: _data, error } = await supabase
+        .from("user")
+        .select(`
+          *,
+          organization:org_id (
+            org_id,
+            org_code,
+            org_name
+          )
+        `)
+        .order('user_id', { ascending: true });
+      
+      if (error) throw error;
+      
+      console.log('Users data fetched:', _data?.length || 0, 'records');
+      
+      // Update users state with fresh data
+      setUsers(_data || []);
+      
+      // Update filtered users based on current search query
+      if (searchQuery.trim() === "") {
+        setFilteredUsers(_data || []);
+      } else {
+        const query = searchQuery.toLowerCase();
+        const filtered = (_data || []).filter(user => 
+          user.whitelisted_email?.toLowerCase().includes(query) ||
+          user.organization?.org_code?.toLowerCase().includes(query) ||
+          user.organization?.org_name?.toLowerCase().includes(query)
+        );
+        setFilteredUsers(filtered);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, users.length]);
+  
+  // Set up real-time subscription
+  const setupSubscription = useCallback(async () => {
     try {
       // Clean up any existing subscription first
       if (subscriptionRef.current) {
@@ -63,7 +97,7 @@ export function UsersPage() {
           broadcast: { self: true },
           presence: { key: 'user-management' },
         },
-      })
+      });
       
       channel
         .on('presence', { event: 'sync' }, () => {
@@ -89,7 +123,7 @@ export function UsersPage() {
             // User deleted
             fetchUsers();
           }
-        )
+        );
       
       // Subscribe to the channel
       const status = await channel.subscribe(async (status) => {
@@ -98,7 +132,7 @@ export function UsersPage() {
           // Force a refresh when subscription is established
           await fetchUsers();
         }
-      })
+      });
       
       // Store the channel reference
       subscriptionRef.current = channel;
@@ -107,8 +141,34 @@ export function UsersPage() {
       // Error setting up real-time subscription
       // Retry subscription after a delay
       setTimeout(() => setupSubscription(), 3000);
+      throw error;
     }
-  };
+  }, [fetchUsers]);
+
+  // Set up subscription on component mount
+  useEffect(() => {
+    let isMounted = true;
+    
+    const init = async () => {
+      try {
+        await setupSubscription();
+      } catch (error) {
+        console.error('Failed to initialize subscription:', error);
+      }
+    };
+    
+    if (isMounted) {
+      init();
+    }
+    
+    // Clean up subscription when component unmounts
+    return () => {
+      isMounted = false;
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe().catch(console.error);
+      }
+    };
+  }, [setupSubscription]);
 
   useEffect(() => {
     // Filter users based on search query
@@ -126,7 +186,8 @@ export function UsersPage() {
     }
   }, [searchQuery, users]);
 
-  const fetchUsers = async () => {
+  // fetchUsers is already defined above using useCallback
+  /*
     try {
       // Fetching users data
       // Only show loading indicator on initial load, not on refreshes
@@ -172,6 +233,7 @@ export function UsersPage() {
       setLoading(false);
     }
   };
+  */
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
@@ -240,7 +302,7 @@ export function UsersPage() {
       const userId = userToDelete.user_id;
       const userEmail = userToDelete.whitelisted_email;
       
-      const { error, data } = await supabase
+      const { error } = await supabase
         .from('user')
         .delete()
         .eq('user_id', userId)
@@ -289,44 +351,69 @@ export function UsersPage() {
   return (
     <div className="p-4 md:p-6 flex flex-col h-full">
       {/* Sticky header area */}
-      <div className="bg-white z-10 sticky top-0 pb-4">
-        <div className="flex justify-between items-center pb-4">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900">Users</h1>
-      </div>
-      
-      <div className="bg-white rounded-xl shadow p-4 border">
-        <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
-          {/* Search input - full width on mobile, fixed width on desktop */}
-          <div className="relative flex items-center w-full sm:w-72">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search users..."
-              className="pl-8 pr-4 py-2 border-gray-300 rounded-md"
-              value={searchQuery}
-              onChange={handleSearchChange}
-            />
-          </div>
+        {/* Main container: column on mobile, row on sm+ */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-y-3 sm:gap-x-4">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 whitespace-nowrap">User Management</h1>
           
-          {/* Action buttons - stack on mobile, inline on desktop */}
-          <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:space-x-2">
+          {/* Actions Group: column on mobile, row on sm+ */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-3 w-full sm:w-auto">
+            {/* Search Input - always visible and full-width on mobile, expandable on sm+ */}
+            {/* Mobile Search (visible on base, hidden on sm and up) */}
+            <div className="relative flex items-center w-full sm:hidden">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <Input
+                placeholder="Search users..."
+                className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-full"
+                value={searchQuery}
+                onChange={handleSearchChange}
+              />
+            </div>
+            {/* Desktop Expandable Search (hidden on base, flex on sm and up) */}
+            <div className="relative hidden sm:flex items-center">
+              {isSearchOpen ? (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <Input
+                    placeholder="Search..."
+                    className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-40 focus:w-56 transition-all duration-300 ease-in-out"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onBlur={() => setTimeout(() => setIsSearchOpen(false), 150)}
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsSearchOpen(true)}
+                  className="text-gray-500 hover:text-gray-700 h-10 w-10"
+                  aria-label="Search users"
+                >
+                  <Search className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
+            
+            {/* Action Buttons: full width on mobile, auto width on sm+ */}
             <Button 
               onClick={handleAddUser}
-              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+              className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base"
             >
-              Add User +
+              <Plus className="h-4 w-4" />
+              <span>Add User</span>
             </Button>
+            
             <Button
               variant="outline"
               onClick={handleOpenOrgDialog}
-              className="border-blue-600 text-blue-600 hover:bg-blue-50 w-full sm:w-auto"
+              className="border-gray-300 text-gray-700 hover:bg-gray-100 h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base"
             >
-              <Building2 className="mr-2 h-4 w-4" />
-              List of Organizations
+              <Building2 className="h-4 w-4 mr-2" />
+              <span>List of Organizations</span>
             </Button>
           </div>
         </div>
-        </div>
-      </div>
 
       {/* Users Tables/Cards */}
       <div className="mt-4 bg-white rounded-xl shadow border overflow-hidden">

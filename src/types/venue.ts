@@ -1,28 +1,26 @@
-export type VenueStatus = 'available' | 'reserved' | 'maintenance';
-
 export interface Venue {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  name: string;
+  venue_id: number;
+  venue_name: string;
+  asset_status_id: number;
   description: string | null;
-  status: VenueStatus;
+  location: string | null;
   capacity: number | null;
-  type: string;
-  amenities: string[];
-  image_url: string | null;
+  equipments: string[];
+  image_url?: string | null;
+  // UI-only properties (not in database)
+  images?: string[];
 }
 
 export interface CreateVenueDTO {
-  name: string;
-  description?: string;
-  status?: VenueStatus;
-  capacity?: number;
-  type: string;
-  amenities?: string[];
-  image_url?: string;
+  venue_name: string;
+  asset_status_id: number;
+  description?: string | null;
+  location?: string | null;
+  capacity?: number | null;
+  equipments?: string[];
+  image_url?: string | null;
 }
 
-export interface UpdateVenueDTO extends Partial<Omit<CreateVenueDTO, 'id'>> {
-  id: string;
+export interface UpdateVenueDTO extends Partial<CreateVenueDTO> {
+  venue_id: number;
 }
