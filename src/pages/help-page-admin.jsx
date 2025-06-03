@@ -42,7 +42,7 @@ export default function UserManual() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
@@ -92,7 +92,7 @@ export default function UserManual() {
                   <ul className="text-blue-800 space-y-1 text-sm">
                     <li>• Real-time reservation management</li>
                     <li>• Interactive calendar interface</li>
-                    <li>• Comprehensive venue and equipment tracking</li>
+                    <li>• Venue and equipment tracking</li>
                     <li>• Streamlined approval workflows</li>
                     <li>• Organization and user management</li>
                   </ul>
