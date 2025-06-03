@@ -42,36 +42,60 @@ export default function UserManual() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-[#006241] rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">SCORS</h1>
-                  <p className="text-xs text-gray-500">Administrator Manual</p>
-                </div>
-              </div>
-            </div>
+      <header className="bg-white border-b shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <div className="flex justify-center mb-4">
+            <img src="scors-logo.png" alt="SCORS Logo" className="h-16" />
+          </div>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900">SCORS</h1>
+            <p className="text-sm text-gray-500">Administrator Manual</p>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 mb-8">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="modules">Modules</TabsTrigger>
-            <TabsTrigger value="workflows">Workflows</TabsTrigger>
-            <TabsTrigger value="support">Support</TabsTrigger>
-          </TabsList>
+          <TabsList
+  className="grid w-full grid-cols-2 lg:grid-cols-4 mb-8 border border-green-600 bg-white shadow-sm rounded-xl overflow-hidden"
+>
+  <TabsTrigger
+    value="overview"
+    className="flex items-center justify-center gap-2 py-2 px-3 font-semibold text-xs md:text-sm transition-all duration-200 rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600 data-[state=active]:bg-green-100 data-[state=active]:text-green-900 data-[state=active]:border-b-2 data-[state=active]:border-green-700"
+    aria-label="Overview"
+  >
+    <FileText className="w-4 h-4" style={{ color: '#006241' }} />
+    <span>Overview</span>
+  </TabsTrigger>
+  <TabsTrigger
+    value="modules"
+    className="flex items-center justify-center gap-2 py-2 px-3 font-semibold text-xs md:text-sm transition-all duration-200 rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600 data-[state=active]:bg-green-100 data-[state=active]:text-green-900 data-[state=active]:border-b-2 data-[state=active]:border-green-700"
+    aria-label="Modules"
+  >
+    <Wrench className="w-4 h-4" style={{ color: '#006241' }} />
+    <span>Modules</span>
+  </TabsTrigger>
+  <TabsTrigger
+    value="workflows"
+    className="flex items-center justify-center gap-2 py-2 px-3 font-semibold text-xs md:text-sm transition-all duration-200 rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600 data-[state=active]:bg-green-100 data-[state=active]:text-green-900 data-[state=active]:border-b-2 data-[state=active]:border-green-700"
+    aria-label="Workflows"
+  >
+    <Clock className="w-4 h-4" style={{ color: '#006241' }} />
+    <span>Workflows</span>
+  </TabsTrigger>
+  <TabsTrigger
+    value="support"
+    className="flex items-center justify-center gap-2 py-2 px-3 font-semibold text-xs md:text-sm transition-all duration-200 rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600 data-[state=active]:bg-green-100 data-[state=active]:text-green-900 data-[state=active]:border-b-2 data-[state=active]:border-green-700"
+    aria-label="Support"
+  >
+    <Mail className="w-4 h-4" style={{ color: '#006241' }} />
+    <span>Support</span>
+  </TabsTrigger>
+</TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            <Card>
+            <Card className="mb-8">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <div className="w-6 h-6 bg-[#006241] rounded flex items-center justify-center">
@@ -105,7 +129,7 @@ export default function UserManual() {
               {modules.map((module) => (
                 <Card key={module.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center space-x-2 text-base">
+                    <CardTitle className="text-base flex items-center space-x-2">
                       <module.icon className="w-5 h-5" style={{ color: module.color }} />
                       <span>{module.name}</span>
                     </CardTitle>
