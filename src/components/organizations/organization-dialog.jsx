@@ -333,7 +333,7 @@ export function OrganizationDialog({ open, onClose }) {
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="w-[95%] max-w-lg mx-auto p-4 sm:p-6">
+        <DialogContent className="!max-w-6xl w-[95%] mx-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-lg sm:text-xl font-bold">Organizations</DialogTitle>
           </DialogHeader>
@@ -373,13 +373,13 @@ export function OrganizationDialog({ open, onClose }) {
             <div className="mx-2 sm:mx-6 mb-6 bg-white rounded-xl shadow border overflow-hidden">
               <div className="max-h-[calc(100vh-300px)] overflow-auto">
                 {/* Desktop View - Table */}
-                <div className="hidden sm:block overflow-x-auto">
-                  <Table className="w-full">
+                <div className="hidden sm:block">
+                  <Table className="w-full table-fixed">
                     <TableHeader className="sticky top-0 bg-white z-10">
                       <TableRow>
-                        <TableHead className="bg-gray-100 font-medium whitespace-nowrap">Acronym</TableHead>
-                        <TableHead className="bg-gray-100 font-medium whitespace-nowrap">Name</TableHead>
-                        <TableHead className="w-52 text-center bg-gray-100 font-medium whitespace-nowrap">Actions</TableHead>
+                        <TableHead className="bg-gray-100 font-medium whitespace-nowrap w-1/5">Acronym</TableHead>
+                        <TableHead className="bg-gray-100 font-medium whitespace-nowrap w-2/5">Name</TableHead>
+                        <TableHead className="w-2/5 text-center bg-gray-100 font-medium whitespace-nowrap">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -395,7 +395,7 @@ export function OrganizationDialog({ open, onClose }) {
                             <TableCell className="font-medium text-gray-900 whitespace-nowrap">{org.org_code}</TableCell>
                             <TableCell className="text-gray-700">{org.org_name}</TableCell>
                             <TableCell>
-                              <div className="flex flex-row gap-2 justify-center items-center">
+                              <div className="flex flex-row gap-3 justify-center items-center">
                                 <Button
                                   variant="outline"
                                   size="sm"
