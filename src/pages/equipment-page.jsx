@@ -1,33 +1,52 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  Plus, 
-  Search as SearchIcon, 
-  Filter, 
-  MapPin as MapPinIcon, 
-  SquareStack, 
-  Tag,
-  PackageCheck,
-  PackageOpen,
-  Clipboard,
-  X
-} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-  DialogTitle,
-  DialogDescription,
-  DialogClose
-} from '@/components/ui/dialog';
-import { AssetCard } from '@/components/cards/asset-card';
-import { AddEquipmentDialog } from '@/components/equipment/AddEquipmentDialog';
-
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { 
+  Plus, 
+  Search as SearchIcon, 
+  X, 
+  Edit as EditIcon, 
+  Trash as TrashIcon,
+  Upload,
+  ImageIcon,
+  Loader2,
+  SquareStack,
+} from 'lucide-react';
+import { AssetCard } from '@/components/cards/asset-card';
 import { equipmentService } from '@/services/equipment-service';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogClose,
+  DialogDescription,
+} from '@/components/ui/dialog';
+// Form schema is now handled in dialog components
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { AddEquipmentDialog } from '@/components/equipment/AddEquipmentDialog';
+import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
 
 // Simple image carousel for equipment modal
 function EquipmentImageCarousel({ images = [] }) {
@@ -68,6 +87,7 @@ function StatusIcon({ status, ...props }) {
   }
 }
 
+
 export function EquipmentPage() {
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
@@ -75,7 +95,12 @@ export function EquipmentPage() {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [equipmentToDelete, setEquipmentToDelete] = useState(null);
   const [isAddEquipmentDialogOpen, setIsAddEquipmentDialogOpen] = useState(false);
+  const [isEditEquipmentDialogOpen, setIsEditEquipmentDialogOpen] = useState(false);
+  const [equipmentToEdit, setEquipmentToEdit] = useState(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const subscriptionRef = useRef(null);
 
   const fetchEquipment = useCallback(async () => {
@@ -112,45 +137,76 @@ export function EquipmentPage() {
     }
   }, []);
 
-  const handleAddEquipmentSubmit = async (equipmentFormData, imageFile) => {
-    console.log('Starting equipment submission with data:', equipmentFormData);
-    console.log('Image file to upload:', imageFile ? imageFile.name : 'No image');
-    
+  const handleAddEquipmentSubmit = async (equipmentData, imageFile) => {
     try {
-      // Only attempt to create with direct service call if no image is present
-      if (!imageFile) {
-        console.log('No image to upload, creating equipment directly');
-        const createdEquipment = await equipmentService.createEquipment(equipmentFormData);
-        console.log('Equipment created successfully:', createdEquipment);
-        
-        toast.success('Equipment added successfully!');
-        fetchEquipment(); // Refresh the list
-        setIsAddEquipmentDialogOpen(false); // Close the dialog
-        return Promise.resolve(createdEquipment);
-      }
-      
-      // If we have an image, handle the upload and creation together
-      console.log('Image present, handling upload and creation together');
-      // First upload the image
-      try {
-        // Use the direct service method that handles both image upload and equipment creation
-        const createdEquipment = await equipmentService.createEquipment(equipmentFormData, imageFile);
-        console.log('Equipment created with image:', createdEquipment);
-        
-        toast.success('Equipment added successfully with image!');
-        fetchEquipment(); // Refresh the list
-        setIsAddEquipmentDialogOpen(false); // Close the dialog
-        return Promise.resolve(createdEquipment);
-      } catch (error) {
-        console.error('Failed to upload image or create equipment:', error);
-        toast.error('Failed to add equipment with image. Please try again.');
-        return Promise.reject(error);
-      }
+      setIsLoading(true);
+      await equipmentService.createEquipment(equipmentData, imageFile);
+      toast.success('Equipment added successfully');
+      fetchEquipment(); // Refresh the equipment list
     } catch (error) {
       console.error('Failed to add equipment:', error);
-      toast.error(error.message || 'Failed to add equipment. Please try again.');
-      return Promise.reject(error);
+      toast.error('Failed to add equipment: ' + error.message);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleEditEquipmentSubmit = async (equipmentData, imageFile) => {
+    try {
+      setIsLoading(true);
+      const updatedEquipment = await equipmentService.updateEquipment(equipmentData, imageFile);
+      toast.success('Equipment updated successfully');
+      fetchEquipment(); // Refresh the equipment list
+      if (selectedEquipment && selectedEquipment.equipment_id === equipmentData.equipment_id) {
+        // Update the selected equipment if it's currently displayed in the modal
+        const updatedImageUrl = imageFile ? await equipmentService.getFullImageUrl(updatedEquipment.image_url) : selectedEquipment.image_url;
+        setSelectedEquipment({
+          ...updatedEquipment,
+          image_url: updatedImageUrl
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update equipment:', error);
+      toast.error('Failed to update equipment: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteEquipment = async () => {
+    if (!equipmentToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      await equipmentService.deleteEquipment(equipmentToDelete.equipment_id);
+      
+      // If the deleted equipment is currently selected, close the detail modal
+      if (selectedEquipment && selectedEquipment.equipment_id === equipmentToDelete.equipment_id) {
+        setSelectedEquipment(null);
+      }
+      
+      // Close the delete confirmation dialog
+      setIsDeleteDialogOpen(false);
+      setEquipmentToDelete(null);
+      
+      toast.success(`${equipmentToDelete.equipment_name} deleted successfully`);
+      fetchEquipment(); // Refresh the equipment list
+    } catch (error) {
+      console.error('Failed to delete equipment:', error);
+      toast.error(`Failed to delete equipment: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+  
+  const confirmDeleteEquipment = (equipment) => {
+    setEquipmentToDelete(equipment);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleOpenEditDialog = (equipment) => {
+    setEquipmentToEdit(equipment);
+    setIsEditEquipmentDialogOpen(true);
   };
 
   // Initial data fetch
@@ -206,6 +262,8 @@ export function EquipmentPage() {
       (item.location && item.location.toLowerCase().includes(query))
     );
   });
+
+  // This function is now handled by handleOpenEditDialog
 
   return (
     <div className="container mx-auto py-6 px-4">
@@ -306,14 +364,8 @@ export function EquipmentPage() {
               location={item.location}
               description={item.equipment_desc}
               onView={() => setSelectedEquipment(item)}
-              onEdit={() => {
-                toast.success('Edit functionality will be implemented soon!');
-              }}
-              onDelete={() => {
-                if (window.confirm(`Are you sure you want to delete "${item.equipment_name}"?`)) {
-                  toast.success('Delete functionality will be implemented soon!');
-                }
-              }}
+              onEdit={() => handleOpenEditDialog(item)}
+              onDelete={() => confirmDeleteEquipment(item)}
               className="h-full"
             />
           ))}
@@ -393,36 +445,19 @@ export function EquipmentPage() {
                   </Button>
                   <div className="flex gap-3">
                     <Button 
-                      variant="outline" 
-                      className="h-10 px-4 flex items-center gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-                      onClick={() => {
-                        toast.success('Edit functionality will be implemented soon!');
-                      }}
+                      onClick={() => handleOpenEditDialog(selectedEquipment)}
+                      className="h-10 px-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                      <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600">
-                        <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
-                      </svg>
-                      Edit Equipment
+                      <EditIcon className="h-4 w-4 text-blue-600" />
+                      Edit
                     </Button>
                     <div className="border-l border-gray-200 h-6 self-center hidden sm:block"></div>
                     <Button 
                       variant="outline" 
                       className="h-10 px-4 flex items-center gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300"
-                      onClick={async () => {
-                        if (window.confirm(`Are you sure you want to delete "${selectedEquipment.equipment_name}"? This action cannot be undone.`)) {
-                          try {
-                            toast.success('Delete functionality will be implemented soon!');
-                            setSelectedEquipment(null);
-                          } catch (error) {
-                            toast.error('Failed to delete equipment');
-                            console.error('Error deleting equipment:', error);
-                          }
-                        }
-                      }}
+                      onClick={() => confirmDeleteEquipment(selectedEquipment)}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                      <TrashIcon className="h-4 w-4" />
                       <span className="whitespace-nowrap">Delete Equipment</span>
                     </Button>
                   </div>
@@ -433,11 +468,93 @@ export function EquipmentPage() {
         </Dialog>
       )}
 
-      <AddEquipmentDialog
+      {/* Add Equipment Dialog */}
+      <AddEquipmentDialog 
         open={isAddEquipmentDialogOpen}
         onOpenChange={setIsAddEquipmentDialogOpen}
         onSubmitSuccess={handleAddEquipmentSubmit}
       />
+      
+      {/* Edit Equipment Dialog */}
+      {equipmentToEdit && (
+        <EditEquipmentDialog
+          open={isEditEquipmentDialogOpen}
+          onOpenChange={setIsEditEquipmentDialogOpen}
+          equipment={equipmentToEdit}
+          onSubmitSuccess={handleEditEquipmentSubmit}
+        />
+      )}
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+          <div className="p-6 pb-4 border-b">
+            <DialogTitle className="text-xl font-semibold text-gray-900">
+              Delete Equipment
+            </DialogTitle>
+          </div>
+          
+          <div className="p-6 space-y-4">
+            <div className="flex items-center space-x-3 text-amber-600 bg-amber-50 p-3 rounded-md">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="flex-shrink-0"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              <p className="text-sm font-medium">
+                This action cannot be undone. This will permanently delete the equipment.
+              </p>
+            </div>
+            
+            {equipmentToDelete && (
+              <p className="text-gray-700">
+                Are you sure you want to delete <span className="font-semibold">{equipmentToDelete.equipment_name}</span>?
+              </p>
+            )}
+          </div>
+          
+          <div className="p-6 pt-4 border-t bg-gray-50 flex justify-end gap-3">
+            <Button
+              variant="ghost"
+              className="h-10 px-4 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setEquipmentToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="h-10 px-4 bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleDeleteEquipment}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Equipment"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* NOTE: EditEquipmentDialog is already rendered above */}
     </div>
   );
 }

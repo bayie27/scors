@@ -81,16 +81,18 @@ export function AssetCard({
         )}
         
         {/* Action Buttons */}
-        <div className="absolute top-2 right-2 flex space-x-1 z-10">
+        <div className="absolute top-2 right-2 flex space-x-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           {onEdit && (
             <Button 
               size="icon" 
               variant="ghost" 
-              className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-gray-100 transition-all duration-200"
+              className="bg-blue-500/90 text-white h-8 w-8 p-0 shadow-md hover:bg-blue-600 hover:scale-110 hover:shadow-lg active:scale-95 transition-all duration-200 border border-blue-400"
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit();
               }}
+              aria-label="Edit equipment"
+              title="Edit equipment"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 20h9"></path>
@@ -102,13 +104,15 @@ export function AssetCard({
             <Button 
               size="icon" 
               variant="ghost" 
-              className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-red-50 group transition-all duration-200"
+              className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-md hover:bg-red-500 hover:text-white hover:scale-110 hover:shadow-lg active:scale-95 group transition-all duration-200 border border-gray-200"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete();
               }}
+              aria-label="Delete equipment"
+              title="Delete equipment"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-red-500 group-hover:text-red-600" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-red-500 group-hover:text-white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6"></polyline>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                 <line x1="10" y1="11" x2="10" y2="17"></line>

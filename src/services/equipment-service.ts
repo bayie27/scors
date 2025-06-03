@@ -234,14 +234,46 @@ export const equipmentService = {
       // If equipment had an image, attempt to delete it from storage
       if (equipmentToDelete?.image_url) {
         try {
-          // Extract the filename from the URL
+          // Skip if it's a base64 image
+          if (equipmentToDelete.image_url.startsWith('data:')) {
+            console.log('Skipping deletion of base64 image');
+            return;
+          }
+          
+          // Extract the file path from the URL
           const imageUrl = new URL(equipmentToDelete.image_url);
           const pathParts = imageUrl.pathname.split('/');
-          const filename = pathParts[pathParts.length - 1];
           
-          // Since we're using the venue_images bucket for now
-          await supabase.storage.from('venue_images').remove([filename]);
-          console.log('Deleted image from storage:', filename);
+          // The path should be in format /storage/v1/object/public/venue_images/equipment/filename
+          // We need to extract the 'equipment/filename' part
+          let filePath = '';
+          
+          // Find the bucket name index
+          const bucketIndex = pathParts.findIndex(part => part === IMAGE_BUCKET);
+          
+          if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+            // Get all parts after the bucket name
+            filePath = pathParts.slice(bucketIndex + 1).join('/');
+          } else {
+            // Fallback to just the filename with equipment/ prefix
+            filePath = `equipment/${pathParts[pathParts.length - 1]}`;
+          }
+          
+          // Remove any query parameters (cache busters)
+          filePath = filePath.split('?')[0];
+          
+          console.log(`Attempting to delete image: ${filePath} from ${IMAGE_BUCKET} bucket`);
+          
+          // Delete from storage
+          const { error } = await supabase.storage
+            .from(IMAGE_BUCKET)
+            .remove([filePath]);
+            
+          if (error) {
+            console.error('Error deleting image from storage:', error);
+          } else {
+            console.log('Successfully deleted image from storage:', filePath);
+          }
         } catch (storageError) {
           console.error('Error deleting image from storage:', storageError);
           // Don't throw here, as the main record deletion was successful
