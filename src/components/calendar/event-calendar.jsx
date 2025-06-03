@@ -156,12 +156,12 @@ export function EventCalendar(props) {
       let equipmentRelationships = [];
       
       if (reservationIds.length > 0) {
-        // Fetch equipment relationships
+        // Fetch equipment relationships with all equipment details
         const { data: equipmentData, error: equipmentError } = await supabase
           .from('reservation_equipment')
           .select(`
             reservation_id,
-            equipment:equipment_id(*)
+            equipment:equipment_id(equipment_id, equipment_name, equipment_desc, asset_status_id)
           `)
           .in('reservation_id', reservationIds);
         
@@ -218,9 +218,14 @@ export function EventCalendar(props) {
         if (venue) {
           resourceText += `Venue: ${venue.venue_name}`;
         }
-        if (equipment.length > 0) {
+        
+        // Debug equipment data
+        console.log(`Reservation ${reservation.reservation_id} equipment:`, equipment);
+        
+        if (equipment && equipment.length > 0) {
           if (resourceText) resourceText += ' | ';
-          resourceText += `Equipment: ${equipment.map(e => e.equipment_name).join(', ')}`;
+          // Make sure we handle equipment entries that might be missing equipment_name
+          resourceText += `Equipment: ${equipment.map(e => e?.equipment_name || `Item #${e?.equipment_id || 'Unknown'}`).join(', ')}`;
         }
         if (!resourceText) resourceText = 'No Location or Equipment';
         
@@ -378,54 +383,113 @@ export function EventCalendar(props) {
   // Handle view change
   const onView = useCallback((newView) => setView(newView), []);
 
+  // Status color mapping with better contrast
+  const statusColors = {
+    1: 'border-green-500 bg-green-50', // Reserved/Approved
+    2: 'border-red-500 bg-red-50',    // Rejected
+    3: 'border-yellow-500 bg-yellow-50', // Pending
+    4: 'border-gray-500 bg-gray-50',   // Cancelled
+  };
+
   // Custom event component
   const EventComponent = useCallback(({ event }) => {
     // Extract organization info from event.rawData
     const raw = event.rawData || {};
     const orgCode = raw.organization?.org_code || raw.org_code || '';
     const orgDisplay = orgCode || 'No Org';
+    const statusId = event.rawData?.reservation_status_id || event.status || 1;
+    const statusClass = statusColors[statusId] || 'border-blue-500 bg-blue-50';
 
-    // Only show time and purpose in month view
+    // Month view - compact display
     if (view === 'month') {
-      // Use status color for border/label in month view
-      const statusClass = getStatusStyle(event.rawData?.reservation_status_id || event.status);
       return (
-        <div className="p-0.5 overflow-hidden h-full">
-          <div className={`rounded border px-1 py-0.5 flex items-center gap-1 min-w-0 h-full ${statusClass}`}>
-            <span className="text-[10px] font-semibold whitespace-nowrap">
-              {format(event.start, 'h:mma')}
-            </span>
-            <span className="truncate" title={event.title}>
-              {event.title}
-            </span>
+        <div className="p-0.5 h-full">
+          <div 
+            className={`rounded-md border-l-4 p-1 h-full flex flex-col overflow-hidden shadow-sm ${statusClass} hover:shadow-md transition-shadow duration-150`}
+          >
+            <div className="flex items-start gap-1">
+              <span className="text-[10px] font-bold text-gray-600 whitespace-nowrap mt-0.5">
+                {format(event.start, 'h:mma')}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-medium text-gray-900 truncate leading-tight" title={event.title}>
+                  {event.title}
+                </div>
+                {orgDisplay && orgDisplay !== 'No Org' && (
+                  <div className="text-[10px] text-gray-500 truncate leading-tight" title={orgDisplay}>
+                    {orgDisplay}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       );
     }
     
-    // Consistent style for week, day, and list views
-    const statusClass = getStatusStyle(event.rawData?.reservation_status_id || event.status);
+    // Week/Day/List views - detailed display
     return (
-      <div className="p-1 overflow-hidden h-full">
-        <div className={`rounded border-l-4 h-full flex flex-col ${statusClass}`} style={{ background: 'inherit' }}>
-          <div className="font-medium text-sm truncate p-2">{event.title}</div>
-          {orgDisplay && (
-            <div className="text-xs text-gray-700 mt-1 truncate px-2" title={orgDisplay}>
-              {orgDisplay}
+      <div className="p-0.5 h-full">
+        <div 
+          className={`rounded-md border-l-4 p-2 h-full flex flex-col overflow-hidden shadow-sm ${statusClass} hover:shadow-md transition-all duration-150`}
+          style={{ background: 'inherit' }}
+        >
+          {/* Event title */}
+          <div className="mb-1">
+            <div className="font-medium text-sm text-gray-900 leading-tight break-words">
+              {event.title}
             </div>
-          )}
-          {/* Display venue name if available */}
-          {raw.venue && (
-            <div className="text-xs text-gray-500 mt-1 truncate px-2">
-              {raw.venue.venue_name || 'Venue ' + raw.venue_id}
-            </div>
-          )}
-          {/* Display equipment name if available */}
-          {raw.equipment && (
-            <div className="text-xs text-gray-500 mt-1 truncate px-2">
-              {raw.equipment.equipment_name || 'Equipment ' + raw.equipment_id}
-            </div>
-          )}
+          </div>
+          
+          {/* Event details - compact in week view */}
+          <div className="space-y-1 mt-1">
+            {orgDisplay && orgDisplay !== 'No Org' && (
+              <div className="text-xs text-gray-600 truncate">
+                {orgDisplay}
+              </div>
+            )}
+            
+            {/* Venue on its own line - not shown in month view */}
+            {view !== 'month' && raw.venue && (
+              <div className="text-xs text-gray-700 font-medium">
+                {raw.venue.venue_name || `Venue ${raw.venue_id}`}
+              </div>
+            )}
+            
+            {/* Equipment on the next line */}
+            {(raw.equipment || raw.equipment_id) && (
+              <div className="mt-0.5">
+                {Array.isArray(raw.equipment) && raw.equipment.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {raw.equipment.map((e) => (
+                      <span key={e.equipment_id} className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">
+                        {e.equipment_name || `Item ${e.equipment_id}`}
+                      </span>
+                    ))}
+                  </div>
+                ) : raw.equipment_id ? (
+                  <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">
+                    {raw.equipment?.equipment_name || `Item ${raw.equipment_id}`}
+                  </span>
+                ) : null}
+              </div>
+            )}
+          </div>
+          
+          {/* Status badge */}
+          <div className="mt-2 pt-1.5 border-t border-gray-100">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+              statusId === 1 ? 'bg-green-100 text-green-800' : 
+              statusId === 2 ? 'bg-red-100 text-red-800' :
+              statusId === 3 ? 'bg-yellow-100 text-yellow-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {statusId === 1 ? 'Approved' :
+               statusId === 2 ? 'Rejected' :
+               statusId === 3 ? 'Pending' :
+               statusId === 4 ? 'Cancelled' : 'Unknown'}
+            </span>
+          </div>
         </div>
       </div>
     );
