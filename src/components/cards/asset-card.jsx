@@ -81,12 +81,12 @@ export function AssetCard({
         )}
         
         {/* Action Buttons */}
-        <div className="absolute top-2 right-2 flex space-x-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="absolute top-2 right-2 flex space-x-1 z-10">
           {onEdit && (
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              className="bg-blue-500/90 text-white h-8 w-8 p-0 shadow-md hover:bg-blue-600 hover:scale-110 hover:shadow-lg active:scale-95 transition-all duration-200 border border-blue-400"
+            <Button
+              size="icon" // h-8 w-8
+              variant="ghost"
+              className="text-gray-700 bg-gray-100 hover:text-blue-600 hover:bg-blue-100 active:bg-blue-200 rounded-md shadow-md transition-colors duration-150 h-8 w-8"
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit();
@@ -94,17 +94,17 @@ export function AssetCard({
               aria-label="Edit equipment"
               title="Edit equipment"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 20h9"></path>
                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
               </svg>
             </Button>
           )}
           {onDelete && (
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-md hover:bg-red-500 hover:text-white hover:scale-110 hover:shadow-lg active:scale-95 group transition-all duration-200 border border-gray-200"
+            <Button
+              size="icon" // h-8 w-8
+              variant="ghost"
+              className="text-red-500 bg-gray-100 hover:text-red-600 hover:bg-red-100 active:bg-red-200 rounded-md shadow-md transition-colors duration-150 h-8 w-8"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete();
@@ -112,11 +112,8 @@ export function AssetCard({
               aria-label="Delete equipment"
               title="Delete equipment"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-red-500 group-hover:text-white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </Button>
           )}

@@ -106,28 +106,22 @@ export function EquipmentPage() {
   const fetchEquipment = useCallback(async () => {
     try {
       setIsLoading(true);
-      
       // Get equipment list from service
       const data = await equipmentService.getEquipment();
       console.log('Raw equipment data:', data);
       
-      // Process the equipment data to ensure image URLs are properly formatted
-      const processedData = data.map(item => {
-        // Skip processing for items without an image_url
-        if (!item.image_url) return { ...item, image_url: null };
-        
-        // Process base64 images directly
-        if (typeof item.image_url === 'string' && item.image_url.startsWith('data:')) {
-          return { ...item };
+      // Process the data to enhance it for UI display
+      const processedData = await Promise.all(data.map(async (item) => {
+        // Check if item already has a complete image URL
+        if (item.image_url && !item.image_url.startsWith('http')) {
+          // Get a full URL for the image if not already complete
+          const fullImageUrl = await equipmentService.getFullImageUrl(item.image_url);
+          return { ...item, image_url: fullImageUrl };
         }
-        
-        // Get a proper public URL for the image using our helper function
-        const imageUrl = equipmentService.getFullImageUrl(item.image_url);
-        console.log(`Processing image for ${item.equipment_name}:`, { original: item.image_url, processed: imageUrl });
-        
-        return { ...item, image_url: imageUrl };
-      });
+        return item;
+      }));
       
+      console.log('Processed equipment data:', processedData);
       setEquipment(processedData);
     } catch (error) {
       console.error('Failed to fetch equipment:', error);
@@ -139,37 +133,92 @@ export function EquipmentPage() {
 
   const handleAddEquipmentSubmit = async (equipmentData, imageFile) => {
     try {
-      setIsLoading(true);
+      // Show a loading toast that we'll update later
+      const toastId = toast.loading('Adding equipment...');
+      
+      // Create a temporary ID for optimistic UI updates
+      const tempId = `temp-${Date.now()}`;
+      
+      // Create a temporary image URL if an image file is provided
+      let tempImageUrl = null;
+      if (imageFile) {
+        tempImageUrl = URL.createObjectURL(imageFile);
+      }
+      
+      // Create an optimistic version of the equipment for the UI
+      const optimisticEquipment = {
+        ...equipmentData,
+        equipment_id: tempId,
+        image_url: tempImageUrl,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Add the optimistic equipment to the UI immediately
+      setEquipment(prev => [optimisticEquipment, ...prev]);
+      
+      // Actually create the equipment in the background
       await equipmentService.createEquipment(equipmentData, imageFile);
-      toast.success('Equipment added successfully');
-      fetchEquipment(); // Refresh the equipment list
+      
+      // Update toast to success
+      toast.success('Equipment added successfully', { id: toastId });
+      
+      // The real-time subscription will handle updating the real data
     } catch (error) {
       console.error('Failed to add equipment:', error);
       toast.error('Failed to add equipment: ' + error.message);
-    } finally {
-      setIsLoading(false);
+      
+      // On error, refresh the list to remove any optimistic updates
+      fetchEquipment();
     }
   };
 
   const handleEditEquipmentSubmit = async (equipmentData, imageFile) => {
     try {
-      setIsLoading(true);
-      const updatedEquipment = await equipmentService.updateEquipment(equipmentData, imageFile);
-      toast.success('Equipment updated successfully');
-      fetchEquipment(); // Refresh the equipment list
+      // Show a loading toast that we'll update later
+      const toastId = toast.loading('Updating equipment...');
+      
+      // Create a temporary image URL if an image file is provided
+      const tempImageUrl = imageFile ? URL.createObjectURL(imageFile) : null;
+      
+      // Create an optimistic version of the updated equipment
+      const optimisticUpdate = {
+        ...equipmentData,
+        image_url: tempImageUrl || equipmentData.image_url,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Update local state immediately for responsive UI
+      setEquipment(prevEquipment => {
+        return prevEquipment.map(item => 
+          item.equipment_id === equipmentData.equipment_id ? optimisticUpdate : item
+        );
+      });
+      
+      // If the equipment is selected in the modal, update it there too
       if (selectedEquipment && selectedEquipment.equipment_id === equipmentData.equipment_id) {
-        // Update the selected equipment if it's currently displayed in the modal
-        const updatedImageUrl = imageFile ? await equipmentService.getFullImageUrl(updatedEquipment.image_url) : selectedEquipment.image_url;
         setSelectedEquipment({
-          ...updatedEquipment,
-          image_url: updatedImageUrl
+          ...selectedEquipment,
+          ...optimisticUpdate
         });
       }
+      
+      // Perform the actual update in the background
+      await equipmentService.updateEquipment(equipmentData, imageFile);
+      
+      // Update toast to success
+      toast.success('Equipment updated successfully', { id: toastId });
+      
+      // Close the edit dialog
+      setIsEditEquipmentDialogOpen(false);
+      
+      // The real-time subscription will reconcile any differences when the server confirms
     } catch (error) {
       console.error('Failed to update equipment:', error);
       toast.error('Failed to update equipment: ' + error.message);
-    } finally {
-      setIsLoading(false);
+      
+      // Revert the optimistic update by re-fetching data
+      fetchEquipment();
     }
   };
 
@@ -178,10 +227,21 @@ export function EquipmentPage() {
     
     try {
       setIsDeleting(true);
-      await equipmentService.deleteEquipment(equipmentToDelete.equipment_id);
+      
+      // Store the equipment name before deletion for toast message
+      const equipmentName = equipmentToDelete.equipment_name;
+      const equipmentId = equipmentToDelete.equipment_id;
+      
+      // Show a loading toast that we'll update later
+      const toastId = toast.loading(`Deleting ${equipmentName}...`);
+      
+      // Optimistic UI update - immediately remove from state
+      setEquipment(prevEquipment => {
+        return prevEquipment.filter(item => item.equipment_id !== equipmentId);
+      });
       
       // If the deleted equipment is currently selected, close the detail modal
-      if (selectedEquipment && selectedEquipment.equipment_id === equipmentToDelete.equipment_id) {
+      if (selectedEquipment && selectedEquipment.equipment_id === equipmentId) {
         setSelectedEquipment(null);
       }
       
@@ -189,11 +249,19 @@ export function EquipmentPage() {
       setIsDeleteDialogOpen(false);
       setEquipmentToDelete(null);
       
-      toast.success(`${equipmentToDelete.equipment_name} deleted successfully`);
-      fetchEquipment(); // Refresh the equipment list
+      // Perform the actual delete in the background
+      await equipmentService.deleteEquipment(equipmentId);
+      
+      // Update toast to success
+      toast.success(`${equipmentName} deleted successfully`, { id: toastId });
+      
+      // The real-time subscription will handle any state reconciliation if needed
     } catch (error) {
       console.error('Failed to delete equipment:', error);
       toast.error(`Failed to delete equipment: ${error.message || 'Unknown error'}`);
+      
+      // Revert the optimistic update by re-fetching data
+      fetchEquipment();
     } finally {
       setIsDeleting(false);
     }
@@ -209,14 +277,97 @@ export function EquipmentPage() {
     setIsEditEquipmentDialogOpen(true);
   };
 
-  // Initial data fetch
+  // Initial data fetch and real-time subscription setup
   useEffect(() => {
     fetchEquipment();
     
-    // Set up real-time subscription
+    // Set up an optimized real-time subscription
     subscriptionRef.current = equipmentService.subscribeToEquipment((payload) => {
       console.log('Equipment changed:', payload);
-      fetchEquipment();
+      
+      // Handle the change based on the event type without full refetch
+      const { eventType, new: newRecord, old: oldRecord } = payload;
+      
+      if (eventType === 'INSERT') {
+        // Add the new equipment to the state if we don't already have it
+        setEquipment(prevEquipment => {
+          // Check if we already have this record from optimistic update
+          // by matching actual ID or checking if we have a temp record with matching name
+          const exists = prevEquipment.some(item => 
+            item.equipment_id === newRecord.equipment_id ||
+            (item.equipment_id.toString().startsWith('temp-') && 
+             item.equipment_name === newRecord.equipment_name)
+          );
+          
+          if (exists) {
+            // Replace any temporary record with the real server version
+            return prevEquipment.map(item => {
+              if (item.equipment_id === newRecord.equipment_id || 
+                 (item.equipment_id.toString().startsWith('temp-') && 
+                  item.equipment_name === newRecord.equipment_name)) {
+                return { 
+                  ...newRecord,
+                  // Preserve the image URL if it's a complete URL
+                  image_url: item.image_url && item.image_url.startsWith('http') 
+                    ? item.image_url 
+                    : newRecord.image_url
+                };
+              }
+              return item;
+            });
+          }
+          
+          // Get the image URL and add the new record
+          const processNewRecord = async () => {
+            if (newRecord.image_url && !newRecord.image_url.startsWith('http')) {
+              const fullImageUrl = await equipmentService.getFullImageUrl(newRecord.image_url);
+              setEquipment(prev => [{ ...newRecord, image_url: fullImageUrl }, ...prev]);
+            } else {
+              setEquipment(prev => [newRecord, ...prev]);
+            }
+          };
+          
+          processNewRecord();
+          return prevEquipment; // Return current state, async update will happen later
+        });
+      } 
+      else if (eventType === 'UPDATE') {
+        // Process the updated record to ensure it has a complete image URL
+        const processUpdatedRecord = async () => {
+          let fullImageUrl = newRecord.image_url;
+          
+          if (newRecord.image_url && !newRecord.image_url.startsWith('http')) {
+            fullImageUrl = await equipmentService.getFullImageUrl(newRecord.image_url);
+          }
+          
+          const updatedRecord = { ...newRecord, image_url: fullImageUrl };
+          
+          // Update the equipment in the state
+          setEquipment(prevEquipment => {
+            return prevEquipment.map(item => 
+              item.equipment_id === newRecord.equipment_id ? updatedRecord : item
+            );
+          });
+          
+          // If this equipment is currently selected, update it in the modal
+          if (selectedEquipment && selectedEquipment.equipment_id === newRecord.equipment_id) {
+            setSelectedEquipment(updatedRecord);
+          }
+        };
+        
+        processUpdatedRecord();
+      } 
+      else if (eventType === 'DELETE') {
+        // Remove the equipment from the state
+        setEquipment(prevEquipment => {
+          return prevEquipment.filter(item => item.equipment_id !== oldRecord.equipment_id);
+        });
+        
+        // If this equipment is currently selected, close the modal
+        if (selectedEquipment && selectedEquipment.equipment_id === oldRecord.equipment_id) {
+          setSelectedEquipment(null);
+        }
+      }
     });
     
     return () => {
@@ -225,10 +376,8 @@ export function EquipmentPage() {
         subscriptionRef.current();
       }
     };
-  }, [fetchEquipment]);
-
-  // Filter equipment based on search query - updated to match venue page pattern
-
+  }, [fetchEquipment, selectedEquipment]); // Include both dependencies
+  
   // Get status text based on asset_status_id
   const getStatusText = (assetStatusId) => {
     switch(assetStatusId) {
@@ -268,7 +417,10 @@ export function EquipmentPage() {
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold">Equipment Management</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Equipment Management</h1>
+          <p className="text-sm text-gray-500 mt-1">View details and management options for this equipment</p>
+        </div>
         <div className="flex items-center gap-4">
           {/* Search pill - icon only by default, expands to input on click */}
           <div className="h-10 flex items-center">
@@ -435,21 +587,16 @@ export function EquipmentPage() {
             <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 px-6 py-4 border-t bg-gray-50">
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                 <div className="flex justify-end gap-3 w-full">
-                  <Button 
-                    variant="ghost"
-                    className="h-10 px-4 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                    onClick={() => setSelectedEquipment(null)}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Close
-                  </Button>
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3 w-full">
                     <Button 
+                      variant="outline"
                       onClick={() => handleOpenEditDialog(selectedEquipment)}
-                      className="h-10 px-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                      className="h-10 px-4 flex items-center gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
                     >
-                      <EditIcon className="h-4 w-4 text-blue-600" />
-                      Edit
+                      <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600 mr-2">
+                        <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
+                      </svg>
+                      Edit Equipment
                     </Button>
                     <div className="border-l border-gray-200 h-6 self-center hidden sm:block"></div>
                     <Button 
