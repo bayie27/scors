@@ -177,18 +177,107 @@ export const equipmentService = {
     return publicUrl;
   },
 
+  // Helper function to extract file path from a public URL or path
+  extractStoragePathFromUrl(url: string | null): string | null {
+    if (!url) return null;
+    
+    try {
+      // If it's already a storage path (without the public URL prefix)
+      if (url.startsWith('equipment/')) {
+        return url;
+      }
+      
+      // If it's a full Supabase storage URL
+      if (url.includes(SUPABASE_URL) && url.includes(IMAGE_BUCKET)) {
+        // Extract the path after the bucket name
+        const regex = new RegExp(`${IMAGE_BUCKET}/([^?]+)`); 
+        const match = url.match(regex);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+      
+      // If it's just a filename, assume it's in the equipment folder
+      const fileName = url.split('/').pop()?.split('?')[0];
+      if (fileName) {
+        return `equipment/${fileName}`;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error extracting storage path from URL:', error);
+      return null;
+    }
+  },
+  
+  // Delete an image from storage
+  async deleteImage(imageUrl: string | null): Promise<boolean> {
+    if (!imageUrl) return false;
+    
+    try {
+      const storagePath = this.extractStoragePathFromUrl(imageUrl);
+      if (!storagePath) {
+        console.error('Could not extract storage path from URL:', imageUrl);
+        return false;
+      }
+      
+      console.log(`Attempting to delete image from ${IMAGE_BUCKET}/${storagePath}`);
+      
+      const { error } = await supabase.storage
+        .from(IMAGE_BUCKET)
+        .remove([storagePath]);
+      
+      if (error) {
+        console.error('Error deleting image:', error);
+        return false;
+      }
+      
+      console.log('Image deleted successfully');
+      return true;
+    } catch (error) {
+      console.error('Failed to delete image:', error);
+      return false;
+    }
+  },
+
   // Update an existing equipment
   async updateEquipment({ equipment_id, ...updates }: UpdateEquipmentDTO, imageFile?: File): Promise<Equipment> {
-    let imageUrl: string | null = updates.image_url !== undefined ? updates.image_url : null;
-
-    // Only try to upload if there's an image file
-    if (imageFile) {
+    // First, get the existing equipment to check for current image
+    const existingEquipment = await this.getEquipmentById(equipment_id);
+    const oldImageUrl = existingEquipment?.image_url || null;
+    
+    let imageUrl: string | null;
+    
+    // Case 1: Explicitly setting image_url to null (removing image without replacement)
+    if (updates.image_url === null) {
+      imageUrl = null;
+      // Delete the old image if it exists
+      if (oldImageUrl) {
+        await this.deleteImage(oldImageUrl);
+        console.log('Deleted old image without replacement');
+      }
+    }
+    // Case 2: Uploading a new image (replacing the old one)
+    else if (imageFile) {
       try {
+        // Upload new image
         imageUrl = await this.uploadEquipmentImage(imageFile);
+        
+        // Delete old image if it exists
+        if (oldImageUrl && oldImageUrl !== imageUrl) {
+          await this.deleteImage(oldImageUrl);
+          console.log('Deleted old image after replacement');
+        }
       } catch (uploadError) {
         console.error('Failed to upload image during equipment update:', uploadError);
-        // Continue with update using existing image URL if available
+        // Keep existing image if new upload fails
+        imageUrl = oldImageUrl;
       }
+    }
+    // Case 3: Not changing the image
+    else {
+      // Keep existing image_url unless explicitly set in updates
+      imageUrl = updates.image_url !== undefined ? updates.image_url : oldImageUrl;
     }
 
     const dataToUpdate = { ...updates, image_url: imageUrl };    
@@ -243,6 +332,7 @@ export const equipmentService = {
     try {
       // First, get the equipment to find its image_url
       const equipmentToDelete = await this.getEquipmentById(id);
+      const imageUrl = equipmentToDelete?.image_url || null;
       
       // Get the 'Cancelled' status ID from reservation_status table
       const { data: statusData, error: statusError } = await supabase
@@ -283,6 +373,12 @@ export const equipmentService = {
           console.error('Error updating reservations:', updateError);
           throw updateError;
         }
+      }
+      
+      // Delete the equipment's image if it exists
+      if (imageUrl) {
+        await this.deleteImage(imageUrl);
+        console.log(`Deleted image for equipment ${id} before removing record`);
       }
       
       // Now delete the equipment record
