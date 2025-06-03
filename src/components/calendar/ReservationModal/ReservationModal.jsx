@@ -67,7 +67,7 @@ const ReservationModal = ({
     end_date: '',
     start_time: '',
     end_time: '',
-    venue_id: '',
+    venue_id: '', // Single venue ID
     equipment_ids: [], // Array to store multiple equipment IDs
     org_id: '',
     reservation_status_id: '',
@@ -103,6 +103,9 @@ const ReservationModal = ({
         const equipmentIds = initialData.equipment_ids || 
           (initialData.equipment_id ? [initialData.equipment_id] : []);
           
+        // For backward compatibility, ensure we have a venue_id
+        const venueId = initialData.venue_id || (initialData.venues && initialData.venues.length > 0 ? initialData.venues[0].venue_id : '');
+          
         setForm({
           reservation_id: initialData.reservation_id || '',
           purpose: initialData.purpose || '',
@@ -113,7 +116,7 @@ const ReservationModal = ({
                    (initialData.activity_date ? initialData.activity_date.slice(0, 10) : ''),
           start_time: initialData.start_time ? initialData.start_time.slice(0, 5) : '',
           end_time: initialData.end_time ? initialData.end_time.slice(0, 5) : '',
-          venue_id: initialData.venue_id || '',
+          venue_id: venueId || '',
           equipment_ids: equipmentIds,
           org_id: initialData.org_id || '',
           reservation_status_id: initialData.reservation_status_id || '',
@@ -160,6 +163,8 @@ const ReservationModal = ({
       
       return;
     }
+
+
     
     // Handle other form fields
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -311,6 +316,9 @@ const ReservationModal = ({
     // Check if either venue or equipment is selected
     if (!form.venue_id && (!form.equipment_ids || form.equipment_ids.length === 0)) {
       newErrors.venue_equipment = 'Either venue or at least one equipment must be selected';
+    } else if (form.equipment_ids && !Array.isArray(form.equipment_ids)) {
+      // Ensure equipment_ids is an array
+      newErrors.equipment_ids = 'Invalid equipment selection';
     }
 
     // Check if organization is selected
@@ -379,10 +387,12 @@ const ReservationModal = ({
     const normalizedPhone = form.contact_no ? normalizePhoneNumber(form.contact_no) : '';
     
     // Prepare base form data with proper type conversion
-    const prepareFormData = (formData, specificEquipmentId = null) => ({
+    const prepareFormData = (formData) => ({
       ...formData,
       venue_id: formData.venue_id ? Number(formData.venue_id) : null,
-      equipment_id: specificEquipmentId ? Number(specificEquipmentId) : null,
+      equipment_ids: Array.isArray(formData.equipment_ids) 
+        ? formData.equipment_ids.map(id => Number(id)) 
+        : [],
       org_id: Number(formData.org_id),
       reserved_by: formData.reserved_by, // Keep as string, don't convert to number
       officer_in_charge: formData.officer_in_charge, // Keep as string, don't convert to number
@@ -392,12 +402,13 @@ const ReservationModal = ({
     
     if (isEdit) {
       console.log('ReservationModal - Handling EDIT mode submission');
-      // For edit mode, we'll maintain backward compatibility
-      // by just using the first equipment in the list if multiple were selected
+      // For edit mode, prepare consolidated reservation data
       const formToSubmit = prepareFormData({
         ...form,
-        activity_date: form.start_date
-      }, form.equipment_ids[0]);
+        activity_date: form.start_date,
+        venue_id: form.venue_id,
+        equipment_ids: form.equipment_ids || []
+      });
       
       console.log('ReservationModal - Calling onSubmit with edit data:', formToSubmit);
       onSubmit(formToSubmit);
@@ -406,46 +417,26 @@ const ReservationModal = ({
       
       const allReservations = [];
       
-      // Create separate reservations for each day in the date range
+      // Create one consolidated reservation for each day in the date range
       dateArray.forEach((date, dateIndex) => {
-        // Create a reservation for the venue if selected
-        if (form.venue_id) {
-          allReservations.push(
-            prepareFormData({
-              ...form,
-              activity_date: date,
-              start_date: form.start_date,
-              end_date: form.end_date,
-              isFirstDay: dateIndex === 0,
-              isMultiDay: dateArray.length > 1,
-              multiDayIndex: dateIndex,
-              multiDayTotal: dateArray.length,
-              equipment_ids: [], // Clear equipment IDs for venue reservation
-              isVenueReservation: true
-            })
-          );
-        }
-        
-        // Create a separate reservation for each selected equipment
-        form.equipment_ids.forEach(equipmentId => {
-          allReservations.push(
-            prepareFormData({
-              ...form,
-              activity_date: date,
-              start_date: form.start_date,
-              end_date: form.end_date,
-              venue_id: null, // Clear venue ID for equipment reservations
-              isFirstDay: dateIndex === 0,
-              isMultiDay: dateArray.length > 1,
-              multiDayIndex: dateIndex,
-              multiDayTotal: dateArray.length,
-              isEquipmentReservation: true
-            }, equipmentId)
-          );
-        });
+        // Create a single reservation with venue_id and equipment_ids array
+        allReservations.push(
+          prepareFormData({
+            ...form,
+            activity_date: date,
+            start_date: form.start_date,
+            end_date: form.end_date,
+            venue_id: form.venue_id,
+            equipment_ids: form.equipment_ids || [],
+            isFirstDay: dateIndex === 0,
+            isMultiDay: dateArray.length > 1,
+            multiDayIndex: dateIndex,
+            multiDayTotal: dateArray.length
+          })
+        );
       });
       
-      console.log('ReservationModal - Calling onSubmit with array of', allReservations.length, 'reservations');
+      console.log('ReservationModal - Calling onSubmit with array of', allReservations.length, 'consolidated reservations');
       // Instead of submitting directly, show confirmation modal
       setPendingReservations(allReservations);
       setShowCreateConfirm(true);

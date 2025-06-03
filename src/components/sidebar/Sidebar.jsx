@@ -201,27 +201,7 @@ export function Sidebar({
       )}
       
       <div className="flex-1 overflow-y-auto safe-bottom flex flex-col">
-        {/* Reserve Button - Only show on desktop */}
-        {!isMobile && (
-          <div className="p-3">
-            <Button
-              variant="default"
-              size="sm"
-              className={cn(
-                "w-full justify-start gap-2 bg-blue-600 hover:bg-blue-700 text-white h-9",
-                collapsed ? "px-2 justify-center" : "px-4"
-              )}
-              onClick={onReserve}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                <path d="M12 5v14M5 12h14"/>
-              </svg>
-              {!collapsed && <span>Reserve</span>}
-            </Button>
-          </div>
-        )}
-
-        <nav className="p-2 mt-2">
+        <nav className="p-2">
           <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.title}>
