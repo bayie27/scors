@@ -556,7 +556,7 @@ export function EquipmentPage() {
           
           {/* Add equipment button */}
           <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group"
+            className="bg-[#07A012] hover:bg-[#058a0e] text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group transition-colors"
             onClick={() => setIsAddEquipmentDialogOpen(true)}
           >
             <Plus className="h-4 w-4 mr-1.5 transition-transform duration-300 ease-in-out group-hover:rotate-90" />

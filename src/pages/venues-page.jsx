@@ -1072,7 +1072,7 @@ export function VenuesPage() {
             {/* Add Venue Button: full width on mobile, auto width on sm+ */}
             <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group">
+                <Button className="bg-[#07A012] hover:bg-[#058a0e] text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group">
                   <Plus className="h-4 w-4 mr-1.5 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
                   <span>Add Venue</span>
                 </Button>
@@ -1315,6 +1315,9 @@ export function VenuesPage() {
             {/* Header */}
             <div className="px-4 sm:px-6 pt-4 pb-3">
               <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900">{selectedVenue.venue_name}</DialogTitle>
+              <DialogDescription id="venue-details-description" className="mt-1 text-sm text-gray-500">
+                View details and management options for this venue
+              </DialogDescription>
               <div className="flex items-center mt-2">
                 <Badge variant="outline" className={`text-xs ${selectedVenue.asset_status_id === 1 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
                   {selectedVenue.asset_status_id === 1 ? 'Available' : 'Not Available'}
@@ -1376,9 +1379,7 @@ export function VenuesPage() {
             
             {/* Footer */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-4 sm:px-6 py-3 border-t bg-gray-50">
-              <div className="text-sm text-gray-500 mb-2 sm:mb-0">
-                Last updated: {new Date().toLocaleDateString()}
-              </div>
+              <div className="text-sm text-gray-500 mb-2 sm:mb-0"></div>
               <div className="flex flex-col w-full sm:w-auto">
                 <div className="flex flex-col sm:flex-row gap-3 w-full">
 

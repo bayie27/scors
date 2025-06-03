@@ -397,9 +397,9 @@ export function UsersPage() {
           {/* Action Buttons: full width on mobile, auto width on sm+ */}
           <Button 
             onClick={handleAddUser}
-            className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base"
+            className="bg-[#07A012] hover:bg-[#058a0e] text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group transition-colors"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4 mr-1.5 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
             <span>Add User</span>
           </Button>
           
