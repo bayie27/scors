@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Trash2, Search, Loader2, Building2, Plus } from "lucide-react";
+import { Edit, Trash2, Search, Loader2, Building2, Plus, PencilLine } from "lucide-react";
 import { supabase } from '../supabase-client';
 import { OrganizationDialog } from "@/components/organizations/organization-dialog";
 import { UserDialog, DeleteUserDialog } from "@/components/users/user-dialog";
@@ -454,7 +454,7 @@ export function UsersPage() {
                               onClick={() => handleEditUser(user)}
                               className="h-8 px-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
                             >
-                              <Edit className="h-3.5 w-3.5 mr-1" />
+                              <PencilLine className="h-3.5 w-3.5 mr-1" />
                               Edit
                             </Button>
                             <Button
@@ -507,7 +507,7 @@ export function UsersPage() {
                           className="flex-1 h-9 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
                           onClick={() => handleEditUser(user)}
                         >
-                          <Edit className="h-4 w-4 mr-1" />
+                          <PencilLine className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
                         <Button
