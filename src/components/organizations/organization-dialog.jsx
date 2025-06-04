@@ -152,7 +152,7 @@ const OrganizationForm = ({ organization, onClose, onSave }) => {
             <Button 
               type="submit" 
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
+              className="bg-[#07A012] hover:bg-[#058a0e] text-white w-full sm:w-auto order-1 sm:order-2"
             >
               {loading ? (
                 <>
@@ -351,7 +351,7 @@ export function OrganizationDialog({ open, onClose }) {
             
             <Button
               onClick={handleAddClick}
-              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+              className="bg-[#07A012] hover:bg-[#058a0e] text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group transition-colors"
             >
               <Plus className="h-4 w-4 mr-1" />
               Add Organization
