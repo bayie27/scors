@@ -1,22 +1,29 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-// Remove createPortal import since we'll use a different approach
+import { useAuth } from '@/lib/useAuth';
+import { 
+  Plus, 
+  Search as SearchIcon, 
+  X, 
+  Edit as EditIcon, 
+  Trash2,
+  Upload,
+  Image as ImageIcon,
+  Loader2,
+  SquareStack,
+  Filter, 
+  MapPin as MapPinIcon, 
+  Tag,
+  PackageCheck,
+  PackageOpen,
+  Clipboard,
+  Trash as TrashIcon
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'react-hot-toast';
-import { 
-  Plus, 
-  Search as SearchIcon, 
-  X, 
-  Edit as EditIcon, 
-  Trash as TrashIcon,
-  Upload,
-  ImageIcon,
-  Loader2,
-  SquareStack,
-} from 'lucide-react';
 import { AssetCard } from '@/components/cards/asset-card';
 import { equipmentService } from '@/services/equipment-service';
 import { 
@@ -90,6 +97,7 @@ function StatusIcon({ status, ...props }) {
 
 
 export function EquipmentPage() {
+  const { user } = useAuth();
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -130,6 +138,9 @@ export function EquipmentPage() {
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [fullScreenImage]);
+
+  // Check if user is an admin (CSAO or org_id = 1)
+  const isAdmin = user && user.org_id === 1;
 
   const fetchEquipment = useCallback(async () => {
     try {
@@ -506,19 +517,20 @@ export function EquipmentPage() {
                 className="text-gray-500 hover:text-gray-700 h-10 w-10"
                 aria-label="Search equipment"
               >
-                <SearchIcon className="h-10 w-10" />
+                <SearchIcon className="h-5 w-5" />
               </Button>
             )}
           </div>
           
-          {/* Add equipment button */}
-          <Button
-            className="bg-[#07A012] hover:bg-[#058a0e] text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group transition-colors"
-            onClick={() => setIsAddEquipmentDialogOpen(true)}
-          >
-            <Plus className="h-4 w-4 mr-1.5 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
-            <span>Add Equipment</span>
-          </Button>
+          {isAdmin && (
+            <Button 
+              className="bg-[#07A012] hover:bg-[#058a0e] text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group transition-colors"
+              onClick={() => setIsAddEquipmentDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-1.5 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
+              <span>Add Equipment</span>
+            </Button>
+          )}
         </div>
       </div>
       
@@ -535,13 +547,6 @@ export function EquipmentPage() {
           <p className="text-gray-500 mb-6">
             {searchQuery ? 'Try adjusting your search terms' : 'Get started by adding your first equipment item'}
           </p>
-          <Button 
-            className="ml-4 bg-green-600 hover:bg-green-700 w-full sm:w-auto whitespace-nowrap"
-            onClick={() => alert('Add equipment functionality coming soon')}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Equipment
-          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -556,8 +561,8 @@ export function EquipmentPage() {
               location={item.location}
               description={item.equipment_desc}
               onView={() => setSelectedEquipment(item)}
-              onEdit={() => handleOpenEditDialog(item)}
-              onDelete={() => confirmDeleteEquipment(item)}
+              onEdit={isAdmin ? () => handleOpenEditDialog(item) : null}
+              onDelete={isAdmin ? () => confirmDeleteEquipment(item) : null}
               className="h-full"
             />
           ))}
@@ -719,8 +724,8 @@ export function EquipmentPage() {
                       className="h-10 px-4 flex items-center gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300"
                       onClick={() => confirmDeleteEquipment(selectedEquipment)}
                     >
-                      <TrashIcon className="h-4 w-4" />
-                      <span className="whitespace-nowrap">Delete Equipment</span>
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                      Delete Equipment
                     </Button>
                   </div>
                 </div>

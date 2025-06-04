@@ -99,6 +99,7 @@ export function EventCalendar(props) {
   const { 
     searchTerm = "", 
     onSearchChange,
+    onReserve,
     selectedSlot,
     onSlotSelected
   } = props || {};
@@ -120,15 +121,14 @@ export function EventCalendar(props) {
         setOrganizations(orgs || []);
       }
 
-      // Build query with filters
+      // Build query with new relationship structure
       let query = supabase
         .from('reservation')
         .select(`
           *,
-          venue:venue_id(*),
-          equipment:equipment_id(*),
           status:reservation_status_id(*),
-          organization:org_id(*)
+          organization:org_id(*),
+          venue:venue_id(*)
         `);
       
       // Apply filters if they exist
@@ -137,24 +137,62 @@ export function EventCalendar(props) {
         query = query.in('org_id', orgIds);
       }
       
-      if (venueFilters.length > 0) {
-        const venueIds = venueFilters.map(v => v.venue_id);
-        query = query.in('venue_id', venueIds);
-      }
-      
-      if (equipmentFilters.length > 0) {
-        const equipmentIds = equipmentFilters.map(eq => eq.equipment_id);
-        query = query.in('equipment_id', equipmentIds);
-      }
-      
       if (statusFilters.length > 0) {
         const statusIds = statusFilters.map(st => st.reservation_status_id);
         query = query.in('reservation_status_id', statusIds);
       }
       
       const { data: reservations, error: fetchError } = await query;
-
       if (fetchError) throw fetchError;
+
+      // Apply venue filters if they exist
+      if (venueFilters.length > 0) {
+        const venueIds = venueFilters.map(v => v.venue_id);
+        reservations = reservations.filter(r => venueIds.includes(r.venue_id));
+      }
+      
+      // Fetch equipment relationships for all reservations
+      const reservationIds = reservations.map(r => r.reservation_id);
+      
+      // Only query if there are reservations
+      let equipmentRelationships = [];
+      
+      if (reservationIds.length > 0) {
+        // Fetch equipment relationships with all equipment details
+        const { data: equipmentData, error: equipmentError } = await supabase
+          .from('reservation_equipment')
+          .select(`
+            reservation_id,
+            equipment:equipment_id(equipment_id, equipment_name, equipment_desc, asset_status_id)
+          `)
+          .in('reservation_id', reservationIds);
+        
+        if (equipmentError) throw equipmentError;
+        equipmentRelationships = equipmentData || [];
+        
+        // Apply equipment filters if they exist
+        if (equipmentFilters.length > 0) {
+          const equipmentIds = equipmentFilters.map(eq => eq.equipment_id);
+          equipmentRelationships = equipmentRelationships.filter(er => 
+            equipmentIds.includes(er.equipment.equipment_id)
+          );
+          // If venue filters aren't applied, filter reservations by equipment
+          if (venueFilters.length === 0) {
+            const filteredReservationIds = [...new Set(equipmentRelationships.map(er => er.reservation_id))];
+            reservations = reservations.filter(r => filteredReservationIds.includes(r.reservation_id));
+          }
+        }
+      }
+      
+      // We'll look up venues by their venue_id from the reservations
+      
+      const equipmentByReservation = {};
+      equipmentRelationships.forEach(relation => {
+        if (!equipmentByReservation[relation.reservation_id]) {
+          equipmentByReservation[relation.reservation_id] = [];
+        }
+        equipmentByReservation[relation.reservation_id].push(relation.equipment);
+      });
 
       // Transform reservations to calendar events
       const formattedEvents = (reservations || []).map(reservation => {
@@ -173,13 +211,34 @@ export function EventCalendar(props) {
         const orgCode = org?.org_code || '';
         const orgName = org?.org_name || '';
         
+        // Get venue from the joined data or fall back to local venues
+        const venue = reservation.venue || 
+                     venues.find(v => v.venue_id === reservation.venue_id) || 
+                     null;
+        const equipment = equipmentByReservation[reservation.reservation_id] || [];
+        
+        // Create resource text that shows venue and equipment
+        let resourceText = '';
+        if (venue) {
+          resourceText += `Venue: ${venue.venue_name}`;
+        }
+        
+        // Debug equipment data
+        console.log(`Reservation ${reservation.reservation_id} equipment:`, equipment);
+        
+        if (equipment && equipment.length > 0) {
+          if (resourceText) resourceText += ' | ';
+          // Make sure we handle equipment entries that might be missing equipment_name
+          resourceText += `Equipment: ${equipment.map(e => e?.equipment_name || `Item #${e?.equipment_id || 'Unknown'}`).join(', ')}`;
+        }
+        if (!resourceText) resourceText = 'No Location or Equipment';
+        
         return {
           id: reservation.reservation_id,
           title: reservation.purpose || 'Untitled Reservation',
           start: startDateTime,
           end: endDateTime,
-          resource: reservation.venue_id ? `Venue ${reservation.venue_id}` : 
-                  (reservation.equipment_id ? `Equipment ${reservation.equipment_id}` : 'No Location'),
+          resource: resourceText,
           description: `Reserved by: ${reservation.reserved_by || 'Unknown'}\n` +
                      `Contact: ${reservation.contact_no || 'N/A'}\n` +
                      `Org: ${orgName} (${orgCode || 'No Code'})`,
@@ -190,7 +249,10 @@ export function EventCalendar(props) {
             ...reservation,
             org_code: orgCode,
             org_name: orgName,
-            organization: org || null
+            organization: org || null,
+            venue: venue, // Ensure venue is properly passed
+            equipment, // Add equipment array
+            equipment_ids: equipment.map(e => e.equipment_id) // Add equipment IDs for easier access
           }
         };
       });
@@ -218,8 +280,10 @@ export function EventCalendar(props) {
           { data: s },
           { data: orgs }
         ] = await Promise.all([
-          supabase.from('venue').select('*'),
-          supabase.from('equipment').select('*'),
+          // Only get available venues (asset_status_id = 1)
+          supabase.from('venue').select('*').eq('asset_status_id', 1),
+          // Only get available equipment (asset_status_id = 1)
+          supabase.from('equipment').select('*').eq('asset_status_id', 1),
           supabase.from('reservation_status').select('*'),
           supabase.from('organization').select('org_id, org_name, org_code')
         ]);
@@ -325,54 +389,115 @@ export function EventCalendar(props) {
   // Handle view change
   const onView = useCallback((newView) => setView(newView), []);
 
+  // Status color mapping with better contrast
+  const statusColors = {
+    1: 'border-green-500 bg-green-50', // Reserved/Approved
+    2: 'border-red-500 bg-red-50',    // Rejected
+    3: 'border-yellow-500 bg-yellow-50', // Pending
+    4: 'border-gray-500 bg-gray-50',   // Cancelled
+  };
+
   // Custom event component
   const EventComponent = useCallback(({ event }) => {
     // Extract organization info from event.rawData
     const raw = event.rawData || {};
     const orgCode = raw.organization?.org_code || raw.org_code || '';
     const orgDisplay = orgCode || 'No Org';
+    const statusId = event.rawData?.reservation_status_id || event.status || 1;
+    const statusClass = statusColors[statusId] || 'border-blue-500 bg-blue-50';
 
-    // Only show time and purpose in month view
+    // Month view - compact display
     if (view === 'month') {
-      // Use status color for border/label in month view
-      const statusClass = getStatusStyle(event.rawData?.reservation_status_id || event.status);
       return (
-        <div className="p-0.5 overflow-hidden h-full">
-          <div className={`rounded border px-1 py-0.5 flex items-center gap-1 min-w-0 h-full ${statusClass}`}>
-            <span className="text-[10px] font-semibold whitespace-nowrap">
-              {format(event.start, 'h:mma')}
-            </span>
-            <span className="truncate" title={event.title}>
-              {event.title}
-            </span>
+        <div className="p-0.5 h-full">
+          <div 
+            className={`rounded-md border-l-4 p-1 h-full flex flex-col overflow-hidden shadow-sm ${statusClass} hover:shadow-md transition-shadow duration-150`}
+          >
+            <div className="flex items-start gap-1">
+              <span className="text-[10px] font-bold text-gray-600 whitespace-nowrap mt-0.5">
+                {format(event.start, 'h:mma')}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-medium text-gray-900 truncate leading-tight" title={event.title}>
+                  {event.title}
+                </div>
+                {orgDisplay && orgDisplay !== 'No Org' && (
+                  <div className="text-[10px] text-gray-500 truncate leading-tight" title={orgDisplay}>
+                    {orgDisplay}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       );
     }
     
-    // Consistent style for week, day, and list views
-    const statusClass = getStatusStyle(event.rawData?.reservation_status_id || event.status);
+    // Week/Day/List views - detailed display
     return (
-      <div className="p-1 overflow-hidden h-full">
-        <div className={`rounded border-l-4 h-full flex flex-col ${statusClass}`} style={{ background: 'inherit' }}>
-          <div className="font-medium text-sm truncate p-2">{event.title}</div>
-          {orgDisplay && (
-            <div className="text-xs text-gray-700 mt-1 truncate px-2" title={orgDisplay}>
-              {orgDisplay}
+      <div className="p-0.5 h-full">
+        <div 
+          className={`rounded-md border-l-4 p-2 h-full flex flex-col overflow-hidden shadow-sm ${statusClass} hover:shadow-md transition-all duration-150`}
+          style={{
+            backgroundColor: statusColors[statusId] ? statusColors[statusId].split(' ')[1] : 'inherit',
+          }}
+        >
+          {/* Event title */}
+          <div className="mb-1">
+            <div className="font-medium text-sm text-gray-900 leading-tight break-words">
+              {event.title}
             </div>
-          )}
-          {/* Display venue name if available */}
-          {raw.venue && (
-            <div className="text-xs text-gray-500 mt-1 truncate px-2">
-              {raw.venue.venue_name || 'Venue ' + raw.venue_id}
-            </div>
-          )}
-          {/* Display equipment name if available */}
-          {raw.equipment && (
-            <div className="text-xs text-gray-500 mt-1 truncate px-2">
-              {raw.equipment.equipment_name || 'Equipment ' + raw.equipment_id}
-            </div>
-          )}
+          </div>
+          
+          {/* Event details - compact in week view */}
+          <div className="space-y-1 mt-1">
+            {orgDisplay && orgDisplay !== 'No Org' && (
+              <div className="text-xs text-gray-600 truncate">
+                {orgDisplay}
+              </div>
+            )}
+            
+            {/* Venue on its own line */}
+            {raw.venue && (
+              <div className="text-xs text-gray-700 font-medium">
+                {raw.venue.venue_name || `Venue ${raw.venue_id}`}
+              </div>
+            )}
+            
+            {/* Equipment on the next line */}
+            {(raw.equipment || raw.equipment_id) && (
+              <div className="mt-0.5">
+                {Array.isArray(raw.equipment) && raw.equipment.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {raw.equipment.map((e) => (
+                      <span key={e.equipment_id} className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">
+                        {e.equipment_name || `Item ${e.equipment_id}`}
+                      </span>
+                    ))}
+                  </div>
+                ) : raw.equipment_id ? (
+                  <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">
+                    {raw.equipment?.equipment_name || `Item ${raw.equipment_id}`}
+                  </span>
+                ) : null}
+              </div>
+            )}
+          </div>
+          
+          {/* Status badge */}
+          <div className="mt-2 pt-1.5 border-t border-gray-100">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+              statusId === 1 ? 'bg-green-100 text-green-800' : 
+              statusId === 2 ? 'bg-red-100 text-red-800' :
+              statusId === 3 ? 'bg-yellow-100 text-yellow-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {statusId === 1 ? 'Approved' :
+               statusId === 2 ? 'Rejected' :
+               statusId === 3 ? 'Pending' :
+               statusId === 4 ? 'Cancelled' : 'Unknown'}
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -405,10 +530,21 @@ export function EventCalendar(props) {
           return true;
         }
         
-        // Check equipment name
-        if (event.rawData?.equipment?.equipment_name && 
-            event.rawData.equipment.equipment_name.toLowerCase().includes(searchLower)) {
-          return true;
+        // Check equipment names (handle both single equipment and array of equipment)
+        const equipmentItems = event.rawData?.equipment;
+        if (equipmentItems) {
+          // Handle case where equipment is an array
+          if (Array.isArray(equipmentItems)) {
+            if (equipmentItems.some(eq => 
+              eq?.equipment_name?.toLowerCase().includes(searchLower)
+            )) {
+              return true;
+            }
+          } 
+          // Handle case where equipment is a single object
+          else if (equipmentItems.equipment_name?.toLowerCase().includes(searchLower)) {
+            return true;
+          }
         }
         
         return false;
@@ -688,7 +824,7 @@ export function EventCalendar(props) {
     <div className="relative bg-white p-4 rounded-lg shadow h-[calc(100vh-4rem)] flex flex-col">
       <div className="flex flex-col gap-4 mb-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Calendar</h1>
           <div className="flex gap-2">
             <form onSubmit={e => e.preventDefault()} className="w-64">
               <div className="relative">
@@ -874,7 +1010,13 @@ export function EventCalendar(props) {
           onNavigate={onNavigate}
           components={{
             event: EventComponent,
-            toolbar: (props) => <CustomToolbar {...props} view={view} />
+            toolbar: (toolbarProps) => (
+              <CustomToolbar 
+                {...toolbarProps} 
+                view={view} 
+                onReserve={onReserve} 
+              />
+            )
           }}
           eventPropGetter={(event) => {
             // Get status ID from event data
@@ -884,13 +1026,8 @@ export function EventCalendar(props) {
                event.status === 'Pending' ? 3 :
                event.status === 'Cancelled' ? 4 : 3);
             
-            // Define soft, pleasant background colors for each status
-            const bgColors = {
-              1: '#edf5ff', // Reserved/Approved - soft blue
-              2: '#fef1f1', // Rejected - soft red
-              3: '#fef9ee', // Pending - soft cream (instead of harsh yellow)
-              4: '#f8f8f8', // Cancelled - light gray
-            };
+            // Single background color for all events
+            const backgroundColor = '#f8fafc';
             
             // Get border color from statusStyles
             let borderClass = getStatusStyle(statusId);
@@ -912,17 +1049,17 @@ export function EventCalendar(props) {
             }
 
             
+            // Add custom class to the event's parent cell
             return {
               style: {
-                backgroundColor: bgColors[statusId] || '#ffffff',
-                borderLeft: `4px solid ${borderColor}`,
-                borderRadius: '4px',
-                color: '#1a1a1a',
+                backgroundColor: backgroundColor,
                 border: 'none',
+                borderRadius: '4px',
                 padding: '2px 8px',
                 fontSize: '0.875rem',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
               },
+              className: `status-${statusId}`,
             };
           }}
         />
