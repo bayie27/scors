@@ -7,6 +7,53 @@ const IMAGE_BUCKET = 'venue_images';
 const SUPABASE_URL = 'https://ypqlywgargoxrvoersrj.supabase.co';
 
 export const equipmentService = {
+  // Helper function to delete an image from Supabase storage
+  async deleteEquipmentImage(imageUrl: string | null): Promise<void> {
+    if (!imageUrl) {
+      // console.log('No image URL provided for deletion.');
+      return;
+    }
+
+    const storageUrlPrefix = `${SUPABASE_URL}/storage/v1/object/public/${IMAGE_BUCKET}/`;
+    let filePathToDelete: string | null = null;
+
+    if (imageUrl.startsWith(storageUrlPrefix)) {
+      filePathToDelete = imageUrl.substring(storageUrlPrefix.length);
+    } else {
+      // If it's not a full URL, it might be just a path like 'equipment/filename.jpg'
+      // or even just 'filename.jpg' which we prefix with 'equipment/'
+      // This part needs to be robust based on how image_url is stored.
+      // Assuming if not a full URL, it's a relative path within the 'equipment/' folder in the bucket.
+      if (!imageUrl.startsWith('equipment/')) {
+        filePathToDelete = `equipment/${imageUrl}`;
+      } else {
+        filePathToDelete = imageUrl;
+      }
+      console.log(`Image URL "${imageUrl}" is not a full Supabase storage URL. Assuming relative path: "${filePathToDelete}"`);
+    }
+    
+    if (!filePathToDelete) {
+      console.error(`Could not determine file path from URL/path: ${imageUrl}. Aborting deletion.`);
+      return;
+    }
+
+    console.log(`Attempting to delete image from storage: ${IMAGE_BUCKET}/${filePathToDelete}`);
+    try {
+      const { error: deleteError } = await supabase.storage
+        .from(IMAGE_BUCKET)
+        .remove([filePathToDelete]);
+
+      if (deleteError) {
+        console.error(`Failed to delete image ${filePathToDelete} from bucket ${IMAGE_BUCKET}:`, deleteError.message);
+        // Optionally re-throw or handle as per application needs
+      } else {
+        console.log(`Successfully deleted image ${filePathToDelete} from bucket ${IMAGE_BUCKET}.`);
+      }
+    } catch (error) {
+        console.error(`Exception during image deletion for ${filePathToDelete}:`, error);
+    }
+  },
+
   // Get all equipment
   async getEquipment(): Promise<Equipment[]> {
     const { data, error } = await supabase
@@ -29,33 +76,34 @@ export const equipmentService = {
       .eq('equipment_id', id)
       .single();
     if (error) {
+      // It's common for .single() to error if no row is found. Handle this gracefully.
+      if (error.code === 'PGRST116') { // PGRST116: Row not found
+        console.log(`Equipment with ID ${id} not found.`);
+        return null;
+      }
       console.error(`Error fetching equipment ${id}:`, error);
       throw error;
     }
     return data;
   },
 
-  // Upload equipment image using simple public URL approach
+  // Upload equipment image
   async uploadEquipmentImage(file: File): Promise<string | null> {
     if (!file) {
       console.log('No file provided to uploadEquipmentImage');
       return null;
     }
-
     try {
-      // Generate a unique file path with timestamp
       const timestamp = Date.now();
-      const cleanFileName = file.name.replace(/\s+/g, '_');
+      const cleanFileName = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '');
       const filePath = `equipment/${timestamp}-${cleanFileName}`;
       
       console.log(`Uploading image to ${IMAGE_BUCKET}/${filePath}`);
-      
-      // Upload the file directly
       const { error: uploadError } = await supabase.storage
         .from(IMAGE_BUCKET)
         .upload(filePath, file, {
           cacheControl: '3600',
-          upsert: true
+          upsert: false // Set to false to avoid overwriting if a file with the exact same path somehow exists
         });
 
       if (uploadError) {
@@ -63,86 +111,71 @@ export const equipmentService = {
         throw uploadError;
       }
 
-      // Get the public URL
-      const { data } = supabase.storage
+      // Return the path, not the full public URL, to be consistent if we store paths
+      // The getPublicUrl can be used when displaying the image.
+      // However, the current setup seems to store full URLs, so we'll stick to that for now.
+      const { data: publicUrlData } = supabase.storage
         .from(IMAGE_BUCKET)
         .getPublicUrl(filePath);
       
-      console.log('Image uploaded successfully, public URL:', data.publicUrl);
-      return data.publicUrl;
+      console.log('Image uploaded successfully, public URL:', publicUrlData.publicUrl);
+      return publicUrlData.publicUrl;
     } catch (error) {
       console.error('Image upload failed:', error);
       throw error;
     }
   },
   
-  // Get public URL for an existing image path
-  async getPublicImageUrl(imagePath: string): Promise<string | null> {
-    if (!imagePath) return null;
-    
+  // Get public URL for an existing image path/URL
+  async getPublicImageUrl(imagePathOrUrl: string): Promise<string | null> {
+    if (!imagePathOrUrl) return null;
+    if (imagePathOrUrl.startsWith('http')) {
+      return imagePathOrUrl; // Already a full URL
+    }
+    // Assume it's a relative path
+    let fullPath = imagePathOrUrl;
+    if (!fullPath.startsWith('equipment/')) {
+        fullPath = `equipment/${fullPath}`;
+    }
     try {
-      // If it's already a full URL, return it
-      if (imagePath.startsWith('http')) {
-        return imagePath;
-      }
-      
-      // Extract just the filename from a path
-      const fileName = imagePath.split('/').pop();
-      if (!fileName) return null;
-      
-      let path = fileName;
-      // If the path already has 'equipment/' prefix, use as is
-      if (!path.startsWith('equipment/')) {
-        path = `equipment/${fileName}`;
-      }
-      
-      // Get the public URL directly
       const { data } = supabase.storage
         .from(IMAGE_BUCKET)
-        .getPublicUrl(path);
-        
+        .getPublicUrl(fullPath);
       if (!data || !data.publicUrl) {
-        console.log('Could not generate public URL, image may not exist');
+        console.warn('Could not generate public URL, image may not exist at path:', fullPath);
         return null;
       }
-      
       return data.publicUrl;
     } catch (error) {
-      console.error('Error getting image URL:', error);
+      console.error('Error getting public image URL for path:', fullPath, error);
       return null;
     }
   },
 
-  // Create new equipment with optional image file upload
+  // Create new equipment
   async createEquipment(equipmentData: Omit<CreateEquipmentDTO, 'image_url'>, imageFile?: File): Promise<Equipment> {
-    let imageUrl: string | null = null;
-
-    // Upload image if provided
+    let imageUrlToStore: string | null = null;
     if (imageFile) {
       try {
-        imageUrl = await this.uploadEquipmentImage(imageFile);
-        console.log('Image uploaded for new equipment:', imageUrl);
+        imageUrlToStore = await this.uploadEquipmentImage(imageFile);
+        console.log('Image uploaded for new equipment:', imageUrlToStore);
       } catch (error) {
-        console.error('Failed to upload image:', error);
-        // Continue creating equipment without image
+        console.error('Failed to upload image during equipment creation:', error);
+        // Decide if creation should fail or proceed without image
+        // For now, proceed without image if upload fails
       }
     }
-
-    // Insert equipment with image URL if available
-    const dataToInsert = { ...equipmentData, image_url: imageUrl };
-
+    const dataToInsert = { ...equipmentData, image_url: imageUrlToStore };
     try {
       const { data, error } = await supabase
         .from('equipment')
         .insert(dataToInsert)
         .select()
         .single();
-        
       if (error) {
         console.error('Database error creating equipment:', error);
         throw error;
       }
-
       console.log('Equipment created successfully with ID:', data?.equipment_id);
       return data;
     } catch (error) {
@@ -151,63 +184,87 @@ export const equipmentService = {
     }
   },
   
-  // Helper function to get full image URL from a path or URL
-  getFullImageUrl(imagePath: string | null): string | null {
-    if (!imagePath) return null;
-    
-    // If it's already a full URL or base64 data, return as is
-    if (imagePath.startsWith('http') || imagePath.startsWith('data:')) {
-      return imagePath;
+  // Helper function to get full image URL (adds cache buster)
+  // This might be redundant if getPublicImageUrl is sufficient and components handle cache busting if needed.
+  getFullImageUrl(imagePathOrUrl: string | null): string | null {
+    if (!imagePathOrUrl) return null;
+    if (imagePathOrUrl.startsWith('http')) {
+      // Potentially add cache buster to existing full URLs too
+      // const url = new URL(imagePathOrUrl);
+      // url.searchParams.set('t', Date.now().toString());
+      // return url.toString();
+      return imagePathOrUrl; // For now, return as is if full URL
     }
-
-    // Use the Supabase client to get the public URL
-    const fullPath = imagePath.startsWith('equipment/') ? imagePath : `equipment/${imagePath}`;
+    // Assume it's a relative path
+    let fullPath = imagePathOrUrl;
+    if (!fullPath.startsWith('equipment/')) {
+        fullPath = `equipment/${fullPath}`;
+    }
     const { data } = supabase.storage
       .from(IMAGE_BUCKET)
       .getPublicUrl(fullPath);
-    
     if (!data?.publicUrl) {
-      console.error('Failed to generate public URL for', imagePath);
+      console.error('Failed to generate public URL for', fullPath);
       return null;
     }
-    
-    // Add cache busting
     const cacheBuster = `?t=${Date.now()}`;
-    const publicUrl = `${data.publicUrl}${cacheBuster}`;
-    console.log('Generated public URL:', publicUrl);
-    return publicUrl;
+    return `${data.publicUrl}${cacheBuster}`;
   },
 
   // Update an existing equipment
   async updateEquipment({ equipment_id, ...updates }: UpdateEquipmentDTO, imageFile?: File): Promise<Equipment> {
-    let imageUrl: string | null = updates.image_url !== undefined ? updates.image_url : null;
-
-    // Only try to upload if there's an image file
-    if (imageFile) {
-      try {
-        imageUrl = await this.uploadEquipmentImage(imageFile);
-      } catch (uploadError) {
-        console.error('Failed to upload image during equipment update:', uploadError);
-        // Continue with update using existing image URL if available
-      }
-    }
-
-    const dataToUpdate = { ...updates, image_url: imageUrl };    
-
     try {
+      const currentEquipment = await this.getEquipmentById(equipment_id);
+      if (!currentEquipment) {
+        throw new Error(`Equipment with ID ${equipment_id} not found for update.`);
+      }
+      const oldImageUrl = currentEquipment.image_url;
+      let finalImageUrl: string | null | undefined = undefined; // undefined means no change to image_url from this logic
+
+      if (imageFile) {
+        // New image provided, upload it
+        console.log(`New image file provided for equipment ${equipment_id}. Uploading...`);
+        const uploadedImageUrl = await this.uploadEquipmentImage(imageFile);
+        if (uploadedImageUrl) {
+          finalImageUrl = uploadedImageUrl;
+          if (oldImageUrl && oldImageUrl !== uploadedImageUrl) {
+            console.log(`New image uploaded (${finalImageUrl}), deleting old image: ${oldImageUrl}`);
+            await this.deleteEquipmentImage(oldImageUrl);
+          }
+        } else {
+          console.warn(`Image upload failed for equipment ${equipment_id}. Image URL will not be updated with a new one.`);
+          // Keep finalImageUrl as undefined, so DB isn't touched unless 'image_url: null' is in updates
+        }
+      } else if (updates.hasOwnProperty('image_url') && updates.image_url === null) {
+        // Explicitly removing image (image_url passed as null, and no new file)
+        console.log(`Image explicitly removed for equipment ${equipment_id}.`);
+        if (oldImageUrl) {
+          console.log(`Deleting old image: ${oldImageUrl}`);
+          await this.deleteEquipmentImage(oldImageUrl);
+        }
+        finalImageUrl = null; // Set to null in DB
+      }
+
+      // Prepare the final update payload for the database
+      const dbUpdates: Partial<UpdateEquipmentDTO> = { ...updates };
+      if (finalImageUrl !== undefined) { // If image logic decided on a new URL (or null)
+        dbUpdates.image_url = finalImageUrl;
+      }
+      // If finalImageUrl is undefined, dbUpdates.image_url will be whatever was in 'updates'
+      // or not present if 'image_url' wasn't in 'updates'.
+
       const { data, error } = await supabase
         .from('equipment')
-        .update(dataToUpdate)
+        .update(dbUpdates)
         .eq('equipment_id', equipment_id)
         .select()
         .single();
-        
+
       if (error) {
         console.error(`Error updating equipment ${equipment_id}:`, error);
         throw error;
       }
-      
-      console.log('Equipment updated successfully:', data);
+      console.log(`Equipment ${equipment_id} updated successfully.`);
       return data;
     } catch (error) {
       console.error(`Failed to update equipment ${equipment_id}:`, error);
@@ -218,9 +275,9 @@ export const equipmentService = {
   // Check if an equipment has existing reservations
   async checkEquipmentReservations(id: number): Promise<{ count: number, hasReservations: boolean }> {
     try {
-      const { data: reservations, error: reservationsError } = await supabase
+      const { data: reservations, error: reservationsError, count } = await supabase
         .from('reservation')
-        .select('reservation_id')
+        .select('reservation_id', { count: 'exact' })
         .eq('equipment_id', id);
       
       if (reservationsError) {
@@ -228,10 +285,10 @@ export const equipmentService = {
         throw reservationsError;
       }
       
-      const count = reservations?.length || 0;
+      const numReservations = count || 0;
       return { 
-        count, 
-        hasReservations: count > 0 
+        count: numReservations, 
+        hasReservations: numReservations > 0 
       };
     } catch (error) {
       console.error(`Error checking reservations for equipment ${id}:`, error);
@@ -240,102 +297,123 @@ export const equipmentService = {
   },
 
   // Delete an equipment and cancel its associated reservations
-  async deleteEquipmentWithReservations(id: number): Promise<{ deletedEquipment: any, cancelledReservations: number }> {
+  async deleteEquipmentWithReservations(id: number): Promise<{ deletedEquipment: Equipment | null, cancelledReservations: number }> {
     try {
-      // First, get the equipment to find its image_url
       const equipmentToDelete = await this.getEquipmentById(id);
+      if (!equipmentToDelete) {
+        console.warn(`Equipment with ID ${id} not found for deletion. It might have been already deleted.`);
+        // Return a specific structure indicating not found or failure
+        return { deletedEquipment: null, cancelledReservations: 0 }; 
+      }
+
+      // 1. Delete associated image from storage if it exists
+      if (equipmentToDelete.image_url) {
+        console.log(`Equipment ${id} has an image (${equipmentToDelete.image_url}). Deleting image before equipment record...`);
+        await this.deleteEquipmentImage(equipmentToDelete.image_url);
+      } else {
+        console.log(`Equipment ${id} has no image associated. Skipping image deletion.`);
+      }
       
-      // Get the 'Cancelled' status ID from reservation_status table
+      // 2. Get the 'Cancelled' status ID
       const { data: statusData, error: statusError } = await supabase
         .from('reservation_status')
         .select('reservation_status_id')
         .eq('reservation_status', 'Cancelled')
         .single();
-        
-      if (statusError) {
-        console.error('Error finding "Cancelled" status:', statusError);
-        throw statusError;
+      if (statusError || !statusData) {
+        console.error('Error finding "Cancelled" status ID:', statusError);
+        throw statusError || new Error('Cancelled status ID not found');
       }
-      
       const cancelledStatusId = statusData.reservation_status_id;
       
-      // Find all reservations that reference this equipment
-      const { data: reservations, error: reservationsError } = await supabase
+      // 3. Find and update associated reservations to 'Cancelled'
+      const { data: reservationsToCancel, error: fetchReservationsError, count: reservationCount } = await supabase
         .from('reservation')
-        .select('reservation_id')
+        .select('reservation_id', { count: 'exact' })
         .eq('equipment_id', id);
-      
-      if (reservationsError) {
-        console.error('Error fetching reservations:', reservationsError);
-        throw reservationsError;
+
+      if (fetchReservationsError) {
+        console.error('Error fetching reservations for equipment deletion:', fetchReservationsError);
+        throw fetchReservationsError;
       }
       
-      const reservationCount = reservations?.length || 0;
-      
-      // Update reservation status to cancelled before deletion
-      if (reservationCount > 0) {
-        console.log(`Updating ${reservationCount} reservations to Cancelled status`);
-        const { error: updateError } = await supabase
+      const numReservationsToCancel = reservationCount || 0;
+      if (numReservationsToCancel > 0) {
+        console.log(`Updating ${numReservationsToCancel} reservations to Cancelled status for equipment ${id}`);
+        const { error: updateReservationsError } = await supabase
           .from('reservation')
           .update({ reservation_status_id: cancelledStatusId })
           .eq('equipment_id', id);
-          
-        if (updateError) {
-          console.error('Error updating reservations:', updateError);
-          throw updateError;
+        if (updateReservationsError) {
+          console.error('Error updating reservations to cancelled:', updateReservationsError);
+          throw updateReservationsError;
         }
       }
       
-      // Now delete the equipment record
-      const { data, error } = await supabase
+      // 4. Delete the equipment record
+      console.log(`Deleting equipment record for ID: ${id}`);
+      const { data: deletedData, error: deleteEquipmentError } = await supabase
         .from('equipment')
         .delete()
         .eq('equipment_id', id)
         .select()
         .single();
 
-      if (error) {
-        console.error(`Error deleting equipment ${id}:`, error);
-        throw error;
+      if (deleteEquipmentError) {
+        console.error(`Error deleting equipment ${id}:`, deleteEquipmentError);
+        throw deleteEquipmentError;
       }
       
+      console.log(`Equipment ${id} deleted. ${numReservationsToCancel} reservations handled.`);
       return {
-        deletedEquipment: data,
-        cancelledReservations: reservationCount
+        deletedEquipment: deletedData as Equipment, // Cast if confident about the shape
+        cancelledReservations: numReservationsToCancel
       };
     } catch (error) {
-      console.error(`Failed to delete equipment ${id}:`, error);
+      console.error(`Failed to delete equipment ${id} and/or its reservations:`, error);
       throw error;
     }
   },
   
-  // Keep the original method for backward compatibility but now it first checks reservations
+  // Original deleteEquipment method, now relying on the enhanced deleteEquipmentWithReservations
   async deleteEquipment(id: number): Promise<void> {
     try {
-      await this.deleteEquipmentWithReservations(id);
-      console.log(`Equipment ${id} deleted successfully`);
+      const result = await this.deleteEquipmentWithReservations(id);
+      if (result.deletedEquipment) {
+        console.log(`Equipment ${id} and associated data processed successfully.`);
+      } else {
+        console.warn(`Equipment ${id} was not found or not deleted.`);
+      }
     } catch (error) {
-      console.error(`Failed to delete equipment ${id}:`, error);
+      console.error(`Failed to delete equipment ${id} via deleteEquipment:`, error);
       throw error;
     }
   },
 
   // Subscribe to equipment changes
   subscribeToEquipment(callback: (payload: any) => void) {
-    const subscription = supabase
-      .channel('public:equipment')
+    const channel = supabase.channel('public-equipment-changes');
+    const subscription = channel
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'equipment',
-        },
-        (payload) => callback(payload)
+        { event: '*', schema: 'public', table: 'equipment' },
+        (payload) => {
+          console.log('Equipment change received!', payload);
+          callback(payload);
+        }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Successfully subscribed to equipment changes!');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED'){
+          console.error('Subscription error or closed for equipment changes:', status, err);
+          // Optionally attempt to resubscribe or notify user
+        }
+      });
+    // Return a function to unsubscribe
     return () => {
-      subscription.unsubscribe();
+      console.log('Unsubscribing from equipment changes.');
+      supabase.removeChannel(channel); // More robust way to remove channel and its subscriptions
     };
   },
 };
