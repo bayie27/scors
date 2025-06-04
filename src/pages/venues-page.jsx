@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from '@/lib/useAuth';
 import { 
   Plus, 
   Search as SearchIcon, 
   Users,
-  Users as PeopleIcon, 
   X,
   Upload,
   Image,
@@ -964,11 +962,9 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
 }
 
 export function VenuesPage() {
-  const { user } = useAuth();
   const [venues, setVenues] = useState([]);
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [assetStatuses, setAssetStatuses] = useState([]);
@@ -977,11 +973,11 @@ export function VenuesPage() {
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
   const [venueToDelete, setVenueToDelete] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [venueToEdit, setVenueToEdit] = useState(null);
   const [isEditVenueOpen, setIsEditVenueOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false); // For desktop expandable search
   const [fullScreenImage, setFullScreenImage] = useState(null); // For full screen image view
+  const [isDeleting, setIsDeleting] = useState(false); // Track delete operation status
 
   const handleEditVenueClick = (venue) => {
     setVenueToEdit(venue);
@@ -1003,7 +999,7 @@ export function VenuesPage() {
         .order('venue_name');
         
       if (supabaseError) {
-        console.error('Error fetching venues:', supabaseError);
+        console.error('Error fetching venues');
         throw supabaseError;
       }
       
@@ -1059,7 +1055,7 @@ export function VenuesPage() {
         // Venue subscription status updated
         if (status === 'SUBSCRIBED') {
           // Force a refresh when subscription is established
-          fetchVenues().catch(error => {
+          fetchVenues().catch(() => {
             // Error refreshing after subscription
             toast.error('Failed to refresh venues after subscription');
           });
