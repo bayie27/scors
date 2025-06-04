@@ -223,15 +223,15 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
   
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="flex items-start px-8 pt-6 pb-4 border-b">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
+        <div className="flex items-start px-8 pt-6 pb-4 border-b flex-shrink-0">
           <div>
             <h2 className="text-2xl font-semibold">Add New Venue</h2>
             <p className="text-sm text-gray-500 mt-1.5">Fill in the details below to add a new venue to the inventory.</p>
           </div>
         </div>
         
-        <div className="px-8 py-6 space-y-6 max-h-[65vh] overflow-y-auto">
+        <div className="flex-grow px-8 py-6 space-y-6 overflow-y-auto">
           {/* Venue Name */}
           <div className="grid gap-2">
             <FormLabel htmlFor="venue_name">Name <span className="text-red-500">*</span></FormLabel>
@@ -490,7 +490,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
           </div>
         </div>
         
-        <div className="flex items-center justify-between px-8 py-4 border-t bg-gray-50">
+        <div className="flex items-center justify-between px-8 py-4 border-t bg-gray-50 flex-shrink-0">
           <div className="text-sm text-gray-500"></div>
           <div className="flex items-center gap-2">
             <Button
@@ -650,15 +650,15 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="flex items-start px-8 pt-6 pb-4 border-b">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
+        <div className="flex items-start px-8 pt-6 pb-4 border-b flex-shrink-0">
           <div>
             <h2 className="text-2xl font-semibold">Edit Venue</h2>
             <p className="text-sm text-gray-500 mt-1.5">Update the details for this venue.</p>
           </div>
         </div>
         
-        <div className="px-8 py-6 space-y-6 max-h-[65vh] overflow-y-auto">
+        <div className="px-8 py-6 space-y-6 flex-grow overflow-y-auto max-h-[65vh]">
           {/* Venue Name */}
           <div className="grid gap-2">
             <FormLabel htmlFor="venue_name">Name <span className="text-red-500">*</span></FormLabel>
@@ -923,7 +923,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
           </div>
         </div>
         
-        <div className="flex items-center justify-between px-8 py-4 border-t bg-gray-50">
+        <div className="flex items-center justify-between px-8 py-4 border-t bg-gray-50 flex-shrink-0">
           <div className="text-sm text-gray-500"></div>
           <div className="flex items-center gap-2">
             <Button
@@ -1198,13 +1198,13 @@ export function VenuesPage() {
             {/* Add Venue Button: full width on mobile, auto width on sm+ */}
             <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base gap-1">
-                  <Plus className="h-4 w-4" />
+                <Button className="bg-[#07A012] hover:bg-[#058a0e] text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group transition-colors">
+                  <Plus className="h-4 w-4 mr-1.5 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
                   <span>Add Venue</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="w-[95vw] max-w-[400px] p-0 max-h-[90vh] overflow-hidden mx-auto">
-                <div className="max-h-[90vh] overflow-y-auto pb-4">
+                <div className="flex flex-col h-full max-h-[90vh]">
                   <AddVenueForm 
                     onSuccess={handleVenueFormSuccess} 
                     onCancel={() => setIsAddVenueOpen(false)} 
@@ -1262,14 +1262,14 @@ export function VenuesPage() {
                   <Button 
                     size="icon" 
                     variant="ghost" 
-                    className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-gray-100 transition-all duration-200"
+                    className="text-gray-700 bg-gray-100 hover:text-blue-600 hover:bg-blue-100 active:bg-blue-200 rounded-md shadow-md transition-colors duration-150 h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
                       setVenueToEdit(venue);
                       setIsEditVenueOpen(true);
                     }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 20h9"></path>
                       <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                     </svg>
@@ -1277,7 +1277,7 @@ export function VenuesPage() {
                   <Button 
                     size="icon" 
                     variant="ghost" 
-                    className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-red-50 group transition-all duration-200"
+                    className="text-red-500 bg-gray-100 hover:text-red-600 hover:bg-red-100 active:bg-red-200 rounded-md shadow-md transition-colors duration-150 h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
                       setVenueToDelete(venue);
@@ -1296,7 +1296,7 @@ export function VenuesPage() {
                   <CardTitle className="text-base sm:text-lg font-semibold">
                     {venue.venue_name}
                   </CardTitle>
-                  <Badge className={venue.asset_status_id === 1 ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'} variant="secondary">
+                  <Badge className={`text-xs ${venue.asset_status_id === 1 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`} variant="outline">
                     {venue.asset_status_id === 1 ? 'Available' : 'Not Available'}
                   </Badge>
                 </div>
@@ -1418,7 +1418,7 @@ export function VenuesPage() {
       {venueToEdit && (
         <Dialog open={isEditVenueOpen} onOpenChange={setIsEditVenueOpen}>
           <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-lg md:max-w-xl p-0 max-h-[90vh] overflow-hidden">
-            <div className="max-h-[90vh] overflow-y-auto pb-4">
+            <div className="flex flex-col h-full max-h-[90vh]">
               <EditVenueForm 
                 key={venueToEdit.venue_id} // Force re-mount on venue change
                 venueToEdit={venueToEdit} 
@@ -1459,7 +1459,7 @@ export function VenuesPage() {
               <div className="mt-1">
                 <Badge 
                   variant="outline" 
-                  className={`text-xs ${selectedVenue.asset_status_id === 1 ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'}`}
+                  className={`text-xs ${selectedVenue.asset_status_id === 1 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}
                 >
                   {selectedVenue.asset_status_id === 1 ? 'Available' : 'Not Available'}
                 </Badge>
@@ -1566,9 +1566,7 @@ export function VenuesPage() {
             
             {/* Footer */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-4 sm:px-6 py-3 border-t bg-gray-50">
-              <div className="text-sm text-gray-500 mb-2 sm:mb-0">
-                Last updated: {new Date().toLocaleDateString()}
-              </div>
+              <div className="text-sm text-gray-500 mb-2 sm:mb-0"></div>
               <div className="flex flex-col w-full sm:w-auto">
                 <div className="flex flex-col sm:flex-row gap-3 w-full">
 

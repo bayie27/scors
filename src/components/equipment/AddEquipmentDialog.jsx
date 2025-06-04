@@ -132,7 +132,7 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
             <p className="text-sm text-gray-500 mt-1.5">Fill in the details below to add new equipment to your inventory.</p>
           </div>
         </div>
-        <div className="px-8 py-6 space-y-6">
+        <div className="px-8 py-6 max-h-[65vh] overflow-y-auto space-y-6">
           <form id="add-equipment-form" onSubmit={handleSubmit} className="space-y-6">
             {/* Equipment Name */}
             <div className="grid gap-2">

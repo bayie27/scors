@@ -9,6 +9,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Loader2, Plus } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "../../supabase-client";
 
 // Form for adding/editing a user
@@ -76,14 +83,11 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
     }));
   };
 
-  const handleOrgChange = (e) => {
-    const orgId = e.target.value;
+  const handleOrgChange = (value) => {
     setFormData(prev => ({
       ...prev,
-      org_id: orgId
+      org_id: value // value is directly the selected org_id string
     }));
-
-    // No need to set selectedOrg since we're not using it
   };
 
   const validateEmail = (email) => {
@@ -184,22 +188,25 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
               Organization *
             </label>
             
-            <select
-              id="org_id"
-              name="org_id"
+            <Select
               value={formData.org_id}
-              onChange={handleOrgChange}
-              disabled={fetchingOrgs}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
-              required
+              onValueChange={handleOrgChange}
+              disabled={fetchingOrgs || loading} // Keep loading prop from original context
             >
-              <option value="">Select an organization</option>
-              {organizations.map((org) => (
-                <option key={org.org_id} value={org.org_id}>
-                  {org.org_code} - {org.org_name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger 
+                id="org_id" 
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+              >
+                <SelectValue placeholder="Select an organization" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                {organizations.map((org) => (
+                  <SelectItem key={org.org_id} value={org.org_id.toString()}>
+                    {org.org_code} - {org.org_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             
             {fetchingOrgs && (
               <div className="text-xs sm:text-sm text-gray-500 flex items-center mt-1">

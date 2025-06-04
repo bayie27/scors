@@ -451,7 +451,7 @@ export function EquipmentPage() {
   const getStatusColor = (assetStatusId) => {
     switch(assetStatusId) {
       case 1: return 'bg-green-100 text-green-800 border-green-200';
-      case 2: return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 2: return 'bg-red-100 text-red-800 border-red-200'; // Changed to red for 'Not Available'
       case 3: return 'bg-blue-100 text-blue-800 border-blue-200';
       case 4: return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
