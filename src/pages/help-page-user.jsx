@@ -45,7 +45,7 @@ export default function UserManual() {
             <img src="scors-logo.png" alt="SCORS Logo" className="h-16" />
           </div>
           <div className="text-center">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">SCORS User Manual</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">User Manual</h1>
             <p className="text-lg text-gray-600 mb-1">Student Center Online Reservation System</p>
             <p className="text-sm text-gray-500">De La Salle Lipa - College Student Activities Office (CSAO)</p>
           </div>

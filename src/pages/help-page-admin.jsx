@@ -57,8 +57,7 @@ export default function UserManual() {
             <img src="scors-logo.png" alt="SCORS Logo" className="h-16" />
           </div>
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900">SCORS</h1>
-            <p className="text-sm text-gray-500">Administrator Manual</p>
+            <h1 className="text-3xl font-bold text-gray-900">Administrator Manual</h1>
           </div>
         </div>
       </header>
