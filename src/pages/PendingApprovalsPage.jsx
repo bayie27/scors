@@ -278,8 +278,12 @@ export function PendingApprovalsPage() {
                       </div>
                     </div>
                     
-                    <div className="mt-2 text-xs text-gray-400">
-                      Requested {formatDistanceToNow(new Date(reservation.reservation_ts), { addSuffix: true })}
+                    <div className="mt-2 text-xs text-gray-500">
+                      <span className="font-medium">Requested:</span> {formatDistanceToNow(new Date(reservation.reservation_ts), { addSuffix: true })}
+                      <span className="mx-1">•</span>
+                      <span className="text-gray-400">
+                        {format(parseISO(reservation.reservation_ts), 'MMM d, yyyy h:mm a')}
+                      </span>
                     </div>
                   </li>
                 ))}

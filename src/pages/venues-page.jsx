@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from '@/lib/useAuth';
 import { 
   Plus, 
   Search as SearchIcon, 
-  Users as PeopleIcon, 
+  Users,
   X,
   Upload,
   Image,
@@ -12,7 +11,9 @@ import {
   SquareStack,
   Projector,
   AudioLines,
-  Wifi
+  Wifi,
+  UploadCloud,
+  MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -222,25 +223,30 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
   
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="flex items-start px-6 pt-4 pb-3 border-b">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="flex items-start px-8 pt-6 pb-4 border-b">
           <div>
-            <h2 className="text-xl font-semibold">Add New Venue</h2>
-            <p className="text-sm text-gray-500 mt-1">Fill in the details below to add a new venue to the inventory.</p>
+            <h2 className="text-2xl font-semibold">Add New Venue</h2>
+            <p className="text-sm text-gray-500 mt-1.5">Fill in the details below to add a new venue to the inventory.</p>
           </div>
         </div>
-
-        <div className="p-6 space-y-4">
+        
+        <div className="px-8 py-6 space-y-6 max-h-[65vh] overflow-y-auto">
           {/* Venue Name */}
-          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
-            <FormLabel htmlFor="venue_name" className="text-right">Name <span className="text-red-500">*</span></FormLabel>
+          <div className="grid gap-2">
+            <FormLabel htmlFor="venue_name">Name <span className="text-red-500">*</span></FormLabel>
             <FormField
               control={form.control}
               name="venue_name"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Input id="venue_name" placeholder="e.g., Main Auditorium" {...field} />
+                    <Input 
+                      id="venue_name" 
+                      placeholder="e.g., Main Auditorium" 
+                      className="h-10"
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -249,8 +255,8 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
           </div>
           
           {/* Asset Status */}
-          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
-            <FormLabel htmlFor="asset_status" className="text-right">Status <span className="text-red-500">*</span></FormLabel>
+          <div className="grid gap-2">
+            <FormLabel htmlFor="asset_status">Status <span className="text-red-500">*</span></FormLabel>
             <FormField
               control={form.control}
               name="asset_status_id"
@@ -262,7 +268,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                     disabled={isLoadingAssetStatuses || isSubmitting}
                   >
                     <FormControl>
-                      <SelectTrigger id="asset_status">
+                      <SelectTrigger className="h-10">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                     </FormControl>
@@ -286,15 +292,21 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
           </div>
 
           {/* Location */}
-          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
-            <FormLabel htmlFor="location" className="text-right">Location</FormLabel>
+          <div className="grid gap-2">
+            <FormLabel htmlFor="location">Location</FormLabel>
             <FormField
               control={form.control}
               name="venue_loc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Input id="location" placeholder="e.g., Building B, 3rd Floor" {...field} value={field.value || ''} />
+                    <Input 
+                      id="location" 
+                      placeholder="e.g., Building B, 3rd Floor" 
+                      className="h-10"
+                      {...field} 
+                      value={field.value || ''} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -303,8 +315,8 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
           </div>
           
           {/* Capacity */}
-          <div className="grid grid-cols-[120px_1fr] gap-4 items-center">
-            <FormLabel htmlFor="capacity" className="text-right">Capacity</FormLabel>
+          <div className="grid gap-2">
+            <FormLabel htmlFor="capacity">Capacity</FormLabel>
             <FormField
               control={form.control}
               name="venue_cap"
@@ -316,8 +328,10 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                       type="number" 
                       placeholder="e.g., 100"
                       min="1"
+                      className="h-10"
                       {...field}
                       value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />
@@ -328,18 +342,18 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
           
           {/* Description */}
           <div className="grid gap-2">
-            <FormLabel htmlFor="description" className="text-right mt-2">Description</FormLabel>
+            <FormLabel htmlFor="description">Description</FormLabel>
             <FormField
               control={form.control}
               name="venue_desc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       id="description"
-                      placeholder="Enter a brief description of the venue..."
-                      className="resize-none min-h-[100px]"
-                      {...field} 
+                      placeholder="Enter a description for the venue..."
+                      className="min-h-[100px] resize-none"
+                      {...field}
                       value={field.value || ''}
                     />
                   </FormControl>
@@ -351,7 +365,7 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
           
           {/* Equipment & Amenities */}
           <div className="grid gap-2">
-            <FormLabel htmlFor="equipments">Equipment</FormLabel>
+            <FormLabel>Equipment</FormLabel>
             <FormField
               control={form.control}
               name="venue_feat"
@@ -359,13 +373,14 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                 <FormItem className="m-0">
                   <FormControl>
                     <div className="space-y-2">
-                      <div className="flex flex-wrap gap-1.5">
-                        {field.value.map((item, index) => (
-                          <Badge key={index} className="bg-blue-50 text-blue-700 hover:bg-blue-100 px-2 py-1">
+                      <div className="flex flex-wrap gap-2">
+                        {(field.value || []).map((item, index) => (
+                          <Badge key={index} className="bg-blue-50 text-blue-700 hover:bg-blue-50">
+                            <EquipmentIcon name={item} className="h-3 w-3 mr-1" />
                             {item}
                             <button 
-                              type="button"
-                              className="ml-1.5 text-blue-700 hover:text-blue-900"
+                              type="button" 
+                              className="ml-2 text-blue-700 hover:text-blue-900" 
                               onClick={() => {
                                 const newValues = [...field.value];
                                 newValues.splice(index, 1);
@@ -377,91 +392,134 @@ function AddVenueForm({ onSuccess, onCancel, assetStatuses, isLoadingAssetStatus
                           </Badge>
                         ))}
                       </div>
-                      <div className="flex space-x-2 w-full">
+                      <div className="flex gap-2">
                         <Input 
                           placeholder="Add equipment item" 
-                          value={equipmentInput} 
+                          className="flex-1" 
+                          value={equipmentInput}
                           onChange={e => setEquipmentInput(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && e.target.value) { 
+                              e.preventDefault(); 
                               handleAddEquipment();
                             }
                           }}
-                          className="flex-1"
                         />
                         <Button 
                           type="button" 
+                          variant="outline" 
+                          size="sm" 
                           onClick={handleAddEquipment}
                           disabled={!equipmentInput.trim()}
                         >
                           Add
                         </Button>
-                  ``    </div>
+                      </div>
                     </div>
                   </FormControl>
-                  <p className="text-xs text-gray-500">Examples: Projector, Whiteboard, Air Conditioning</p>
+                  <FormDescription className="text-xs text-gray-500">Press Enter or click Add. Examples: Projector, Whiteboard</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
           
-          {/* Venue Image */}
-          <div className="grid gap-2">
-            <FormLabel>Image</FormLabel>
-            <FormItem className="m-0">
-              <FormControl>
-                <div className="w-full h-40 sm:h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 relative overflow-hidden">
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Venue preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="text-center p-4">
-                      <Image className="mx-auto h-10 sm:h-12 w-10 sm:w-12" />
-                      <p className="mt-2 text-xs sm:text-sm">Click to upload or drag & drop</p>
-                    </div>
-                  )}
-                  <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                </div>
-              </FormControl>
-              {imagePreview && (
-                <div className="flex flex-col sm:flex-row justify-end gap-2 mt-2">
-                  <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full sm:w-auto">
-                    <Upload className="mr-2 h-4 w-4" /> Change Image
+          {/* Image Upload */}
+          <div className="grid gap-3">
+            <div>
+              <FormLabel>Image</FormLabel>
+              <p className="text-sm text-gray-500 mt-0.5">Upload a clear photo of the venue</p>
+            </div>
+            <Input
+              id="venue-image-upload"
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageSelect}
+              className="hidden"
+              accept="image/png, image/jpeg, image/gif, image/webp"
+              disabled={isSubmitting}
+            />
+            
+            {imagePreview ? (
+              <div className="mt-2">
+                <div className="relative w-full h-48 rounded-md overflow-hidden border">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="w-full h-full object-cover"
+                    crossOrigin="anonymous"
+                    onError={(e) => {
+                      console.error('Failed to load image preview:', e);
+                      e.target.onerror = null;
+                      e.target.src = '/images/fallback-venue.png';
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8 rounded-full opacity-90 hover:opacity-100"
+                    onClick={handleRemoveImage}
+                    disabled={isSubmitting}
+                  >
+                    <X className="h-4 w-4" />
                   </Button>
-                  <Button type="button" variant="destructive" size="sm" onClick={handleRemoveImage} className="w-full sm:w-auto">
-                    <Trash2 className="mr-2 h-4 w-4" /> Remove Image
-                  </Button>
                 </div>
-              )}
-              {!imagePreview && (
-                <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full mt-2">
-                  <Upload className="mr-2 h-4 w-4" /> Select Image
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-2"
+                  onClick={triggerFileInput}
+                  disabled={isSubmitting}
+                >
+                  <UploadCloud className="mr-2 h-4 w-4" />
+                  Change Image
                 </Button>
-              )}
-              <FormMessage />
-            </FormItem>
+              </div>
+            ) : (
+              <div 
+                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-md bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={triggerFileInput}
+              >
+                <UploadCloud className="h-8 w-8 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-500">Click to upload or drag and drop</p>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, GIF, WEBP up to 5MB</p>
+              </div>
+            )}
           </div>
         </div>
         
-        <div className="border-t p-4 flex flex-col-reverse sm:flex-row justify-end gap-3">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onCancel}
-            disabled={isSubmitting}
-            className="w-full sm:w-auto"
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            className="gap-2 w-full sm:w-auto"
-            disabled={isSubmitting}
-          >
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Creating...' : 'Add Venue'}
-          </Button>
+        <div className="flex items-center justify-between px-8 py-4 border-t bg-gray-50">
+          <div className="text-sm text-gray-500"></div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting}
+              className="border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-medium"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="bg-[#06750F] hover:bg-[#05640d] flex items-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Creating...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  <span>Add Venue</span>
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </form>
     </Form>
@@ -528,8 +586,19 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error('File is too large. Max 5MB allowed.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+      if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+        toast.error('Invalid file type. Only JPG, PNG, GIF, WEBP allowed.');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+      
       setSelectedImage(file);
-      setRemoveCurrentImage(false); 
+      setRemoveCurrentImage(false);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -581,15 +650,15 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="flex items-start px-6 pt-4 pb-3 border-b">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="flex items-start px-8 pt-6 pb-4 border-b">
           <div>
-            <h2 className="text-xl font-semibold">Edit Venue</h2>
-            <p className="text-sm text-gray-500 mt-1">Update the details for this venue.</p>
+            <h2 className="text-2xl font-semibold">Edit Venue</h2>
+            <p className="text-sm text-gray-500 mt-1.5">Update the details for this venue.</p>
           </div>
         </div>
         
-        <div className="p-6 space-y-4">
+        <div className="px-8 py-6 space-y-6 max-h-[65vh] overflow-y-auto">
           {/* Venue Name */}
           <div className="grid gap-2">
             <FormLabel htmlFor="venue_name">Name <span className="text-red-500">*</span></FormLabel>
@@ -599,7 +668,12 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Input id="venue_name" placeholder="e.g., Main Auditorium" {...field} />
+                    <Input 
+                      id="venue_name" 
+                      placeholder="e.g., Main Auditorium" 
+                      className="h-10"
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -621,7 +695,7 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
                     disabled={isLoadingAssetStatuses || isSubmitting}
                   >
                     <FormControl>
-                      <SelectTrigger id="asset_status">
+                      <SelectTrigger className="h-10">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                     </FormControl>
@@ -653,7 +727,13 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Input id="location" placeholder="e.g., Building B, 3rd Floor" {...field} value={field.value || ''} />
+                    <Input 
+                      id="location" 
+                      placeholder="e.g., Building B, 3rd Floor" 
+                      className="h-10"
+                      {...field} 
+                      value={field.value || ''} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -675,8 +755,10 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
                       type="number" 
                       placeholder="e.g., 100"
                       min="1"
+                      className="h-10"
                       {...field}
                       value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />
@@ -685,19 +767,21 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
             />
           </div>
           
+
+          
           {/* Description */}
           <div className="grid gap-2">
-            <FormLabel htmlFor="description" className="text-right mt-2">Description</FormLabel>
+            <FormLabel htmlFor="description">Description</FormLabel>
             <FormField
               control={form.control}
               name="venue_desc"
               render={({ field }) => (
                 <FormItem className="m-0">
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       id="description"
-                      placeholder="Enter venue description"
-                      className="resize-none min-h-[100px]"
+                      placeholder="Enter a description for the venue..."
+                      className="min-h-[100px] resize-none"
                       {...field}
                       value={field.value || ''}
                     />
@@ -754,13 +838,12 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
                           variant="outline" 
                           size="sm" 
                           onClick={(e) => {
-                            const inputElement = document.activeElement?.parentElement?.querySelector('input[placeholder="Add equipment item"]');
+                            const inputElement = e.target.closest('div').querySelector('input[placeholder="Add equipment item"]');
                             if (inputElement && inputElement.value) {
                               field.onChange([...(field.value || []), inputElement.value]);
                               inputElement.value = '';
                             }
                           }}
-                          disabled={false} // Consider adding logic to disable if input is empty
                         >
                           Add
                         </Button>
@@ -773,76 +856,115 @@ function EditVenueForm({ venueToEdit, onSuccess, onCancel, assetStatuses, isLoad
               )}
             />
           </div>
-
-
-
-          {/* Venue Image */}
-          <div className="grid gap-2">
-            <FormLabel>Image</FormLabel>
-            <FormItem className="m-0">
-              <FormControl>
-                <div className="w-full h-40 sm:h-48 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 relative overflow-hidden">
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Venue preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="text-center p-4">
-                      <Image className="mx-auto h-10 sm:h-12 w-10 sm:w-12" />
-                      <p className="mt-2 text-xs sm:text-sm">Click to upload or drag & drop</p>
-                    </div>
-                  )}
-                  <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                </div>
-              </FormControl>
-              {imagePreview && (
-                <div className="flex flex-col sm:flex-row justify-end gap-2 mt-2">
-                  <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full sm:w-auto">
-                    <Upload className="mr-2 h-4 w-4" /> Change Image
+          
+          {/* Image Upload - Moved to bottom */}
+          <div className="grid gap-3">
+            <div>
+              <FormLabel>Image</FormLabel>
+              <p className="text-sm text-gray-500 mt-0.5">Upload a clear photo of the venue</p>
+            </div>
+            <Input
+              id="venue-image-upload"
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageSelect}
+              className="hidden"
+              accept="image/png, image/jpeg, image/gif, image/webp"
+              disabled={isSubmitting}
+            />
+            
+            {imagePreview ? (
+              <div className="mt-2">
+                <div className="relative w-full h-48 rounded-md overflow-hidden border">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="w-full h-full object-cover"
+                    crossOrigin="anonymous"
+                    onError={(e) => {
+                      console.error('Failed to load image preview:', e);
+                      e.target.onerror = null;
+                      e.target.src = '/images/fallback-venue.png';
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8 rounded-full opacity-90 hover:opacity-100"
+                    onClick={handleRemoveImage}
+                    disabled={isSubmitting}
+                  >
+                    <X className="h-4 w-4" />
                   </Button>
-                  <Button type="button" variant="destructive" size="sm" onClick={handleRemoveImage} className="w-full sm:w-auto">
-                    <Trash2 className="mr-2 h-4 w-4" /> Remove Image
-                  </Button>
                 </div>
-              )}
-              {!imagePreview && (
-                <Button type="button" variant="outline" size="sm" onClick={triggerFileInput} className="w-full mt-2">
-                  <Upload className="mr-2 h-4 w-4" /> Select Image
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-2"
+                  onClick={triggerFileInput}
+                  disabled={isSubmitting}
+                >
+                  <UploadCloud className="mr-2 h-4 w-4" />
+                  Change Image
                 </Button>
-              )}
-              <FormMessage />
-            </FormItem>
+              </div>
+            ) : (
+              <div 
+                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-md bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={triggerFileInput}
+              >
+                <UploadCloud className="h-8 w-8 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-500">Click to upload or drag and drop</p>
+                <p className="text-xs text-gray-400 mt-1">PNG, JPG, GIF, WEBP up to 5MB</p>
+              </div>
+            )}
           </div>
         </div>
         
-        <DialogFooter className="flex justify-end gap-3 mt-4 px-6">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onCancel} 
-            disabled={isSubmitting}
-            className="w-full sm:w-auto mt-2 sm:mt-0"
-          >
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            className="gap-2 w-full sm:w-auto" 
-            disabled={isSubmitting}
-          >
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </DialogFooter>
+        <div className="flex items-center justify-between px-8 py-4 border-t bg-gray-50">
+          <div className="text-sm text-gray-500"></div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting}
+              className="border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-medium"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="bg-[#06750F] hover:bg-[#05640d] flex items-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4">
+                    <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
+                  </svg>
+                  <span>Save Changes</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
       </form>
     </Form>
   );
 }
 
 export function VenuesPage() {
-  const { user } = useAuth();
   const [venues, setVenues] = useState([]);
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const searchInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [assetStatuses, setAssetStatuses] = useState([]);
@@ -851,14 +973,11 @@ export function VenuesPage() {
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
   const [venueToDelete, setVenueToDelete] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [venueToEdit, setVenueToEdit] = useState(null);
   const [isEditVenueOpen, setIsEditVenueOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false); // For desktop expandable search
-  
-  // Check if user is an admin (CSAO or org_id = 1)
-  const isAdmin = user && user.org_id === 1;
-
+  const [fullScreenImage, setFullScreenImage] = useState(null); // For full screen image view
+  const [isDeleting, setIsDeleting] = useState(false); // Track delete operation status
 
   const handleEditVenueClick = (venue) => {
     setVenueToEdit(venue);
@@ -880,7 +999,7 @@ export function VenuesPage() {
         .order('venue_name');
         
       if (supabaseError) {
-        console.error('Error fetching venues:', supabaseError);
+        console.error('Error fetching venues');
         throw supabaseError;
       }
       
@@ -936,7 +1055,7 @@ export function VenuesPage() {
         // Venue subscription status updated
         if (status === 'SUBSCRIBED') {
           // Force a refresh when subscription is established
-          fetchVenues().catch(error => {
+          fetchVenues().catch(() => {
             // Error refreshing after subscription
             toast.error('Failed to refresh venues after subscription');
           });
@@ -1028,12 +1147,12 @@ export function VenuesPage() {
 
   return (
     <div className="container mx-auto py-6 px-4">
-        {/* Main container: column on mobile, row on sm+ */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-y-3 sm:gap-x-4">
-          <h1 className="text-2xl font-bold text-gray-900 whitespace-nowrap">Venue Management</h1>
-          
-          {/* Actions Group: column on mobile, row on sm+ */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-3 w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Venue Management</h1>
+          <p className="text-sm text-gray-500 mt-1">View details and management options for venues</p>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-3 w-full sm:w-auto">
             {/* Mobile Search (visible on base, hidden on sm and up) */}
             <div className="relative flex items-center w-full sm:hidden">
               <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -1071,32 +1190,30 @@ export function VenuesPage() {
                   className="text-gray-500 hover:text-gray-700 h-10 w-10"
                   aria-label="Search venues"
                 >
-                  <SearchIcon className="h-5 w-5" />
+                  <SearchIcon className="h-6 w-6" />
                 </Button>
               )}
             </div>
             
-            {/* Add Venue Button: full width on mobile, auto width on sm+ - Only visible to admin */}
-            {isAdmin && (
-              <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base gap-1">
-                    <Plus className="h-4 w-4" />
-                    <span>Add Venue</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="w-[95vw] max-w-[400px] p-0 max-h-[90vh] overflow-hidden mx-auto">
-                  <div className="max-h-[90vh] overflow-y-auto pb-4">
-                    <AddVenueForm 
-                      onSuccess={handleVenueFormSuccess} 
-                      onCancel={() => setIsAddVenueOpen(false)} 
-                      assetStatuses={assetStatuses} 
-                      isLoadingAssetStatuses={isLoadingAssetStatuses} 
-                    />
-                  </div>
-                </DialogContent>
-              </Dialog>
-            )}
+            {/* Add Venue Button: full width on mobile, auto width on sm+ */}
+            <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base gap-1">
+                  <Plus className="h-4 w-4" />
+                  <span>Add Venue</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="w-[95vw] max-w-[400px] p-0 max-h-[90vh] overflow-hidden mx-auto">
+                <div className="max-h-[90vh] overflow-y-auto pb-4">
+                  <AddVenueForm 
+                    onSuccess={handleVenueFormSuccess} 
+                    onCancel={() => setIsAddVenueOpen(false)} 
+                    assetStatuses={assetStatuses} 
+                    isLoadingAssetStatuses={isLoadingAssetStatuses} 
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -1115,53 +1232,62 @@ export function VenuesPage() {
               onClick={() => setSelectedVenue(venue)}
             >
               {/* Venue Image */}
-              <div className="relative h-48 overflow-hidden group">
+              <div 
+                className="relative h-48 overflow-hidden group cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (venue.image_url) {
+                    setFullScreenImage(venue.image_url);
+                  } else {
+                    setSelectedVenue(venue);
+                  }
+                }}
+              >
                 {venue.image_url ? (
-                  <img 
-                    src={venue.image_url} 
-                    alt={venue.venue_name} 
-                    className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
-                  />
+                  <>
+                    <img 
+                      src={venue.image_url} 
+                      alt={venue.venue_name} 
+                      className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                      crossOrigin="anonymous"
+                    />
+                    <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  </>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gray-100">
                     <Camera className="h-8 w-8 text-gray-400" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="absolute top-2 right-2 flex space-x-1 z-10">
-                  {isAdmin && (
-                    <>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-gray-100 transition-all duration-200"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setVenueToEdit(venue);
-                          setIsEditVenueOpen(true);
-                        }}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 20h9"></path>
-                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
-                      </Button>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-red-50 group transition-all duration-200"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setVenueToDelete(venue);
-                          setIsDeleteDialogOpen(true);
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </Button>
-                    </>
-                  )}
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-gray-100 transition-all duration-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setVenueToEdit(venue);
+                      setIsEditVenueOpen(true);
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h9"></path>
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                    </svg>
+                  </Button>
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="bg-white/90 backdrop-blur-sm h-8 w-8 p-0 shadow-sm hover:bg-red-50 group transition-all duration-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setVenueToDelete(venue);
+                      setIsDeleteDialogOpen(true);
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </Button>
                 </div>
               </div>
               
@@ -1315,66 +1441,125 @@ export function VenuesPage() {
 
       {/* Venue Modal */}
       {selectedVenue && (
-        <Dialog open={true} onOpenChange={() => setSelectedVenue(null)}>
-          <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] p-0 overflow-hidden overflow-y-auto">
+        <Dialog open={!!selectedVenue} onOpenChange={(newOpenState) => {
+          if (!newOpenState) setSelectedVenue(null);
+        }}>
+          <DialogContent 
+            className="w-full max-w-lg md:max-w-xl lg:max-w-2xl max-h-[65vh] overflow-y-auto p-0"
+            aria-describedby="venue-details-description"
+          >
             {/* Header */}
-            <div className="px-4 sm:px-6 pt-4 pb-3">
-              <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900">{selectedVenue.venue_name}</DialogTitle>
-              <div className="flex items-center mt-2">
-                <Badge variant="outline" className={`text-xs ${selectedVenue.asset_status_id === 1 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
+            <div className="border-b pb-4 px-6 pt-6">
+              <DialogTitle className="text-2xl font-bold text-gray-900">
+                {selectedVenue.venue_name}
+              </DialogTitle>
+              <DialogDescription id="venue-details-description" className="mt-1 text-sm text-gray-500">
+                View details and management options for this venue
+              </DialogDescription>
+              <div className="mt-1">
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs ${selectedVenue.asset_status_id === 1 ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'}`}
+                >
                   {selectedVenue.asset_status_id === 1 ? 'Available' : 'Not Available'}
                 </Badge>
               </div>
-              {/* Image Carousel */}
-              {selectedVenue.image_url ? (
-                <div className="mt-4">
-                  <VenueImageCarousel images={[selectedVenue.image_url].filter(Boolean)} />
+            </div>
+            
+            <div className="overflow-y-auto max-h-[65vh]">
+              {/* Image */}
+              <div className="px-5 py-3">
+                <div 
+                  className="overflow-hidden rounded-lg border border-gray-200 cursor-pointer relative group"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (selectedVenue.image_url) {
+                      setFullScreenImage(selectedVenue.image_url);
+                    }
+                  }}
+                >
+                  {selectedVenue.image_url ? (
+                    <>
+                      <img 
+                        src={selectedVenue.image_url} 
+                        alt={selectedVenue.venue_name}
+                        className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '';
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-40">
+                        <span className="text-white bg-black bg-opacity-50 rounded-full p-2">
+                          <Image className="h-6 w-6" />
+                          <span className="sr-only">View Full Size</span>
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full h-64 bg-gray-100 flex items-center justify-center">
+                      <Camera className="h-12 w-12 text-gray-400" />
+                      <span className="sr-only">No image available</span>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="relative w-full h-32 sm:h-40 bg-gray-100 flex flex-col items-center justify-center mt-4">
-                  <Camera className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
-                  <span className="text-gray-500 mt-2 sm:mt-4">No images available</span>
-                </div>
-              )}
-              
-              {/* Content */}
-              <div className="p-3 sm:p-4">
-                <p className="text-xs text-gray-500 mb-3 sm:mb-4">
-                  {selectedVenue.venue_loc || 'No location provided'}
-                </p>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-                  {/* Left Column */}
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1">Description</h3>
-                    <p className="text-sm text-gray-700 mb-3">
-                      {selectedVenue.venue_desc || 'No description provided'}
-                    </p>
-                    
-                    <div className="flex items-center text-sm">
-                      <div className="flex items-center">
-                        <PeopleIcon className="h-4 w-4 flex-shrink-0 text-gray-500 mr-2" />
-                        <span className="text-sm"><strong>Capacity:</strong> {selectedVenue.venue_cap || 'Not specified'}</span>
+              </div>
+      
+              <div className="px-5 pb-5">
+                <div className="grid grid-cols-1 gap-6">
+                  {/* Main Content Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Left Column - Description */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <h3 className="text-base font-semibold text-gray-900">Description</h3>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          {selectedVenue.venue_desc || 'No description available for this venue.'}
+                        </p>
                       </div>
                     </div>
-                  </div>
-                  
-                  {/* Right Column */}
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1">Equipment & Amenities</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {(selectedVenue.venue_feat || []).length > 0 ? (
-                        selectedVenue.venue_feat.map((item, idx) => (
-                          <div key={idx} className="flex items-center">
-                            <EquipmentIcon name={item} className="h-3.5 w-3.5 text-indigo-500 mr-2" />
-                            <span className="text-xs text-gray-700">{item}</span>
+
+                    {/* Right Column - Details and Equipment */}
+                    <div className="space-y-6">
+                      {/* Details */}
+                      <div className="space-y-3">
+                        <h3 className="text-base font-semibold text-gray-900">Details</h3>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                            <span className="text-sm text-gray-600">
+                              {selectedVenue.venue_loc || 'No location specified'}
+                            </span>
                           </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-gray-500">No equipment listed</p>
-                      )}
-                    </div>
-                  </div>
+                          {selectedVenue.venue_cap && (
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                              <span className="text-sm text-gray-600">
+                                Capacity: {selectedVenue.venue_cap}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Equipment & Amenities */}
+                      <div className="space-y-2">
+                        <h3 className="text-base font-semibold text-gray-900">Equipment & Amenities</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {(selectedVenue.venue_feat || []).length > 0 ? (
+                            selectedVenue.venue_feat.map((item, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs gap-1.5 border-gray-200">
+                                <EquipmentIcon name={item} className="h-3 w-3" />
+                                {item}
+                              </Badge>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500">No equipment or amenities listed</p>
+                          )}
+                        </div>
+                      </div>
+                    </div> {/* End of right column */}
+                  </div> {/* End of grid */}
                 </div>
               </div>
             </div>
@@ -1388,31 +1573,27 @@ export function VenuesPage() {
                 <div className="flex flex-col sm:flex-row gap-3 w-full">
 
                   <div className="flex flex-col sm:flex-row gap-3 w-full">
-                    {isAdmin && (
-                      <>
-                        <Button 
-                          variant="outline" 
-                          className="h-10 px-4 flex items-center justify-center sm:justify-start gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50 w-full sm:w-auto"
-                          onClick={() => { handleEditVenueClick(selectedVenue); setSelectedVenue(null); }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600">
-                            <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
-                          </svg>
-                          Edit Venue
-                        </Button>
-                        <div className="border-l border-gray-200 h-6 self-center hidden sm:block"></div>
-                        <Button 
-                          variant="outline" 
-                          className="h-10 px-4 flex items-center justify-center sm:justify-start gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300 w-full sm:w-auto mt-3 sm:mt-0"
-                          onClick={() => { handleDeleteVenueClick(selectedVenue); setSelectedVenue(null); }}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                          <span className="whitespace-nowrap">Delete Venue</span>
-                        </Button>
-                      </>
-                    )}
+                    <Button 
+                      variant="outline" 
+                      className="h-10 px-4 flex items-center justify-center sm:justify-start gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50 w-full sm:w-auto"
+                      onClick={() => { handleEditVenueClick(selectedVenue); setSelectedVenue(null); }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600">
+                        <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
+                      </svg>
+                      Edit Venue
+                    </Button>
+                    <div className="border-l border-gray-200 h-6 self-center hidden sm:block"></div>
+                    <Button 
+                      variant="outline" 
+                      className="h-10 px-4 flex items-center justify-center sm:justify-start gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300 w-full sm:w-auto mt-3 sm:mt-0"
+                      onClick={() => { handleDeleteVenueClick(selectedVenue); setSelectedVenue(null); }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span className="whitespace-nowrap">Delete Venue</span>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -1421,6 +1602,43 @@ export function VenuesPage() {
         </Dialog>
       )}
       </div>
+      
+      {/* Full Screen Image Dialog */}
+      <Dialog open={!!fullScreenImage} onOpenChange={(open) => !open && setFullScreenImage(null)}>
+        <DialogContent 
+          className="p-0 border-0 shadow-none bg-white max-w-none w-full h-full max-h-none"
+          hideCloseButton
+        >
+          <div 
+            className="fixed inset-0 flex flex-col items-center justify-center bg-white cursor-pointer"
+            onClick={() => setFullScreenImage(null)}
+          >
+            {fullScreenImage && (
+              <div className="relative">
+                <div className="relative">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFullScreenImage(null);
+                    }}
+                    className="absolute -right-2 -top-2 bg-black/70 hover:bg-black/90 text-white rounded-full p-1.5 z-10 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <img 
+                    src={fullScreenImage} 
+                    alt="Full screen view" 
+                    className="max-h-[85vh] max-w-[90vw] object-contain"
+                  />
+                </div>
+                <div className="text-center mt-4 text-white/80 text-sm bg-black/50 px-3 py-1 rounded-full">
+                  Click anywhere to close
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

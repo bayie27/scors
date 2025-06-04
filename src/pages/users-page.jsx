@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Trash2, Search, Loader2, Building2, Plus } from "lucide-react";
+import { Edit, Trash2, Search, Loader2, Building2, Plus, PencilLine } from "lucide-react";
 import { supabase } from '../supabase-client';
 import { OrganizationDialog } from "@/components/organizations/organization-dialog";
 import { UserDialog, DeleteUserDialog } from "@/components/users/user-dialog";
@@ -349,69 +349,68 @@ export function UsersPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 flex flex-col h-full">
-      {/* Sticky header area */}
-        {/* Main container: column on mobile, row on sm+ */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-y-3 sm:gap-x-4">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 whitespace-nowrap">User Management</h1>
+    <div className="container mx-auto py-6 px-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">User Management</h1>
+          <p className="text-sm text-gray-500 mt-1">View details and management options for users</p>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-3 w-full sm:w-auto">
+          {/* Search Input - always visible and full-width on mobile, expandable on sm+ */}
+          {/* Mobile Search (visible on base, hidden on sm and up) */}
+          <div className="relative flex items-center w-full sm:hidden">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <Input
+              placeholder="Search users..."
+              className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-full"
+              value={searchQuery}
+              onChange={handleSearchChange}
+            />
+          </div>
+          {/* Desktop Expandable Search (hidden on base, flex on sm and up) */}
+          <div className="relative hidden sm:flex items-center">
+            {isSearchOpen ? (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Input
+                  placeholder="Search..."
+                  className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-40 focus:w-56 transition-all duration-300 ease-in-out"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  onBlur={() => setTimeout(() => setIsSearchOpen(false), 150)}
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsSearchOpen(true)}
+                className="text-gray-500 hover:text-gray-700 h-10 w-10"
+                aria-label="Search users"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
           
-          {/* Actions Group: column on mobile, row on sm+ */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-3 w-full sm:w-auto">
-            {/* Search Input - always visible and full-width on mobile, expandable on sm+ */}
-            {/* Mobile Search (visible on base, hidden on sm and up) */}
-            <div className="relative flex items-center w-full sm:hidden">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-              <Input
-                placeholder="Search users..."
-                className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-full"
-                value={searchQuery}
-                onChange={handleSearchChange}
-              />
-            </div>
-            {/* Desktop Expandable Search (hidden on base, flex on sm and up) */}
-            <div className="relative hidden sm:flex items-center">
-              {isSearchOpen ? (
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                  <Input
-                    placeholder="Search..."
-                    className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-40 focus:w-56 transition-all duration-300 ease-in-out"
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    onBlur={() => setTimeout(() => setIsSearchOpen(false), 150)}
-                    autoFocus
-                  />
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsSearchOpen(true)}
-                  className="text-gray-500 hover:text-gray-700 h-10 w-10"
-                  aria-label="Search users"
-                >
-                  <Search className="h-5 w-5" />
-                </Button>
-              )}
-            </div>
-            
-            {/* Action Buttons: full width on mobile, auto width on sm+ */}
-            <Button 
-              onClick={handleAddUser}
-              className="bg-blue-600 hover:bg-blue-700 text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add User</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={handleOpenOrgDialog}
-              className="border-gray-300 text-gray-700 hover:bg-gray-100 h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base"
-            >
-              <Building2 className="h-4 w-4 mr-2" />
-              <span>List of Organizations</span>
-            </Button>
+          {/* Action Buttons: full width on mobile, auto width on sm+ */}
+          <Button 
+            onClick={handleAddUser}
+            className="bg-[#07A012] hover:bg-[#058a0e] text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group transition-colors"
+          >
+            <Plus className="h-4 w-4 mr-1.5 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
+            <span>Add User</span>
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={handleOpenOrgDialog}
+            className="border-gray-300 text-gray-700 hover:bg-gray-100 h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base"
+          >
+            <Building2 className="h-4 w-4 mr-2" />
+            <span>List of Organizations</span>
+          </Button>
           </div>
         </div>
 
@@ -455,7 +454,7 @@ export function UsersPage() {
                               onClick={() => handleEditUser(user)}
                               className="h-8 px-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
                             >
-                              <Edit className="h-3.5 w-3.5 mr-1" />
+                              <PencilLine className="h-3.5 w-3.5 mr-1" />
                               Edit
                             </Button>
                             <Button
@@ -508,7 +507,7 @@ export function UsersPage() {
                           className="flex-1 h-9 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
                           onClick={() => handleEditUser(user)}
                         >
-                          <Edit className="h-4 w-4 mr-1" />
+                          <PencilLine className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
                         <Button

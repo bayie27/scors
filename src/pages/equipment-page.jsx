@@ -3,32 +3,58 @@ import { useAuth } from '@/lib/useAuth';
 import { 
   Plus, 
   Search as SearchIcon, 
+  X, 
+  Edit as EditIcon, 
+  Trash2,
+  Upload,
+  Image as ImageIcon,
+  Loader2,
+  SquareStack,
   Filter, 
   MapPin as MapPinIcon, 
-  SquareStack, 
   Tag,
   PackageCheck,
   PackageOpen,
   Clipboard,
-  X
+  Trash as TrashIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-  DialogTitle,
-  DialogDescription,
-  DialogClose
-} from '@/components/ui/dialog';
-import { AssetCard } from '@/components/cards/asset-card';
-import { AddEquipmentDialog } from '@/components/equipment/AddEquipmentDialog';
-
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { AssetCard } from '@/components/cards/asset-card';
 import { equipmentService } from '@/services/equipment-service';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogClose,
+  DialogDescription,
+} from '@/components/ui/dialog';
+// Form schema is now handled in dialog components
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { AddEquipmentDialog } from '@/components/equipment/AddEquipmentDialog';
+import { EditEquipmentDialog } from '@/components/equipment/EditEquipmentDialog';
 
 // Simple image carousel for equipment modal
 function EquipmentImageCarousel({ images = [] }) {
@@ -69,16 +95,49 @@ function StatusIcon({ status, ...props }) {
   }
 }
 
+
 export function EquipmentPage() {
   const { user } = useAuth();
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [equipmentToDelete, setEquipmentToDelete] = useState(null);
   const [isAddEquipmentDialogOpen, setIsAddEquipmentDialogOpen] = useState(false);
+  const [isEditEquipmentDialogOpen, setIsEditEquipmentDialogOpen] = useState(false);
+  const [equipmentToEdit, setEquipmentToEdit] = useState(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  // Reference to the full-screen image modal element
+  const fullScreenImageRef = useRef(null);
   const subscriptionRef = useRef(null);
+  
+  // State for full screen image
+  const [fullScreenImage, setFullScreenImage] = useState(null);
+
+  // Function to open the full-screen image modal
+  const openFullScreenImage = (imageUrl) => {
+    setFullScreenImage(imageUrl);
+  };
+
+  // Close full screen image
+  const closeFullScreenImage = () => {
+    setFullScreenImage(null);
+  };
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && fullScreenImage) {
+        closeFullScreenImage();
+      }
+    };
+    
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [fullScreenImage]);
 
   // Check if user is an admin (CSAO or org_id = 1)
   const isAdmin = user && user.org_id === 1;
@@ -86,55 +145,287 @@ export function EquipmentPage() {
   const fetchEquipment = useCallback(async () => {
     try {
       setIsLoading(true);
-      
       // Get equipment list from service
       const data = await equipmentService.getEquipment();
+      console.log('Raw equipment data:', data);
       
-      // Process images if they are in URL format (comma-separated)
-      const processedEquipment = data.map(item => {
-        let images = [];
-        if (item.image_url) {
-          // If image_url is a comma-separated list, split it
-          if (item.image_url.includes(',')) {
-            images = item.image_url.split(',').map(url => url.trim());
-          } else {
-            images = [item.image_url];
-          }
+      // Process the data to enhance it for UI display
+      const processedData = await Promise.all(data.map(async (item) => {
+        // Check if item already has a complete image URL
+        if (item.image_url && !item.image_url.startsWith('http')) {
+          // Get a full URL for the image if not already complete
+          const fullImageUrl = await equipmentService.getFullImageUrl(item.image_url);
+          return { ...item, image_url: fullImageUrl };
         }
-        return { ...item, images };
-      });
+        return item;
+      }));
       
-      setEquipment(processedEquipment);
+      console.log('Processed equipment data:', processedData);
+      setEquipment(processedData);
     } catch (error) {
-      console.error('Error fetching equipment:', error);
+      console.error('Failed to fetch equipment:', error);
       toast.error('Failed to load equipment');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const handleAddEquipmentSubmit = async (equipmentFormData, imageFile) => {
+  const handleAddEquipmentSubmit = async (equipmentData, imageFile) => {
     try {
-      await equipmentService.createEquipment(equipmentFormData, imageFile);
-      toast.success('Equipment added successfully!');
-      fetchEquipment(); // Refresh the list
-      setIsAddEquipmentDialogOpen(false); // Close the dialog
-      return Promise.resolve(); // Explicitly return a resolved promise for the dialog
+      // Show a loading toast that we'll update later
+      const toastId = toast.loading('Adding equipment...');
+      
+      // Create a temporary ID for optimistic UI updates
+      const tempId = `temp-${Date.now()}`;
+      
+      // Create a temporary image URL if an image file is provided
+      let tempImageUrl = null;
+      if (imageFile) {
+        tempImageUrl = URL.createObjectURL(imageFile);
+      }
+      
+      // Create an optimistic version of the equipment for the UI
+      const optimisticEquipment = {
+        ...equipmentData,
+        equipment_id: tempId,
+        image_url: tempImageUrl,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Add the optimistic equipment to the UI immediately
+      setEquipment(prev => [optimisticEquipment, ...prev]);
+      
+      // Actually create the equipment in the background
+      await equipmentService.createEquipment(equipmentData, imageFile);
+      
+      // Update toast to success
+      toast.success('Equipment added successfully', { id: toastId });
+      
+      // The real-time subscription will handle updating the real data
     } catch (error) {
       console.error('Failed to add equipment:', error);
-      toast.error(error.message || 'Failed to add equipment. Please try again.');
-      return Promise.reject(error); // Explicitly return a rejected promise for the dialog
+      toast.error('Failed to add equipment: ' + error.message);
+      
+      // On error, refresh the list to remove any optimistic updates
+      fetchEquipment();
     }
   };
 
-  // Initial data fetch
+  const handleEditEquipmentSubmit = async (equipmentData, imageFile) => {
+    try {
+      // Show a loading toast that we'll update later
+      const toastId = toast.loading('Updating equipment...');
+      
+      // Create a temporary image URL if an image file is provided
+      const tempImageUrl = imageFile ? URL.createObjectURL(imageFile) : null;
+      
+      // Create an optimistic version of the updated equipment
+      const optimisticUpdate = {
+        ...equipmentData,
+        image_url: tempImageUrl || equipmentData.image_url,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Update local state immediately for responsive UI
+      setEquipment(prevEquipment => {
+        return prevEquipment.map(item => 
+          item.equipment_id === equipmentData.equipment_id ? optimisticUpdate : item
+        );
+      });
+      
+      // If the equipment is selected in the modal, update it there too
+      if (selectedEquipment && selectedEquipment.equipment_id === equipmentData.equipment_id) {
+        setSelectedEquipment({
+          ...selectedEquipment,
+          ...optimisticUpdate
+        });
+      }
+      
+      // Perform the actual update in the background
+      await equipmentService.updateEquipment(equipmentData, imageFile);
+      
+      // Update toast to success
+      toast.success('Equipment updated successfully', { id: toastId });
+      
+      // Close the edit dialog
+      setIsEditEquipmentDialogOpen(false);
+      
+      // The real-time subscription will reconcile any differences when the server confirms
+    } catch (error) {
+      console.error('Failed to update equipment:', error);
+      toast.error('Failed to update equipment: ' + error.message);
+      
+      // Revert the optimistic update by re-fetching data
+      fetchEquipment();
+    }
+  };
+
+  const handleDeleteEquipment = async () => {
+    if (!equipmentToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      // Store the equipment name before deletion for toast message
+      const equipmentName = equipmentToDelete.equipment_name;
+      const equipmentId = equipmentToDelete.equipment_id;
+      
+      // Show a loading toast that we'll update later
+      const toastId = toast.loading(`Deleting ${equipmentName}...`);
+      
+      // Optimistic UI update - immediately remove from state
+      setEquipment(prevEquipment => {
+        return prevEquipment.filter(item => item.equipment_id !== equipmentId);
+      });
+      
+      // If the deleted equipment is currently selected, close the detail modal
+      if (selectedEquipment && selectedEquipment.equipment_id === equipmentId) {
+        setSelectedEquipment(null);
+      }
+      
+      // Close the delete confirmation dialog
+      setIsDeleteDialogOpen(false);
+      setEquipmentToDelete(null);
+      
+      // Perform the actual delete in the background (with reservation cancellation)
+      const result = await equipmentService.deleteEquipmentWithReservations(equipmentId);
+      
+      // Show appropriate success message based on whether reservations were affected
+      if (result.cancelledReservations > 0) {
+        toast.success(`${equipmentName} deleted successfully. ${result.cancelledReservations} reservation(s) have been cancelled.`, { id: toastId, duration: 5000 });
+      } else {
+        toast.success(`${equipmentName} deleted successfully`, { id: toastId });
+      }
+      
+      // The real-time subscription will handle any state reconciliation if needed
+    } catch (error) {
+      console.error('Failed to delete equipment:', error);
+      toast.error(`Failed to delete equipment: ${error.message || 'Unknown error'}`);
+      
+      // Revert the optimistic update by re-fetching data
+      fetchEquipment();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+  
+  const confirmDeleteEquipment = async (equipment) => {
+    try {
+      // Check if equipment has associated reservations before showing delete dialog
+      const { count, hasReservations } = await equipmentService.checkEquipmentReservations(equipment.equipment_id);
+      
+      // Store the equipment to delete
+      setEquipmentToDelete({
+        ...equipment,
+        hasReservations,
+        reservationCount: count
+      });
+      
+      // Show the delete confirmation dialog
+      setIsDeleteDialogOpen(true);
+    } catch (error) {
+      console.error('Error checking reservations:', error);
+      toast.error('Failed to check associated reservations');
+    }
+  };
+
+  const handleOpenEditDialog = (equipment) => {
+    setEquipmentToEdit(equipment);
+    setIsEditEquipmentDialogOpen(true);
+  };
+
+  // Initial data fetch and real-time subscription setup
   useEffect(() => {
     fetchEquipment();
     
-    // Set up real-time subscription
+    // Set up an optimized real-time subscription
     subscriptionRef.current = equipmentService.subscribeToEquipment((payload) => {
       console.log('Equipment changed:', payload);
-      fetchEquipment();
+      
+      // Handle the change based on the event type without full refetch
+      const { eventType, new: newRecord, old: oldRecord } = payload;
+      
+      if (eventType === 'INSERT') {
+        // Add the new equipment to the state if we don't already have it
+        setEquipment(prevEquipment => {
+          // Check if we already have this record from optimistic update
+          // by matching actual ID or checking if we have a temp record with matching name
+          const exists = prevEquipment.some(item => 
+            item.equipment_id === newRecord.equipment_id ||
+            (item.equipment_id.toString().startsWith('temp-') && 
+             item.equipment_name === newRecord.equipment_name)
+          );
+          
+          if (exists) {
+            // Replace any temporary record with the real server version
+            return prevEquipment.map(item => {
+              if (item.equipment_id === newRecord.equipment_id || 
+                 (item.equipment_id.toString().startsWith('temp-') && 
+                  item.equipment_name === newRecord.equipment_name)) {
+                return { 
+                  ...newRecord,
+                  // Preserve the image URL if it's a complete URL
+                  image_url: item.image_url && item.image_url.startsWith('http') 
+                    ? item.image_url 
+                    : newRecord.image_url
+                };
+              }
+              return item;
+            });
+          }
+          
+          // Get the image URL and add the new record
+          const processNewRecord = async () => {
+            if (newRecord.image_url && !newRecord.image_url.startsWith('http')) {
+              const fullImageUrl = await equipmentService.getFullImageUrl(newRecord.image_url);
+              setEquipment(prev => [{ ...newRecord, image_url: fullImageUrl }, ...prev]);
+            } else {
+              setEquipment(prev => [newRecord, ...prev]);
+            }
+          };
+          
+          processNewRecord();
+          return prevEquipment; // Return current state, async update will happen later
+        });
+      } 
+      else if (eventType === 'UPDATE') {
+        // Process the updated record to ensure it has a complete image URL
+        const processUpdatedRecord = async () => {
+          let fullImageUrl = newRecord.image_url;
+          
+          if (newRecord.image_url && !newRecord.image_url.startsWith('http')) {
+            fullImageUrl = await equipmentService.getFullImageUrl(newRecord.image_url);
+          }
+          
+          const updatedRecord = { ...newRecord, image_url: fullImageUrl };
+          
+          // Update the equipment in the state
+          setEquipment(prevEquipment => {
+            return prevEquipment.map(item => 
+              item.equipment_id === newRecord.equipment_id ? updatedRecord : item
+            );
+          });
+          
+          // If this equipment is currently selected, update it in the modal
+          if (selectedEquipment && selectedEquipment.equipment_id === newRecord.equipment_id) {
+            setSelectedEquipment(updatedRecord);
+          }
+        };
+        
+        processUpdatedRecord();
+      } 
+      else if (eventType === 'DELETE') {
+        // Remove the equipment from the state
+        setEquipment(prevEquipment => {
+          return prevEquipment.filter(item => item.equipment_id !== oldRecord.equipment_id);
+        });
+        
+        // If this equipment is currently selected, close the modal
+        if (selectedEquipment && selectedEquipment.equipment_id === oldRecord.equipment_id) {
+          setSelectedEquipment(null);
+        }
+      }
     });
     
     return () => {
@@ -143,10 +434,8 @@ export function EquipmentPage() {
         subscriptionRef.current();
       }
     };
-  }, [fetchEquipment]);
-
-  // Filter equipment based on search query - updated to match venue page pattern
-
+  }, [fetchEquipment, selectedEquipment]); // Include both dependencies
+  
   // Get status text based on asset_status_id
   const getStatusText = (assetStatusId) => {
     switch(assetStatusId) {
@@ -181,68 +470,65 @@ export function EquipmentPage() {
     );
   });
 
+  // This function is now handled by handleOpenEditDialog
+
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold">Equipment Management</h1>
-        <div className="flex items-center gap-4">
-          {/* Search pill - icon only by default, expands to input on click */}
-          <div className="h-10 flex items-center">
-            <div
-              className={`flex items-center transition-all duration-300 ease-in-out cursor-pointer overflow-hidden group ${isSearchExpanded ? 'border border-gray-200 shadow-sm bg-white rounded-full w-64 px-4 py-2 justify-start' : 'w-10 h-10 p-0 justify-center border-0 shadow-none bg-none'}`}
-              onClick={() => {
-                if (!isSearchExpanded) {
-                  setIsSearchExpanded(true);
-                  setTimeout(() => searchInputRef.current && searchInputRef.current.focus(), 100);
-                }
-              }}
-              tabIndex={0}
-              onBlur={e => {
-                // Only collapse if clicking outside
-                if (!e.currentTarget.contains(e.relatedTarget)) {
-                  setIsSearchExpanded(false);
-                }
-              }}
-              style={{ transform: 'translateZ(0)' }} /* Force GPU acceleration */
-            >
-              <SearchIcon className={`h-5 w-5 text-gray-500 flex-shrink-0 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'ml-0' : 'mx-auto'} ${!isSearchExpanded ? '!bg-none !shadow-none !rounded-none' : ''}`} />
-              <div className={`relative flex-1 transition-all duration-300 ease-in-out ${isSearchExpanded ? 'w-full opacity-100' : 'w-0 opacity-0'}`}>
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search"
-                  className={`bg-transparent outline-none border-none text-sm placeholder-gray-400 w-full ml-2 ${isSearchExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-                  style={{ minWidth: 0 }}
+        <div>
+          <h1 className="text-2xl font-bold">Equipment Management</h1>
+          <p className="text-sm text-gray-500 mt-1">View details and management options for this equipment</p>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-3 w-full sm:w-auto">
+          {/* Mobile Search (visible on base, hidden on sm and up) */}
+          <div className="relative flex items-center w-full sm:hidden">
+            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <Input
+              placeholder="Search equipment..."
+              className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-full"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+          {/* Desktop Expandable Search (hidden on base, flex on sm and up) */}
+          <div className="relative hidden sm:flex items-center">
+            {isSearchOpen ? (
+              <div className="relative">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Input
+                  ref={searchInputRef} // Keep ref for potential focus needs
+                  placeholder="Search..."
+                  className="h-10 pl-10 pr-4 py-2 border-gray-300 rounded-md w-40 focus:w-56 transition-all duration-300 ease-in-out"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  onClick={e => e.stopPropagation()}
-                  onFocus={() => setIsSearchExpanded(true)}
+                  onBlur={() => setTimeout(() => setIsSearchOpen(false), 150)}
+                  autoFocus
                 />
               </div>
-              <button
-                tabIndex={0}
-                onClick={e => {
-                  e.stopPropagation();
-                  setSearchQuery('');
-                  searchInputRef.current && searchInputRef.current.focus();
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setIsSearchOpen(true);
+                  // Focus the input after it becomes visible
+                  setTimeout(() => searchInputRef.current?.focus(), 0);
                 }}
-                className={`ml-2 text-gray-400 hover:text-gray-600 focus:outline-none transition-all duration-300 ease-in-out ${isSearchExpanded && searchQuery ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                className="text-gray-500 hover:text-gray-700 h-10 w-10"
+                aria-label="Search equipment"
               >
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-                </svg>
-              </button>
-            </div>
+                <SearchIcon className="h-5 w-5" />
+              </Button>
+            )}
           </div>
           
-          {/* Add equipment button - only show for admin */}
           {isAdmin && (
-            <Button
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-full shadow-md transition-all duration-300 ease-in-out flex items-center group h-10"
+            <Button 
+              className="bg-[#07A012] hover:bg-[#058a0e] text-white h-10 w-full sm:w-auto flex items-center justify-center px-4 text-sm sm:text-base group transition-colors"
               onClick={() => setIsAddEquipmentDialogOpen(true)}
             >
-              <Plus className="h-5 w-5 mr-2 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
-              Add Equipment
+              <Plus className="h-4 w-4 mr-1.5 transition-transform duration-300 ease-in-out group-hover:rotate-90" />
+              <span>Add Equipment</span>
             </Button>
           )}
         </div>
@@ -271,31 +557,90 @@ export function EquipmentPage() {
               statusId={item.asset_status_id}
               statusText={getStatusText(item.asset_status_id)}
               statusColor={getStatusColor(item.asset_status_id)}
-              image={item.images?.[0]}
+              image={item.image_url || null}
               location={item.location}
               description={item.equipment_desc}
               onView={() => setSelectedEquipment(item)}
-              onEdit={isAdmin ? () => {
-                toast.success('Edit functionality will be implemented soon!');
-              } : null}
-              onDelete={isAdmin ? () => {
-                if (window.confirm(`Are you sure you want to delete "${item.equipment_name}"?`)) {
-                  toast.success('Delete functionality will be implemented soon!');
-                }
-              } : null}
+              onEdit={isAdmin ? () => handleOpenEditDialog(item) : null}
+              onDelete={isAdmin ? () => confirmDeleteEquipment(item) : null}
               className="h-full"
             />
           ))}
         </div>
       )}
       
+      {/* Full Screen Image Dialog */}
+      <Dialog open={!!fullScreenImage} onOpenChange={(open) => !open && closeFullScreenImage()}>
+        <DialogContent 
+          className="p-0 border-0 shadow-none bg-transparent/0 max-w-none w-full h-full max-h-none"
+          hideCloseButton
+        >
+          <div 
+            className="fixed inset-0 flex flex-col items-center justify-center bg-transparent cursor-pointer"
+            onClick={closeFullScreenImage}
+          >
+            {fullScreenImage && (
+              <div className="relative">
+                <div className="relative">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeFullScreenImage();
+                    }}
+                    className="absolute -right-2 -top-2 bg-black/70 hover:bg-black/90 text-white rounded-full p-1.5 z-10 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <img 
+                    src={fullScreenImage} 
+                    alt="Full screen view" 
+                    className="max-h-[85vh] max-w-[90vw] object-contain"
+                  />
+                </div>
+                <div className="text-center mt-4 text-white/80 text-sm bg-black/50 px-3 py-1 rounded-full">
+                  Click anywhere to close
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Equipment detail modal */}
       {selectedEquipment && (
-        <Dialog open={!!selectedEquipment} onOpenChange={(open) => !open && setSelectedEquipment(null)}>
-          <DialogContent className="max-w-2xl w-full p-0 overflow-hidden bg-white rounded-lg shadow-xl">
+        <Dialog open={!!selectedEquipment} onOpenChange={(newOpenState) => {
+            if (!newOpenState) { // Dialog is trying to close
+              setSelectedEquipment(null); // This will make open={!!selectedEquipment} false
+              // If the main dialog is closing, also close the full-screen image if it's open
+              if (fullScreenImageRef.current) {
+                document.body.removeChild(fullScreenImageRef.current);
+                fullScreenImageRef.current = null;
+              }
+            }
+            // If newOpenState is true, it means something is trying to open it.
+            // The `open={!!selectedEquipment}` prop handles this if selectedEquipment is set.
+          }}>
+          <DialogContent 
+            className="max-w-3xl max-h-[65vh] overflow-y-auto p-0"
+            aria-describedby="equipment-details-description"
+            onPointerDownOutside={(e) => {
+              if (fullScreenImageRef.current) {
+                e.preventDefault();
+              }
+            }}
+            onEscapeKeyDown={(e) => {
+              if (fullScreenImageRef.current) {
+                e.preventDefault();
+                // The direct DOM approach will handle ESC key via its own event listener
+              }
+            }}
+          >
             {/* Header */}
-            <div className="px-6 pt-6 pb-2 border-b">
+            <div className="border-b pb-4 px-6 pt-6">
               <DialogTitle className="text-2xl font-bold text-gray-900">{selectedEquipment.equipment_name}</DialogTitle>
+              <DialogDescription id="equipment-details-description" className="mt-1 text-sm text-gray-500">
+                View details and management options for this equipment
+              </DialogDescription>
               <div className="mt-1">
                 <Badge variant="outline" className={`text-xs ${getStatusColor(selectedEquipment.asset_status_id)}`}>
                   {getStatusText(selectedEquipment.asset_status_id)}
@@ -306,16 +651,38 @@ export function EquipmentPage() {
             <div className="overflow-y-auto max-h-[65vh]">
               {/* Image */}
               <div className="px-5 py-3">
-                <div className="overflow-hidden rounded-lg border border-gray-200">
-                  {selectedEquipment.images && selectedEquipment.images.length > 0 ? (
-                    <img 
-                      src={selectedEquipment.images[0]} 
-                      alt={selectedEquipment.equipment_name}
-                      className="w-full h-64 object-cover"
-                    />
+                <div 
+                  className="overflow-hidden rounded-lg border border-gray-200 cursor-pointer relative group"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent event bubbling
+                    if (selectedEquipment.image_url) {
+                      openFullScreenImage(selectedEquipment.image_url);
+                    }
+                  }}
+                >
+                  {selectedEquipment.image_url ? (
+                    <>
+                      <img 
+                        src={selectedEquipment.image_url || '/images/fallback-equipment.png'} 
+                        alt={selectedEquipment.equipment_name}
+                        className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+                        onError={(e) => {
+                          console.log('Modal image failed to load:', e.target.src);
+                          e.target.onerror = null; // Prevent infinite error loops
+                          e.target.src = '/images/fallback-equipment.png';
+                        }}
+                        crossOrigin="anonymous" // Add CORS support for Supabase storage
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-40">
+                        <span className="text-white bg-black bg-opacity-50 rounded-full p-2">
+                          <ImageIcon className="h-6 w-6" />
+                          <span className="sr-only">View Full Size</span>
+                        </span>
+                      </div>
+                    </>
                   ) : (
-                    <div className="w-full h-64 flex items-center justify-center bg-gray-100">
-                      <SquareStack className="h-20 w-20 text-gray-300" />
+                    <div className="w-full h-64 bg-gray-100 flex items-center justify-center">
+                      <p className="text-gray-500">No image available</p>
                     </div>
                   )}
                 </div>
@@ -340,51 +707,27 @@ export function EquipmentPage() {
             <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 px-6 py-4 border-t bg-gray-50">
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                 <div className="flex justify-end gap-3 w-full">
-                  <Button 
-                    variant="ghost"
-                    className="h-10 px-4 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                    onClick={() => setSelectedEquipment(null)}
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Close
-                  </Button>
-                  {isAdmin && (
-                    <div className="flex gap-3">
-                      <Button 
-                        variant="outline" 
-                        className="h-10 px-4 flex items-center gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-                        onClick={() => {
-                          toast.success('Edit functionality will be implemented soon!');
-                        }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600">
-                          <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
-                        </svg>
-                        Edit Equipment
-                      </Button>
-                      <div className="border-l border-gray-200 h-6 self-center hidden sm:block"></div>
-                      <Button 
-                        variant="outline" 
-                        className="h-10 px-4 flex items-center gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300"
-                        onClick={async () => {
-                          if (window.confirm(`Are you sure you want to delete "${selectedEquipment.equipment_name}"? This action cannot be undone.`)) {
-                            try {
-                              toast.success('Delete functionality will be implemented soon!');
-                              setSelectedEquipment(null);
-                            } catch (error) {
-                              toast.error('Failed to delete equipment');
-                              console.error('Error deleting equipment:', error);
-                            }
-                          }
-                        }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        <span className="whitespace-nowrap">Delete Equipment</span>
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex flex-col sm:flex-row gap-3 w-full">
+                    <Button 
+                      variant="outline"
+                      onClick={() => handleOpenEditDialog(selectedEquipment)}
+                      className="h-10 px-4 flex items-center gap-2 bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 15 15" fill="currentColor" className="text-blue-600 mr-2">
+                        <path d="M11.8536 1.14645C11.6583 0.951184 11.3417 0.951184 11.1465 1.14645L3.71455 8.57836C3.62459 8.66832 3.55263 8.77461 3.50251 8.89155L2.04044 12.303C1.9599 12.491 2.00189 12.709 2.14646 12.8536C2.29103 12.9981 2.50905 13.0401 2.69697 12.9596L6.10847 11.4975C6.2254 11.4474 6.3317 11.3754 6.42166 11.2855L13.8536 3.85355C14.0488 3.65829 14.0488 3.34171 13.8536 3.14645L11.8536 1.14645ZM4.42166 9.28547L11.5 2.20711L12.7929 3.5L5.71455 10.5784L4.21924 11.2192L3.78081 10.7808L4.42166 9.28547Z" fillRule="evenodd" clipRule="evenodd"></path>
+                      </svg>
+                      Edit Equipment
+                    </Button>
+                    <div className="border-l border-gray-200 h-6 self-center hidden sm:block"></div>
+                    <Button 
+                      variant="outline" 
+                      className="h-10 px-4 flex items-center gap-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100 hover:text-red-800 hover:border-red-300"
+                      onClick={() => confirmDeleteEquipment(selectedEquipment)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                      Delete Equipment
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -392,11 +735,119 @@ export function EquipmentPage() {
         </Dialog>
       )}
 
-      <AddEquipmentDialog
+      {/* Add Equipment Dialog */}
+      <AddEquipmentDialog 
         open={isAddEquipmentDialogOpen}
         onOpenChange={setIsAddEquipmentDialogOpen}
         onSubmitSuccess={handleAddEquipmentSubmit}
       />
+      
+      {/* Edit Equipment Dialog */}
+      {equipmentToEdit && (
+        <EditEquipmentDialog
+          open={isEditEquipmentDialogOpen}
+          onOpenChange={setIsEditEquipmentDialogOpen}
+          equipment={equipmentToEdit}
+          onSubmitSuccess={handleEditEquipmentSubmit}
+        />
+      )}
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+          <div className="p-6 pb-4 border-b">
+            <DialogTitle className="text-xl font-semibold text-gray-900">
+              Delete Equipment
+            </DialogTitle>
+          </div>
+          
+          <div className="p-6 space-y-4">
+            <div className="flex items-center space-x-3 text-amber-600 bg-amber-50 p-3 rounded-md">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="flex-shrink-0"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              <p className="text-sm font-medium">
+                This action cannot be undone. This will permanently delete the equipment.
+              </p>
+            </div>
+            
+            {equipmentToDelete && (
+              <div className="space-y-4">
+                <p className="text-gray-700">
+                  Are you sure you want to delete <span className="font-semibold">{equipmentToDelete.equipment_name}</span>?
+                </p>
+                
+                {equipmentToDelete.hasReservations && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                    <div className="flex items-start">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 text-red-600 mt-0.5 mr-2 flex-shrink-0"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <h4 className="text-sm font-medium text-red-800">Warning: Associated Reservations</h4>
+                        <div className="mt-1 text-sm text-red-700">
+                          <p>This equipment has <strong>{equipmentToDelete.reservationCount}</strong> active reservation{equipmentToDelete.reservationCount !== 1 ? 's' : ''}.</p>
+                          <p className="mt-1">If you delete this equipment, all associated reservations will be automatically marked as <strong>"Cancelled"</strong>.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="p-6 pt-4 border-t bg-gray-50 flex justify-end gap-3">
+            <Button
+              variant="ghost"
+              className="h-10 px-4 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setEquipmentToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="h-10 px-4 bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleDeleteEquipment}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Equipment"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* NOTE: EditEquipmentDialog is already rendered above */}
+      
+      {/* We don't need the Portal here anymore - using imperative DOM approach */}
     </div>
   );
 }
