@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { Calendar, Clock, User, Users, Phone, MapPin, Package, Edit2, X } from 'react-feather';
 import { Badge } from "@/components/ui/badge";
 import { STATUS_STYLES } from '../../../../statusStyles';
+import { useRoleAccess } from '@/lib/useRoleAccess';
 
 // Helper function to convert 24h time to 12h format (e.g., '13:30' -> '1:30 PM')
 const formatTime12Hour = (timeString) => {
@@ -29,6 +30,9 @@ const ViewMode = ({
   equipmentList,
   organizations = []
 }) => {
+  // Get user role access
+  const { isAdmin } = useRoleAccess();
+  
   // Find the organization name and code
   const organization = organizations.find(org => org.org_id === form.org_id);
   const orgDisplay = organization 
@@ -227,75 +231,77 @@ const ViewMode = ({
 
       {/* Footer */}
       <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end space-x-3">
-
-        {form.reservation_status_id === 3 ? (
+        {isAdmin && (
           <>
-            <button
-              type="button"
-              onClick={onEditView}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Edit2 size={16} className="mr-2" />
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={onApprove}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              Approve
-            </button>
-            <button
-              type="button"
-              onClick={onReject}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-            >
-              Reject
-            </button>
+            {form.reservation_status_id === 3 ? (
+              <>
+                <button
+                  type="button"
+                  onClick={onEditView}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <Edit2 size={16} className="mr-2" />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={onApprove}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={onReject}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  Reject
+                </button>
+              </>
+            ) : form.reservation_status_id === 1 ? (
+              <>
+                <button
+                  type="button"
+                  onClick={onEditView}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <Edit2 size={16} className="mr-2" />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                >
+                  Cancel Reservation
+                </button>
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  Delete
+                </button>
+              </>
+            ) : form.reservation_status_id !== 2 && form.reservation_status_id !== 4 ? (
+              <button
+                type="button"
+                onClick={onEditView}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <Edit2 size={16} className="mr-2" />
+                Edit
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                Delete
+              </button>
+            )}
           </>
-        ) : form.reservation_status_id === 1 ? (
-          <>
-            <button
-              type="button"
-              onClick={onEditView}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Edit2 size={16} className="mr-2" />
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-            >
-              Cancel Reservation
-            </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-            >
-              Delete
-            </button>
-          </>
-        ) : form.reservation_status_id !== 2 && form.reservation_status_id !== 4 ? (
-          <button
-            type="button"
-            onClick={onEditView}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <Edit2 size={16} className="mr-2" />
-            Edit
-          </button>
-        ) : (
-          // For cancelled or rejected reservations, only show delete button
-          <button
-            type="button"
-            onClick={onDelete}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            Delete
-          </button>
         )}
       </div>
     </div>
