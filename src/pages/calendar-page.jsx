@@ -131,9 +131,9 @@ export function CalendarPage({ user, onSignOut, view = 'calendar' }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       {/* Header with Logo */}
-      <header className="bg-white shadow-sm fixed top-0 left-0 right-0 z-10 h-[60px] px-4 flex items-center justify-between">
+      <header className="bg-white shadow-sm h-[60px] px-4 flex-shrink-0 flex items-center justify-between z-10">
         <div className="flex items-center space-x-4">
           <Button
             variant="ghost"
@@ -172,17 +172,19 @@ export function CalendarPage({ user, onSignOut, view = 'calendar' }) {
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <Sidebar 
-          user={user} 
-          onSignOut={onSignOut} 
-          onReserve={handleReserveClick}
-          collapsed={collapsed}
-        />
+        <div className="h-full bg-white shadow-sm flex-shrink-0">
+          <Sidebar 
+            user={user} 
+            onSignOut={onSignOut} 
+            onReserve={handleReserveClick}
+            collapsed={collapsed}
+          />
+        </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden pt-[60px] h-[calc(100vh-60px)]">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto p-6">
             {renderContent()}
