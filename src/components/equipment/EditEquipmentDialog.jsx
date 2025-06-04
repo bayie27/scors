@@ -137,15 +137,17 @@ export function EditEquipmentDialog({ open, onOpenChange, equipment, onSubmitSuc
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-[520px] p-0 max-h-[90vh] overflow-hidden">
-        <div className="flex items-start px-8 pt-6 pb-4 border-b">
+      <DialogContent className="w-[95vw] max-w-[520px] p-0 max-h-[90vh] flex flex-col">
+        {/* Fixed Header */}
+        <div className="flex items-start px-8 pt-6 pb-4 border-b bg-white sticky top-0 z-10">
           <div>
             <h2 className="text-2xl font-semibold">Edit Equipment</h2>
             <p className="text-sm text-gray-500 mt-1.5">Update the details for this equipment.</p>
           </div>
         </div>
         
-        <div className="px-8 py-6 space-y-6">
+        {/* Scrollable Content */}
+        <div className="px-8 py-6 space-y-6 overflow-y-auto flex-1">
           <form id="edit-equipment-form" onSubmit={handleSubmit} className="space-y-6">
             {/* Equipment Name */}
             <div className="grid gap-2">
