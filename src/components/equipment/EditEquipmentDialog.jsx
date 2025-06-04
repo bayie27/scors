@@ -3,18 +3,14 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogFooter,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Label as FormLabel } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'react-hot-toast';
-import { PlusCircle, X, UploadCloud, Image as ImageIcon, Loader2, Plus } from 'lucide-react';
+import { X, UploadCloud, Loader2, Pencil } from 'lucide-react';
 
 // Placeholder for actual asset statuses - ideally fetched or from a constant file
 const assetStatuses = [
@@ -22,17 +18,34 @@ const assetStatuses = [
   { id: 2, name: 'Not Available' },
 ];
 
-export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
+export function EditEquipmentDialog({ open, onOpenChange, equipment, onSubmitSuccess }) {
   const [equipmentName, setEquipmentName] = useState('');
   const [assetStatusId, setAssetStatusId] = useState('');
   const [description, setDescription] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [removeCurrentImage, setRemoveCurrentImage] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Load equipment data when the component mounts or equipment changes
   useEffect(() => {
-    // Reset form when dialog closes or opens
+    if (equipment && open) {
+      setEquipmentName(equipment.equipment_name || '');
+      setAssetStatusId(equipment.asset_status_id ? String(equipment.asset_status_id) : '');
+      setDescription(equipment.equipment_desc || '');
+      
+      if (equipment.image_url) {
+        setImagePreview(equipment.image_url);
+        setRemoveCurrentImage(false);
+      } else {
+        setImagePreview(null);
+      }
+    }
+  }, [equipment, open]);
+
+  // Reset form when dialog closes
+  useEffect(() => {
     if (!open) {
       setEquipmentName('');
       setAssetStatusId('');
@@ -40,6 +53,7 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
       setImageFile(null);
       setImagePreview(null);
       setIsSubmitting(false);
+      setRemoveCurrentImage(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = ''; // Clear the file input
       }
@@ -51,19 +65,18 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast.error('File is too large. Max 5MB allowed.');
-        setImageFile(null);
-        setImagePreview(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
       if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
         toast.error('Invalid file type. Only JPG, PNG, GIF, WEBP allowed.');
-        setImageFile(null);
-        setImagePreview(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
+      
       setImageFile(file);
+      setRemoveCurrentImage(false);
+      
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -75,6 +88,7 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    setRemoveCurrentImage(true);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -89,54 +103,53 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
 
     setIsSubmitting(true);
     try {
+      // Prepare update data
       const equipmentData = {
+        equipment_id: equipment.equipment_id,
         equipment_name: equipmentName,
         asset_status_id: parseInt(assetStatusId, 10),
         equipment_desc: description || null,
+        // If removing current image, set to null
+        // If not changing image, don't include in update data
+        image_url: removeCurrentImage ? null : undefined
       };
       
-      console.log('Submitting equipment with data:', equipmentData);
+      console.log('Updating equipment with data:', equipmentData);
       console.log('Image file:', imageFile ? imageFile.name : 'No image file');
       
       // Call the parent component's submission handler with data and image
-      await onSubmitSuccess(equipmentData, imageFile);
+      await onSubmitSuccess(equipmentData, imageFile, removeCurrentImage);
       
-      toast.success('Equipment added successfully!');
-      
-      // Reset form state - wait a moment before closing to ensure smooth transition
-      setTimeout(() => {
-        setEquipmentName('');
-        setAssetStatusId('');
-        setDescription('');
-        setImageFile(null);
-        setImagePreview(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }, 100);
+      toast.success('Equipment updated successfully!');
       
       // Close dialog on success
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to add equipment:', error);
-      toast.error(error.message || 'Failed to add equipment. Please try again.');
+      console.error('Failed to update equipment:', error);
+      toast.error(error.message || 'Failed to update equipment. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // If no equipment is provided, don't render the dialog
+  if (!equipment) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] max-w-[520px] p-0 max-h-[90vh] overflow-hidden">
         <div className="flex items-start px-8 pt-6 pb-4 border-b">
           <div>
-            <h2 className="text-2xl font-semibold">Add New Equipment</h2>
-            <p className="text-sm text-gray-500 mt-1.5">Fill in the details below to add new equipment to your inventory.</p>
+            <h2 className="text-2xl font-semibold">Edit Equipment</h2>
+            <p className="text-sm text-gray-500 mt-1.5">Update the details for this equipment.</p>
           </div>
         </div>
+        
         <div className="px-8 py-6 space-y-6">
-          <form id="add-equipment-form" onSubmit={handleSubmit} className="space-y-6">
+          <form id="edit-equipment-form" onSubmit={handleSubmit} className="space-y-6">
             {/* Equipment Name */}
             <div className="grid gap-2">
-              <Label htmlFor="equipment-name">Name <span className="text-red-500">*</span></Label>
+              <FormLabel htmlFor="equipment-name">Name <span className="text-red-500">*</span></FormLabel>
               <Input
                 id="equipment-name"
                 name="equipment-name"
@@ -151,7 +164,7 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
 
             {/* Asset Status */}
             <div className="grid gap-2">
-              <Label htmlFor="asset-status">Status <span className="text-red-500">*</span></Label>
+              <FormLabel htmlFor="asset-status">Status <span className="text-red-500">*</span></FormLabel>
               <Select
                 value={assetStatusId}
                 onValueChange={setAssetStatusId}
@@ -173,7 +186,7 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
 
             {/* Description */}
             <div className="grid gap-2">
-              <Label htmlFor="equipment-description">Description</Label>
+              <FormLabel htmlFor="equipment-description">Description</FormLabel>
               <Textarea
                 id="equipment-description"
                 name="equipment-description"
@@ -188,7 +201,7 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
             {/* Image Upload */}
             <div className="grid gap-3">
               <div>
-                <Label>Image</Label>
+                <FormLabel>Image</FormLabel>
                 <p className="text-sm text-gray-500 mt-0.5">Upload a clear photo of the equipment</p>
               </div>
               <Input
@@ -264,16 +277,16 @@ export function AddEquipmentDialog({ open, onOpenChange, onSubmitSuccess }) {
           </Button>
           <Button
             type="submit"
-            form="add-equipment-form"
+            form="edit-equipment-form"
             disabled={isSubmitting || !equipmentName || !assetStatusId}
             className="w-full sm:w-auto gap-2 px-6 h-10 bg-[#06750F] hover:bg-[#05640d]"
           >
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Plus className="h-4 w-4" />
+              <Pencil className="h-4 w-4" />
             )}
-            {isSubmitting ? 'Adding...' : 'Add Equipment'}
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
           </Button>
         </DialogFooter>
       </DialogContent>

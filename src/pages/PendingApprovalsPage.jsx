@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase-client';
 import { Check, X, Clock, Calendar, MapPin, User, Loader2, Phone, UserPlus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
+import { Button } from '../components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 
 // Helper function to format time in 12-hour format
-const formatTime12Hour = (timeStr) => {
-  if (!timeStr) return '';
-  const [hours, minutes] = timeStr.split(':');
+const formatTime12Hour = (timeString) => {
+  if (!timeString) return '';
+  const [hours, minutes] = timeString.split(':');
   const hour = parseInt(hours, 10);
   const ampm = hour >= 12 ? 'PM' : 'AM';
   const hour12 = hour % 12 || 12;
@@ -18,7 +20,9 @@ export function PendingApprovalsPage() {
   const [groupedReservations, setGroupedReservations] = useState({});
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState({});
-  
+  const [filter, setFilter] = useState('all');
+  const [selectedReservation, setSelectedReservation] = useState(null);
+
   // Group reservations by date
   const groupReservationsByDate = (reservations) => {
     return reservations.reduce((groups, reservation) => {
@@ -31,8 +35,36 @@ export function PendingApprovalsPage() {
     }, {});
   };
 
+  // Filter reservations based on selected filter
+  const filterReservations = (reservations) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const endOfWeek = new Date(today);
+    endOfWeek.setDate(today.getDate() + (7 - today.getDay()));
+    
+    return reservations.filter(reservation => {
+      const resDate = new Date(reservation.activity_date);
+      
+      switch(filter) {
+        case 'today':
+          return resDate.toDateString() === today.toDateString();
+        case 'tomorrow':
+          return resDate.toDateString() === tomorrow.toDateString();
+        case 'thisWeek':
+          return resDate >= today && resDate <= endOfWeek;
+        case 'all':
+        default:
+          return true;
+      }
+    });
+  };
+
   // Fetch pending reservations (status_id = 3)
-  const fetchPendingReservations = async () => {
+  const fetchPendingReservations = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -57,40 +89,61 @@ export function PendingApprovalsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Update reservation status (approve/reject)
-  const updateReservationStatus = async (reservationId, newStatusId) => {
+  // Handle approve action
+  const handleApprove = async (reservation) => {
+    setUpdating(prev => ({ ...prev, [reservation.reservation_id]: true }));
+    
     try {
-      setUpdating(prev => ({ ...prev, [reservationId]: true }));
-      
       const { error } = await supabase
         .from('reservation')
         .update({ 
-          reservation_status_id: newStatusId,
-          decision_ts: new Date().toISOString()
+          reservation_status_id: 1, // Approved status
+          updated_at: new Date().toISOString()
         })
-        .eq('reservation_id', reservationId);
+        .eq('reservation_id', reservation.reservation_id);
 
       if (error) throw error;
-      
-      // Refresh the list after update
+
       await fetchPendingReservations();
-      
-      // Show success message
-      const statusText = newStatusId === 1 ? 'approved' : 'rejected';
-      toast.success(`Reservation ${statusText} successfully`);
+      toast.success('Reservation approved successfully');
     } catch (error) {
-      console.error('Error updating reservation status:', error);
-      toast.error(`Failed to update reservation: ${error.message}`);
+      console.error('Error approving reservation:', error);
+      toast.error('Failed to approve reservation');
     } finally {
-      setUpdating(prev => ({ ...prev, [reservationId]: false }));
+      setUpdating(prev => ({ ...prev, [reservation.reservation_id]: false }));
     }
   };
 
-  // Set up real-time subscription and initial data fetch
+  // Handle reject action
+  const handleReject = async (reservation) => {
+    setUpdating(prev => ({ ...prev, [reservation.reservation_id]: true }));
+    
+    try {
+      const { error } = await supabase
+        .from('reservation')
+        .update({ 
+          reservation_status_id: 2, // Rejected status
+          updated_at: new Date().toISOString()
+        })
+        .eq('reservation_id', reservation.reservation_id);
+
+      if (error) throw error;
+
+      await fetchPendingReservations();
+      setSelectedReservation(null);
+      toast.success('Reservation rejected successfully');
+    } catch (error) {
+      console.error('Error rejecting reservation:', error);
+      toast.error('Failed to reject reservation');
+    } finally {
+      setUpdating(prev => ({ ...prev, [reservation.reservation_id]: false }));
+    }
+  };
+
+  // Fetch pending reservations on component mount and set up real-time subscription
   useEffect(() => {
-    // Initial fetch
     fetchPendingReservations();
 
     // Set up real-time subscription
@@ -102,60 +155,91 @@ export function PendingApprovalsPage() {
           event: '*',
           schema: 'public',
           table: 'reservation',
-          filter: 'reservation_status_id=eq.3' // Only listen to pending reservations
+          filter: 'reservation_status_id=eq.3',
         },
-        (payload) => {
-          // Refresh data when there are changes to pending reservations
+        () => {
           fetchPendingReservations();
-          
-          // Show toast notification for new pending reservations
-          if (payload.eventType === 'INSERT') {
-            toast.success('New pending reservation received', {
-              icon: '🔄'
-            });
-          }
         }
       )
       .subscribe();
 
-    // Cleanup subscription on component unmount
     return () => {
-      subscription.unsubscribe();
+      supabase.removeChannel(subscription);
     };
-  }, []);
+  }, [fetchPendingReservations]);
+
+
+  // Filter and sort reservation dates
+  const reservationDates = Object.keys(groupedReservations)
+    .sort((a, b) => new Date(a) - new Date(b))
+    .filter(date => {
+      const reservations = groupedReservations[date];
+      return filterReservations(reservations).length > 0;
+    });
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="flex flex-col items-center">
-          <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-2" />
-          <p className="text-gray-600">Loading pending reservations...</p>
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  if (reservationDates.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        <div className="text-center py-12">
+          <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No pending approvals</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {filter === 'all' 
+              ? 'There are no pending reservations to approve.'
+              : `No pending reservations match the selected filter.`}
+          </p>
         </div>
       </div>
     );
   }
 
-  const reservationDates = Object.keys(groupedReservations).sort((a, b) => new Date(a) - new Date(b));
-  
-  if (reservationDates.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-6">
-        <Clock className="w-12 h-12 text-gray-400 mb-4" />
-        <h2 className="text-xl font-semibold text-gray-700 mb-2">No Pending Approvals</h2>
-        <p className="text-gray-500 max-w-md">
-          There are currently no pending reservation requests. Check back later for new submissions.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Pending Approvals</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Pending Approvals</h1>
         <p className="text-sm text-gray-500 mt-1">
           Review and manage pending reservation requests
         </p>
+      </div>
+
+      {/* Filter buttons */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <Button 
+          variant={filter === 'all' ? 'default' : 'outline'} 
+          size="sm" 
+          onClick={() => setFilter('all')}
+        >
+          All
+        </Button>
+        <Button 
+          variant={filter === 'today' ? 'default' : 'outline'} 
+          size="sm" 
+          onClick={() => setFilter('today')}
+        >
+          Today
+        </Button>
+        <Button 
+          variant={filter === 'tomorrow' ? 'default' : 'outline'} 
+          size="sm" 
+          onClick={() => setFilter('tomorrow')}
+        >
+          Tomorrow
+        </Button>
+        <Button 
+          variant={filter === 'thisWeek' ? 'default' : 'outline'} 
+          size="sm" 
+          onClick={() => setFilter('thisWeek')}
+        >
+          This Week
+        </Button>
       </div>
 
       <div className="space-y-6">
@@ -241,8 +325,8 @@ export function PendingApprovalsPage() {
                             <span className="text-xs font-medium text-gray-500">Equipment:</span>
                             <div className="mt-1 flex flex-wrap gap-1">
                               {reservation.equipment.map(({ equipment_id }) => (
-                                <span key={equipment_id.equipment_id} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                  {equipment_id.equipment_name}
+                                <span key={equipment_id?.equipment_id} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                  {equipment_id?.equipment_name}
                                 </span>
                               ))}
                             </div>
@@ -252,7 +336,7 @@ export function PendingApprovalsPage() {
                       
                       <div className="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0 flex space-x-2">
                         <button
-                          onClick={() => updateReservationStatus(reservation.reservation_id, 1)} // Approve
+                          onClick={() => handleApprove(reservation)}
                           disabled={updating[reservation.reservation_id]}
                           className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -264,7 +348,7 @@ export function PendingApprovalsPage() {
                           Approve
                         </button>
                         <button
-                          onClick={() => updateReservationStatus(reservation.reservation_id, 2)} // Reject
+                          onClick={() => handleReject(reservation)}
                           disabled={updating[reservation.reservation_id]}
                           className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -288,6 +372,157 @@ export function PendingApprovalsPage() {
           );
         })}
       </div>
+
+      {/* View Details Dialog */}
+      <Dialog open={!!selectedReservation} onOpenChange={(open) => !open && setSelectedReservation(null)}>
+        {selectedReservation && (
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Reservation Details</DialogTitle>
+              <DialogDescription>
+                Review the details of this reservation request
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-medium">{selectedReservation.purpose || 'No title'}</h3>
+                <p className="text-sm text-gray-500">
+                  {selectedReservation.organization?.org_name || 'No organization'}
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-start space-x-3">
+                  <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Date</p>
+                    <p className="text-sm text-gray-500">
+                      {format(parseISO(selectedReservation.activity_date), 'EEEE, MMMM d, yyyy')}
+                      <br />
+                      {formatTime12Hour(selectedReservation.start_time)} - {formatTime12Hour(selectedReservation.end_time)}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-3">
+                  <Clock className="h-5 w-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Time</p>
+                    <p className="text-sm text-gray-500">
+                      {formatTime12Hour(selectedReservation.start_time)} - {formatTime12Hour(selectedReservation.end_time)}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-3">
+                  <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Venue</p>
+                    <p className="text-sm text-gray-500">
+                      {selectedReservation.venue?.venue_name || 'No venue selected'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-3">
+                  <User className="h-5 w-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Requested by</p>
+                    <p className="text-sm text-gray-500">
+                      {selectedReservation.reserved_by || 'Unknown user'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {selectedReservation.additional_notes && (
+                <div className="pt-2">
+                  <p className="text-sm font-medium text-gray-900 mb-1">Additional Notes</p>
+                  <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-md">
+                    {selectedReservation.additional_notes}
+                  </p>
+                </div>
+              )}
+              
+              <div className="flex justify-end space-x-3 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setSelectedReservation(null)}
+                >
+                  Close
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={() => handleReject(selectedReservation)}
+                  disabled={updating[selectedReservation.reservation_id]}
+                >
+                  {updating[selectedReservation.reservation_id] ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="mr-2 h-4 w-4" />
+                  )}
+                  Reject
+                </Button>
+                <Button 
+                  onClick={() => handleApprove(selectedReservation)}
+                  disabled={updating[selectedReservation.reservation_id]}
+                >
+                  {updating[selectedReservation.reservation_id] ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="mr-2 h-4 w-4" />
+                  )}
+                  Approve
+                </Button>
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Additional Information</h4>
+                <p className="text-sm text-gray-500">
+                  {selectedReservation.additional_info || 'No additional information provided.'}
+                </p>
+              </div>
+            </div>
+            
+            <DialogFooter className="mt-6">
+              <div className="flex justify-between w-full">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setSelectedReservation(null)}
+                  disabled={updating[selectedReservation.reservation_id]}
+                >
+                  Close
+                </Button>
+                <div className="space-x-2">
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => handleReject(selectedReservation)}
+                    disabled={updating[selectedReservation.reservation_id]}
+                  >
+                    {updating[selectedReservation.reservation_id] ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <X className="w-4 h-4 mr-2" />
+                    )}
+                    Reject
+                  </Button>
+                  <Button 
+                    onClick={() => handleApprove(selectedReservation)}
+                    disabled={updating[selectedReservation.reservation_id]}
+                  >
+                    {updating[selectedReservation.reservation_id] ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4 mr-2" />
+                    )}
+                    Approve
+                  </Button>
+                </div>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }

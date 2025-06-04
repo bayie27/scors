@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { supabase } from "../../supabase-client";
 
 // Form for adding/editing a user
@@ -40,25 +40,12 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
     }
   }, [user, isOpen]);
 
-  // Selected organization for display
-  const [selectedOrg, setSelectedOrg] = useState(null);
-
   // Fetch organizations on mount
   useEffect(() => {
     if (isOpen) {
       fetchOrganizations();
     }
   }, [isOpen]);
-
-  // Set selected org when form data changes (for edit mode)
-  useEffect(() => {
-    if (formData.org_id && organizations.length > 0) {
-      const org = organizations.find(org => org.org_id === formData.org_id);
-      if (org) {
-        setSelectedOrg(org);
-      }
-    }
-  }, [formData.org_id, organizations]);
 
   const fetchOrganizations = async () => {
     try {
@@ -72,8 +59,9 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
       if (error) throw error;
       
       setOrganizations(data || []);
-    } catch (err) {
+    } catch (error) {
       // Error fetching organizations
+      console.error('Error fetching organizations:', error);
       setError("Failed to load organizations");
     } finally {
       setFetchingOrgs(false);
@@ -95,12 +83,7 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
       org_id: orgId
     }));
 
-    if (orgId) {
-      const org = organizations.find(org => org.org_id === orgId);
-      setSelectedOrg(org);
-    } else {
-      setSelectedOrg(null);
-    }
+    // No need to set selectedOrg since we're not using it
   };
 
   const validateEmail = (email) => {
@@ -171,14 +154,21 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95%] max-w-md mx-auto p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="text-lg sm:text-xl">
-            {user?.user_id ? "Edit User" : "Add New User"}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="w-[95%] max-w-md mx-auto p-0 flex flex-col">
+        <div className="flex items-start px-6 pt-4 pb-3 border-b">
+          <div>
+            <h2 className="text-xl font-semibold">
+              {user?.user_id ? "Edit User" : "Add New User"}
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {user?.user_id 
+                ? "Update the user's details below." 
+                : "Fill in the details below to add a new user."}
+            </p>
+          </div>
+        </div>
         
-        <form onSubmit={handleSubmit} className="mt-4 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 flex-1 flex flex-col">
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
               {error}
@@ -219,8 +209,6 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
             )}
           </div>
 
-
-
           {/* Email Input */}
           <div className="space-y-2">
             <label
@@ -241,31 +229,29 @@ export function UserDialog({ isOpen, onClose, user = null, onSave }) {
             />
           </div>
 
-          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2 sm:gap-0">
-            <Button
+          <div className="flex-1"></div>
+
+          <DialogFooter className="w-[calc(100%+3rem)] -mx-6 -mb-6 px-6 py-4 border-t bg-gray-50">
+            <Button 
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={loading}
-              className="w-full sm:w-auto order-2 sm:order-1"
+              className="w-full sm:w-24 h-10 px-4 text-sm font-medium"
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto order-1 sm:order-2"
+            <Button
+              type="submit"
+              disabled={loading || !formData.whitelisted_email || !formData.org_id}
+              className="w-full sm:w-32 h-10 px-4 text-sm font-medium gap-2 bg-[#06750F] hover:bg-[#05640d]"
             >
               {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : user?.user_id ? (
-                "Update"
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Create"
+                <Plus className="h-4 w-4" />
               )}
+              {loading ? 'Saving...' : (user?.user_id ? 'Update' : 'Add User')}
             </Button>
           </DialogFooter>
         </form>
