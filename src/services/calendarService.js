@@ -81,7 +81,7 @@ export async function saveReservation(formData, selectedReservation, modalEdit) 
       // Process each day's reservation
       for (const day of formData) {
         const multiDayInfo = day.multiDayTotal > 1 
-          ? ` [Multi-day ${day.multiDayIndex + 1} of ${day.multiDayTotal}]` 
+          ? ` [Day ${day.multiDayIndex + 1} of ${day.multiDayTotal}]` 
           : '';
         
         const activity_date = day.activity_date;

@@ -178,14 +178,15 @@ export function Sidebar({
           "flex flex-col bg-white border-r shadow-sm transition-all duration-300 ease-in-out",
           // Different positioning for mobile vs desktop
           isMobile 
-            ? "fixed z-40 top-15 bottom-0" // Extend to the bottom of the screen
-            : "relative h-[calc(100vh-60px)] mt-[60px]",
+            ? "fixed z-40 top-15 left-0 right-0 flex flex-col h-[calc(100vh-60px)]"
+            : "relative h-full",
           // Control visibility and width
           isMobile 
-            ? isMobileMenuOpen ? "left-0 w-[250px]" : "-left-[280px] w-[270px]" 
+            ? isMobileMenuOpen ? "w-[250px]" : "w-0 opacity-0" 
             : collapsed ? "w-16" : "w-64",
           className
         )}
+        style={isMobile && isMobileMenuOpen ? { height: 'calc(100vh - 60px)' } : {}}
       >
       {/* Mobile Organization Info */}
       {isMobile && (
@@ -200,7 +201,7 @@ export function Sidebar({
         </div>
       )}
       
-      <div className="flex-1 overflow-y-auto safe-bottom flex flex-col">
+      <div className="flex-1 overflow-y-auto flex flex-col">
         <nav className="p-2">
           <ul className="space-y-1">
             {menuItems.map((item) => (
@@ -240,11 +241,11 @@ export function Sidebar({
         </nav>
         
         {/* Spacer to push profile to bottom */}
-        {isMobile && <div className="flex-grow"></div>}
+        {isMobile && <div className="flex-grow min-h-[60px]"></div>}
         
         {/* User profile and logout - at the bottom of scrollable area on mobile */}
         {isMobile && (
-          <div className="border-t p-4 mt-auto pb-6">
+          <div className="border-t p-4 mt-auto" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
             <div className="flex flex-col space-y-3">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
