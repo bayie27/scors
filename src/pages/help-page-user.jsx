@@ -41,8 +41,11 @@ export default function UserManual() {
       {/* Header */}
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-6">
+          <div className="flex justify-center mb-4">
+            <img src="scors-logo.png" alt="SCORS Logo" className="h-16" />
+          </div>
           <div className="text-center">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">SCORS User Manual</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">User Manual</h1>
             <p className="text-lg text-gray-600 mb-1">Student Center Online Reservation System</p>
             <p className="text-sm text-gray-500">De La Salle Lipa - College Student Activities Office (CSAO)</p>
           </div>
@@ -52,38 +55,62 @@ export default function UserManual() {
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 mb-8">
-            <TabsTrigger value="introduction" className="text-xs md:text-sm">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 mb-8 border border-green-200 rounded-lg p-2">
+            <TabsTrigger 
+              value="introduction" 
+              className="text-xs md:text-sm transition-all duration-200 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600"
+            >
               <FileText className="w-4 h-4 mr-1" style={{ color: "#006241" }} />
-              <span className="hidden sm:inline">Intro</span>
+              <span>Intro</span>
             </TabsTrigger>
-            <TabsTrigger value="overview" className="text-xs md:text-sm">
+            <TabsTrigger 
+              value="overview" 
+              className="text-xs md:text-sm transition-all duration-200 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600"
+            >
               <Eye className="w-4 h-4 mr-1" style={{ color: "#006241" }} />
-              <span className="hidden sm:inline">Overview</span>
+              <span>Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="text-xs md:text-sm">
+            <TabsTrigger 
+              value="calendar" 
+              className="text-xs md:text-sm transition-all duration-200 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600"
+            >
               <Calendar className="w-4 h-4 mr-1" style={{ color: "#006241" }} />
-              <span className="hidden sm:inline">Calendar</span>
+              <span>Calendar</span>
             </TabsTrigger>
-            <TabsTrigger value="reservations" className="text-xs md:text-sm">
+            <TabsTrigger 
+              value="reservations" 
+              className="text-xs md:text-sm transition-all duration-200 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600"
+            >
               <Plus className="w-4 h-4 mr-1" style={{ color: "#006241" }} />
-              <span className="hidden sm:inline">Reserve</span>
+              <span>Reserve</span>
             </TabsTrigger>
-            <TabsTrigger value="venues" className="text-xs md:text-sm">
+            <TabsTrigger 
+              value="venues" 
+              className="text-xs md:text-sm transition-all duration-200 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600"
+            >
               <Building className="w-4 h-4 mr-1" style={{ color: "#006241" }} />
-              <span className="hidden sm:inline">Venues</span>
+              <span>Venues</span>
             </TabsTrigger>
-            <TabsTrigger value="equipment" className="text-xs md:text-sm">
+            <TabsTrigger 
+              value="equipment" 
+              className="text-xs md:text-sm transition-all duration-200 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600"
+            >
               <Wrench className="w-4 h-4 mr-1" style={{ color: "#006241" }} />
-              <span className="hidden sm:inline">Equipment</span>
+              <span>Equipment</span>
             </TabsTrigger>
-            <TabsTrigger value="status" className="text-xs md:text-sm">
+            <TabsTrigger 
+              value="status" 
+              className="text-xs md:text-sm transition-all duration-200 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600"
+            >
               <Clock className="w-4 h-4 mr-1" style={{ color: "#006241" }} />
-              <span className="hidden sm:inline">Status</span>
+              <span>Status</span>
             </TabsTrigger>
-            <TabsTrigger value="support" className="text-xs md:text-sm">
+            <TabsTrigger 
+              value="support" 
+              className="text-xs md:text-sm transition-all duration-200 hover:bg-green-50 hover:shadow-md hover:scale-105 hover:text-green-800 hover:border-b-2 hover:border-green-600"
+            >
               <Phone className="w-4 h-4 mr-1" style={{ color: "#006241" }} />
-              <span className="hidden sm:inline">Support</span>
+              <span>Support</span>
             </TabsTrigger>
           </TabsList>
 
@@ -648,7 +675,7 @@ export default function UserManual() {
       {/* Footer */}
       <div className="bg-gray-50 border-t mt-12">
         <div className="max-w-6xl mx-auto px-4 py-6 text-center">
-          <p className="text-sm text-gray-600">© 2024 De La Salle Lipa - College Student Activities Office (CSAO)</p>
+          <p className="text-sm text-gray-600"> 2025 De La Salle Lipa - College Student Activities Office (CSAO)</p>
           <p className="text-xs text-gray-500 mt-1">Student Center Online Reservation System (SCORS)</p>
         </div>
       </div>
