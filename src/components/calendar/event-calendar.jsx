@@ -574,10 +574,17 @@ export function EventCalendar(props) {
     
     // Apply equipment filters
     if (equipmentFilters.length > 0) {
-      const equipmentIds = equipmentFilters.map(eq => eq.equipment_id);
-      filtered = filtered.filter(event => 
-        event.rawData?.equipment && equipmentIds.includes(event.rawData.equipment.equipment_id)
-      );
+      const equipmentIds = new Set(equipmentFilters.map(eq => eq.equipment_id));
+      filtered = filtered.filter(event => {
+        const eventEquipment = event.rawData?.equipment;
+        if (!eventEquipment) return false;
+        
+        // Handle both single equipment object and array of equipment
+        const equipmentArray = Array.isArray(eventEquipment) ? eventEquipment : [eventEquipment];
+        
+        // Check if any of the equipment in the reservation matches the filters
+        return equipmentArray.some(eq => eq && equipmentIds.has(eq.equipment_id));
+      });
     }
     
     // Apply status filters
