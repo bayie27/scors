@@ -621,7 +621,7 @@ export function EquipmentPage() {
             // The `open={!!selectedEquipment}` prop handles this if selectedEquipment is set.
           }}>
           <DialogContent 
-            className="max-w-3xl max-h-[65vh] overflow-y-auto p-0"
+            className="w-full !max-w-2xl max-h-[90vh] overflow-y-auto p-0 !m-0"
             aria-describedby="equipment-details-description"
             onPointerDownOutside={(e) => {
               if (fullScreenImageRef.current) {

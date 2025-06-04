@@ -1451,7 +1451,7 @@ export function VenuesPage() {
           if (!newOpenState) setSelectedVenue(null);
         }}>
           <DialogContent 
-            className="w-full max-w-lg md:max-w-xl lg:max-w-2xl max-h-[65vh] overflow-y-auto p-0"
+            className="w-full !max-w-2xl max-h-[90vh] overflow-y-auto p-0 !m-0"
             aria-describedby="venue-details-description"
           >
             {/* Header */}
@@ -1472,9 +1472,9 @@ export function VenuesPage() {
               </div>
             </div>
             
-            <div className="overflow-y-auto max-h-[65vh]">
+            <div className="overflow-y-auto p-6 space-y-6">
               {/* Image */}
-              <div className="px-5 py-3">
+              <div className="space-y-4">
                 <div 
                   className="overflow-hidden rounded-lg border border-gray-200 cursor-pointer relative group"
                   onClick={(e) => {
